@@ -13,4 +13,4 @@ Outputs:
 - Version for printing: One two-sided pager, with rich information of the club.
 
 
-The page in draft by default and can be viewed by admins. It's published when ready.
+The page in draft by default and can be viewed and edited by admins. It's published when ready. After published, it can only be editted by admins.

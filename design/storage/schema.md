@@ -55,7 +55,8 @@ erDiagram
         id     meeting_id
         id     role_id
         string label
-        id     taker_id "-> user.id, nullable = open"
+        id     booker_id "-> user.id, nullable; who booked/was assigned"
+        id     taker_id "-> user.id, nullable; who actually took it"
         string properties "JSON (later)"
     }
 ```
@@ -130,22 +131,31 @@ extra info) are deferred as next improvements.
 
 ## `role_slot`
 
-A role needed in a specific meeting — the pivot every feature reads and writes. Booking
-sets `taker_id`; cancelling clears it. The admin assignment page, role booking page,
-agenda and check-in all operate on the same slots.
+A role needed in a specific meeting — the pivot every feature reads and writes. It keeps
+**plan** and **reality** separately: `booker_id` is who booked / was assigned in advance;
+`taker_id` is who actually took the role (confirmed at check-in). This preserves the plan
+when reality differs — no-shows, substitutions and walk-ins all stay visible.
 
-| Column       | Type    | Notes                                            |
-| ------------ | ------- | ------------------------------------------------ |
-| `id`         | id (PK) |                                                  |
-| `meeting_id` | id (FK) | -> `meeting.id`                                  |
-| `role_id`    | id (FK) | -> `role.id`                                     |
-| `label`      | string  | e.g. `Speaker 1`                                 |
-| `taker_id`   | id (FK) | -> `user.id`; **nullable** (null = open)         |
+| Column       | Type    | Notes                                                        |
+| ------------ | ------- | ------------------------------------------------------------ |
+| `id`         | id (PK) |                                                              |
+| `meeting_id` | id (FK) | -> `meeting.id`                                              |
+| `role_id`    | id (FK) | -> `role.id`                                                |
+| `label`      | string  | e.g. `Speaker 1`                                            |
+| `booker_id`  | id (FK) | -> `user.id`; **nullable** (null = not booked); set by role booking / admin assignment |
+| `taker_id`   | id (FK) | -> `user.id`; **nullable** (null = not taken yet); set at check-in |
 | `properties` | string  | JSON for role-specific extra info (deferred): speech title/level, evaluatee, etc. |
 
 - **Session-linked slot**: one or more sessions have `role_slot_id` pointing to it.
 - **Meeting-wide slot**: no session points to it (Timer, Ah-Counter, Grammarian,
   General Evaluator).
+- **Which one downstream reads**: pre-meeting artifacts (agenda, printed pager) use
+  `booker_id`; in/post-meeting features (voting, timer, participation records) use
+  `taker_id`, falling back to `booker_id` when check-in didn't set it.
+- **Admin-editable**: admins can correct `taker_id` (and attendance) after the fact — for
+  attendees who missed check-in or selected the wrong role.
+- No-show = `booker_id` set, `taker_id` null. Substitution = the two differ. Walk-in =
+  `booker_id` null, `taker_id` set.
 
 ## Serving a meeting as JSON (optional)
 

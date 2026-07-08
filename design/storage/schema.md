@@ -23,7 +23,6 @@ erDiagram
     USER {
         id     id
         string display_name
-        bool   is_member
     }
     MEETING {
         id     id
@@ -63,14 +62,16 @@ erDiagram
 
 ## `user`
 
-A person the system knows about — member or guest. Deliberately thin; admin credentials
-and future WeChat identity attach to a user but stay out of this table for now.
+A person the system knows about. Deliberately thin; admin credentials and future WeChat
+identity attach to a user but stay out of this table for now.
 
-| Column         | Type    | Notes                                      |
-| -------------- | ------- | ------------------------------------------ |
-| `id`           | id (PK) |                                            |
-| `display_name` | string  | name or nickname                           |
-| `is_member`    | bool    | `false` = guest (e.g. dropped at check-in) |
+| Column         | Type    | Notes            |
+| -------------- | ------- | ---------------- |
+| `id`           | id (PK) |                  |
+| `display_name` | string  | name or nickname |
+
+Membership (member vs. guest) is intentionally omitted for now — it is a time-sensitive
+relationship. See `todo.md`.
 
 ## `meeting`
 

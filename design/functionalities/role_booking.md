@@ -72,9 +72,8 @@ one glance, without repeating them inside cards.
 
 ## Open items
 
-- **Identity / auth**: how a member identifies to book (member login vs. the lightweight
-  check-in identity vs. defer to WeChat identity) is not yet decided; it gates who can
-  book and cancel.
+- **WeChat auth details**: users must be authenticated before booking. Web uses the
+  current login/register flow; mini-program identity resolution is next-stage work.
 - **Meeting horizon**: show a fixed number of upcoming meetings, or all forthcoming
   published ones.
 - **Member-only roles** and **extra info** (speech title/level, evaluatee) are deferred,

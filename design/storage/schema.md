@@ -14,6 +14,7 @@ storage are deferred until those pages are designed.
 ```mermaid
 erDiagram
     USER      ||--o{ MEETING   : manages
+    USER      ||--o{ USER_PERMISSION : has
     MEETING   ||--o{ SESSION   : has
     MEETING   ||--o{ ROLE_SLOT : has
     ROLE      ||--o{ ROLE_SLOT : "instances of"
@@ -23,6 +24,14 @@ erDiagram
     USER {
         id     id
         string display_name
+    }
+    USER_PERMISSION {
+        id       id
+        id       user_id
+        string   permission
+        id       granted_by
+        datetime granted_at
+        datetime revoked_at "nullable"
     }
     MEETING {
         id     id
@@ -73,6 +82,22 @@ identity attach to a user but stay out of this table for now.
 
 Membership (member vs. guest) is intentionally omitted for now — it is a time-sensitive
 relationship. See `todo.md`.
+
+## `user_permission`
+
+Explicit global permission grants. Authentication resolves `user.id`; this table is used
+by authorization checks for management actions.
+
+| Column       | Type              | Notes                                |
+| ------------ | ----------------- | ------------------------------------ |
+| `id`         | id (PK)           |                                      |
+| `user_id`    | id (FK)           | -> `user.id`                         |
+| `permission` | string            | e.g. `site_admin`                    |
+| `granted_by` | id (FK)           | -> `user.id`                         |
+| `granted_at` | datetime          | audit trail                          |
+| `revoked_at` | datetime nullable | null means the grant is still active |
+
+Meeting-scoped management uses `meeting.meeting_manager` rather than this table.
 
 ## `meeting`
 

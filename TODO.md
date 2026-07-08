@@ -7,7 +7,7 @@ can be a member during some periods and not others (joined, lapsed, renewed). Mo
 a time-bounded relationship (e.g. membership periods with start/end) rather than a boolean
 on `user`. Until then, `user` carries no membership field; guest vs. member is undecided.
 
-Affects: role booking (member-only roles), check-in (guest identity), and any
+Affects: role booking (member-only roles), check-in reporting, and any
 member-based reporting.
 
 ## Officer handling

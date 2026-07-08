@@ -2,6 +2,6 @@
 
 - Use simple html, javascripts and css.
 - Mobile first. Web first. We need to support both web and wechat mini program.
-  - Mobile for pages for attendees.
-  - Web for admins and management.
+  - Mobile mainly for pages for attendees.
+  - Web mainly for admins and management.
 

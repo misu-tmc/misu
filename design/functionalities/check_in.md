@@ -1,7 +1,7 @@
 # Check in
 
-This is the page for authenticated attendees to confirm the roles they actually took in
-a published meeting.
+This is the next-stage page for authenticated attendees to confirm attendance and the
+roles they actually took in a published meeting.
 
 Check-in must not create anonymous or dropped-identifier users. The attendee signs in
 first via the active provider: web login/register on web, and WeChat identity in the
@@ -50,20 +50,20 @@ flowchart TD
   booked roles for this meeting are pre-selected; they can tap others they picked up.
 - **No role today**: a quick choice for authenticated attendees who took no role. In the
   first stage this creates no persistent attendance record.
-- **Check In**: commits the selected actual role takers.
+- **Check In**: commits attendance and any selected actual role-taking records. This is
+  not part of the first-stage schema.
 
 ## Schema mapping
 
 - **Identity** → the authenticated `user.id` from `current_identity()`. Check-in does
   not write names or create anonymous users.
-- **Selected roles** → `role_slot`s for this meeting. The attendee's own booked roles
-  (`booker_id = me`) are pre-selected; confirming one sets `taker_id = me`, tapping an
-  open/other one claims it as the actual taker (`taker_id = me`). `booker_id` is never
-  overwritten, so plan-vs-reality is preserved.
-- **No separate check-in table**: first-stage check-in is persisted only by
-  `role_slot.taker_id`.
-- **Admin-editable**: admins can adjust actual role takers (`taker_id`) afterward — for
-  attendees who missed check-in or picked the wrong role.
+- **Selected roles** → role slots for this meeting. The attendee's own booked roles
+  (`booker_id = me`) are pre-selected; confirming check-in should write actual
+  role-taking records in the next-stage schema without overwriting `booker_id`.
+- **Check-in record** → next-stage storage should record attendance separately from
+  role booking so no-role attendees are represented.
+- **Admin-editable**: admins can adjust attendance and actual role-taking records
+  afterward — for attendees who missed check-in or picked the wrong role.
 
 ## Next-stage WeChat notes
 

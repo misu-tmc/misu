@@ -21,7 +21,7 @@ time-bounded terms (role + start/end) rather than a static attribute. See
 
 Defer the check-in page to the next stage. No-role attendees change attendance tracking:
 the system needs a real check-in record for people who attend without taking a role, not
-only `role_slot.taker_id` updates.
+only role booking updates.
 
 ## User management and admin assignment
 

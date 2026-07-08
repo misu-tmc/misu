@@ -27,8 +27,7 @@ resource and permission grants.
   templates, roles, users, permissions, published corrections and draft voting setup.
 - **Meeting manager**: `meeting.meeting_manager` identifies the responsible user for one
   meeting. A meeting manager may edit that meeting, publish its attendee artifacts, and
-  correct actual role takers for that meeting. Site admins can do the same for all
-  meetings.
+  manage role assignments for that meeting. Site admins can do the same for all meetings.
 
 Officer roles and membership periods are time-sensitive domain relationships. They may
 later become sources of permissions, but they should not be hard-coded into auth.
@@ -42,7 +41,7 @@ later become sources of permissions, but they should not be hard-coded into auth
 | Cancel a booking | the original booker, meeting manager, or site admin |
 | Check in | authenticated user checking in self |
 | View/edit draft meeting artifacts | meeting manager or site admin |
-| Edit actual role takers after check-in | meeting manager or site admin |
+| Edit role assignments | meeting manager or site admin |
 | Create meetings/templates and manage role catalog | site admin |
 | Edit/publish a meeting | meeting manager or site admin |
 | Manage users and permission grants | site admin |

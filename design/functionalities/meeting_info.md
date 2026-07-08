@@ -51,9 +51,10 @@ Columns:
 - Role slot(s)
 
 A **time buffer** is inserted between sessions to absorb transitions (applause, role
-hand-off). It defaults to **1 minute** and is a meeting-level setting (editable). The
-buffer is added after each session when computing the next session's Start; it is not
-applied after the final session.
+hand-off). For the current stage this is a fixed constant: **1 minute**
+(`BUFFER_MINUTES = 1`), not a meeting-editable setting. The buffer is added after each
+session when computing the next session's Start; it is not applied after the final
+session.
 
 Reordering uses per-row ▲▼ controls — accessible, work on desktop and phone, and port
 to the WeChat mini program. Drag-and-drop is a later desktop-only enhancement; the

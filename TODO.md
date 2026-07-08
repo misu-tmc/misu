@@ -16,3 +16,20 @@ Officer roles (e.g. President, VP Education, Secretary) are also **time-sensitiv
 user holds an officer role for a term, then hands it over. Model officer assignments as
 time-bounded terms (role + start/end) rather than a static attribute. See
 `design/functionalities/officers.md`.
+
+## Check-in page
+
+Defer the check-in page to the next stage. No-role attendees change attendance tracking:
+the system needs a real check-in record for people who attend without taking a role, not
+only `role_slot.taker_id` updates.
+
+## User management and admin assignment
+
+Add a user management page in the next stage so site admins can promote users and assign
+meeting managers/admin responsibilities through the app. For the first stage, permission
+bootstrap can stay outside the app.
+
+## Permission granularity
+
+Finer-grained roles may be needed later for management workflows. For now, the
+`site_admin` model plus meeting-scoped `meeting_manager` is enough.

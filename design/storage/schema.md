@@ -175,10 +175,10 @@ when reality differs — no-shows, substitutions and walk-ins all stay visible.
 - **Meeting-wide slot**: no session points to it (Timer, Ah-Counter, Grammarian,
   General Evaluator).
 - **Which one downstream reads**: pre-meeting artifacts (agenda, printed pager) use
-  `booker_id`; in/post-meeting features (voting, timer, participation records) use
+  `booker_id`; in/post-meeting features (voting, timer, role-taking records) use
   `taker_id`, falling back to `booker_id` when check-in didn't set it.
-- **Admin-editable**: admins can correct `taker_id` (and attendance) after the fact — for
-  attendees who missed check-in or selected the wrong role.
+- **Admin-editable**: admins can correct `taker_id` after the fact — for attendees who
+  missed check-in or selected the wrong role.
 - No-show = `booker_id` set, `taker_id` null. Substitution = the two differ. Walk-in =
   `booker_id` null, `taker_id` set.
 

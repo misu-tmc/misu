@@ -1,6 +1,7 @@
 # Check in
 
-This is the page for authenticated attendees to check in for a published meeting.
+This is the page for authenticated attendees to confirm the roles they actually took in
+a published meeting.
 
 Check-in must not create anonymous or dropped-identifier users. The attendee signs in
 first via the active provider: web login/register on web, and WeChat identity in the
@@ -22,7 +23,7 @@ flowchart TD
     A -->|signed in| R[Roles card]
     A -->|not signed in| S[Sign in / register]
     S --> R
-    R --> DONE[Checked in ✓]
+    R --> DONE[Confirmed ✓]
 ```
 
 ### Roles card
@@ -47,8 +48,9 @@ flowchart TD
 - **Header**: the meeting being checked into (number · date · theme).
 - **Roles card**: tappable role chips for the roles the attendee took today. A user's own
   booked roles for this meeting are pre-selected; they can tap others they picked up.
-- **No role today**: a quick choice for authenticated attendees who took no role.
-- **Check In**: commits the check-in and any selected roles.
+- **No role today**: a quick choice for authenticated attendees who took no role. In the
+  first stage this creates no persistent attendance record.
+- **Check In**: commits the selected actual role takers.
 
 ## Schema mapping
 
@@ -58,10 +60,10 @@ flowchart TD
   (`booker_id = me`) are pre-selected; confirming one sets `taker_id = me`, tapping an
   open/other one claims it as the actual taker (`taker_id = me`). `booker_id` is never
   overwritten, so plan-vs-reality is preserved.
-- **Check-in record** → a new `check_in` table `(meeting_id, user_id, checked_in_at)` is
-  needed; it was scoped out of the initial schema and will be added when this is locked.
-- **Admin-editable**: admins can adjust attendance and actual role takers (`taker_id`)
-  afterward — for attendees who missed check-in or picked the wrong role.
+- **No separate check-in table**: first-stage check-in is persisted only by
+  `role_slot.taker_id`.
+- **Admin-editable**: admins can adjust actual role takers (`taker_id`) afterward — for
+  attendees who missed check-in or picked the wrong role.
 
 ## Next-stage WeChat notes
 

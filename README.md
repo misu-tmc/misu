@@ -22,4 +22,4 @@ A MISU regular meeting involves these stages:
 The service is also intended to track the information of meetings, members, role takers; and the agendas, posters, pictures, files.
 
 
-See `./design` for the designed functionalities.
+See `./design` for the architecture, data schema and designed functionalities.

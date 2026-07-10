@@ -66,12 +66,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/meetings/new", get(admin::page_editor))
         .route("/meetings/:meeting_id/edit", get(admin::page_editor))
         .route("/users", get(admin::page_users))
-        // Web admin JSON APIs (no auth for now).
-        .route("/api/admin/meetings", get(admin::list_meetings).post(admin::upsert_meeting))
-        .route("/api/admin/meetings/:meeting_id", get(admin::meeting_detail))
-        .route("/api/admin/roles", get(admin::list_roles).post(admin::create_role))
-        .route("/api/admin/users", get(admin::list_users))
-        .route("/api/admin/users/:user_id/permissions", post(admin::set_permission))
+        // Admin-scoped JSON APIs (no auth for now; site_admin guard drops in later).
+        .route("/api/meetings", get(admin::list_meetings).post(admin::upsert_meeting))
+        .route("/api/roles", get(admin::list_roles).post(admin::create_role))
+        .route("/api/users", get(admin::list_users))
+        .route("/api/users/:user_id/permissions", post(admin::set_permission))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

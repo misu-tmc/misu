@@ -183,7 +183,7 @@
 
     // --- load roles for the combobox ---
     async function loadRoles() {
-      const res = await fetch('/api/admin/roles');
+      const res = await fetch('/api/roles');
       const roles = await res.json();
       const dl = document.getElementById('roles-list');
       dl.innerHTML = roles.map(r => `<option value="${escapeHtml(r.name)}"></option>`).join('');
@@ -219,7 +219,7 @@
     async function setupStartFrom() {
       document.getElementById('startFromCard').style.display = 'block';
       const [allRes, tplRes] = await Promise.all([
-        fetch('/api/admin/meetings?scope=all'), fetch('/api/admin/meetings?scope=templates')
+        fetch('/api/meetings?scope=all'), fetch('/api/meetings?scope=templates')
       ]);
       const all = await allRes.json();
       templates = await tplRes.json();
@@ -239,7 +239,7 @@
         fillHeader(); renderSessions(); return;
       }
       const id = choice === 'last' ? lastMeeting.id : parseInt(choice.split(':')[1], 10);
-      const res = await fetch('/api/admin/meetings/' + id);
+      const res = await fetch('/api/meetings/' + id);
       applyDetail(await res.json(), true); // asTemplate: fresh draft, ids cleared
     }
 
@@ -277,7 +277,7 @@
       const body = buildBody(kind);
       if (!body.title) { toast('Title is required'); return; }
       if (!body.date) { toast('Date is required'); return; }
-      const res = await fetch('/api/admin/meetings', {
+      const res = await fetch('/api/meetings', {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
       });
       if (!res.ok) { toast('Save failed: ' + (await res.text())); return; }
@@ -300,7 +300,7 @@
       const id = meetingIdFromPath();
       if (id) {
         document.getElementById('heading').textContent = 'Editing #…';
-        const res = await fetch('/api/admin/meetings/' + id);
+        const res = await fetch('/api/meetings/' + id);
         if (!res.ok) { toast('Meeting not found'); return; }
         const d = await res.json();
         applyDetail(d, false);

@@ -1,9 +1,10 @@
-// Web admin surface: server-served HTML pages plus JSON APIs under `/api/admin/*`.
+// Web admin surface: server-served HTML pages plus the admin-scoped JSON APIs
+// (meeting list/upsert, roles catalog, user management) served on the shared
+// `/api/*` paths.
 //
 // These endpoints are intentionally NOT behind the auth guard for now (first-stage
-// setup convenience). They live in their own `/api/admin/*` namespace so the
-// authenticated app endpoints are untouched; a `site_admin` guard can be added here
-// later without affecting the mini program.
+// setup convenience). A `site_admin` guard can be added here later without affecting
+// the mini program.
 
 use axum::{
     extract::{Path, Query, State},
@@ -114,17 +115,6 @@ pub async fn list_meetings(
         }
     };
     Ok(Json(rows))
-}
-
-/// Full meeting detail for the editor (drafts included), no auth.
-pub async fn meeting_detail(
-    State(state): State<AppState>,
-    Path(meeting_id): Path<i64>,
-) -> AppResult<Json<handlers::MeetingDto>> {
-    handlers::meeting_dto_by_id(&state.pool, meeting_id)
-        .await?
-        .map(Json)
-        .ok_or(AppError::NotFound)
 }
 
 // ---------------------------------------------------------------------------

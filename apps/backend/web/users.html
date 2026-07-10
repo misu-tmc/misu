@@ -50,7 +50,7 @@
 
   <script>
     async function load() {
-      const res = await fetch('/api/admin/users');
+      const res = await fetch('/api/users');
       const users = await res.json();
       const tbody = document.getElementById('rows');
       const empty = document.getElementById('empty');
@@ -72,7 +72,7 @@
     }
 
     async function setAdmin(userId, grant) {
-      const res = await fetch('/api/admin/users/' + userId + '/permissions', {
+      const res = await fetch('/api/users/' + userId + '/permissions', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ permission: 'site_admin', grant })

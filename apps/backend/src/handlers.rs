@@ -225,7 +225,6 @@ pub async fn meetings_upcoming(
 
 pub async fn meeting_detail(
     State(state): State<AppState>,
-    _user: AuthUser,
     Path(meeting_id): Path<i64>,
 ) -> AppResult<Json<MeetingDto>> {
     meeting_dto_by_id(&state.pool, meeting_id)

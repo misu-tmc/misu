@@ -32,7 +32,7 @@ Set `MISU_SEED_ADMIN_OPENID` to bootstrap the first `site_admin` (in DEV mode th
 | GET  | `/healthz` | — | liveness |
 | POST | `/api/auth/wechat` | — | `{ code }` → `{ token, user }` |
 | GET  | `/api/meetings/upcoming` | Bearer | upcoming published meetings (sessions + role slots + takers) |
-| GET  | `/api/meetings/:id` | Bearer | one meeting's detail |
+| GET  | `/api/meetings/:id` | — | one meeting's detail (drafts included; shared with the editor) |
 | POST | `/api/book` | Bearer | `{ meeting_id, role_slot_id, cancel? }` book/release a role |
 | POST | `/api/users/:id` | Bearer | `{ display_name }` update profile (self or site_admin) |
 | GET  | `/api/club-info` | — | static club introduction |
@@ -42,9 +42,9 @@ The acting user is always taken from the session token, never from the request b
 ## Web admin pages
 
 Server-served HTML admin pages (simple HTML/CSS/JS, one self-contained file each under
-`web/`). **No auth guard yet** — they and their APIs live under `/api/admin/*` so the
-authenticated app endpoints above are untouched; a `site_admin` guard drops in later.
-`MISU_WEB_DIR` (default `web`) sets where the HTML files are read from.
+`web/`). **No auth guard yet** — their JSON APIs share the canonical `/api/*` paths;
+a `site_admin` guard drops in later. `MISU_WEB_DIR` (default `web`) sets where the HTML
+files are read from.
 
 | Page | Purpose |
 | ---- | ------- |
@@ -53,16 +53,15 @@ authenticated app endpoints above are untouched; a `site_admin` guard drops in l
 | `/meetings/:id/edit` | edit an existing meeting |
 | `/users` | user list with promote / revoke `site_admin` |
 
-Admin JSON APIs (no auth):
+Admin-scoped JSON APIs (no auth yet; `site_admin` guard drops in later):
 
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
-| GET  | `/api/admin/meetings?scope=open\|archived\|all\|templates` | meeting list |
-| GET  | `/api/admin/meetings/:id` | full meeting detail (drafts included) |
-| POST | `/api/admin/meetings` | upsert a meeting document (preserves `booker_id` on matched slots) |
-| GET / POST | `/api/admin/roles` | list / create roles (creatable combobox) |
-| GET  | `/api/admin/users` | users + `is_site_admin` |
-| POST | `/api/admin/users/:id/permissions` | `{ permission, grant }` grant/revoke `site_admin` |
+| GET  | `/api/meetings?scope=open\|archived\|all\|templates` | meeting list |
+| POST | `/api/meetings` | upsert a meeting document (preserves `booker_id` on matched slots) |
+| GET / POST | `/api/roles` | list / create roles (creatable combobox) |
+| GET  | `/api/users` | users + `is_site_admin` |
+| POST | `/api/users/:id/permissions` | `{ permission, grant }` grant/revoke `site_admin` |
 
 ## Layout
 
@@ -70,7 +69,7 @@ Admin JSON APIs (no auth):
 - `src/db.rs` — schema + seed.
 - `src/auth.rs` — WeChat code exchange, sessions, the `AuthUser` extractor, permissions.
 - `src/handlers.rs` — app route handlers and JSON DTOs.
-- `src/admin.rs` — web admin pages + `/api/admin/*` handlers.
+- `src/admin.rs` — web admin pages + admin-scoped `/api/*` handlers.
 - `src/error.rs` — error → HTTP mapping.
 - `src/main.rs` — router wiring.
 - `web/` — static admin HTML pages.

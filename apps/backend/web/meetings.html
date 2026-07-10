@@ -71,7 +71,7 @@
     }
 
     async function load() {
-      const res = await fetch('/api/admin/meetings?scope=' + scope);
+      const res = await fetch('/api/meetings?scope=' + scope);
       const meetings = await res.json();
       const tbody = document.getElementById('rows');
       const empty = document.getElementById('empty');

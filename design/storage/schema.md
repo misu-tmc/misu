@@ -6,8 +6,9 @@ Normalized tables are the source of truth; a meeting can still be served as one 
 JSON document via a view when needed.
 
 Scope: covers the designed pages — meeting info & sessions (`meeting_info.md`) and role
-booking (`role_registration.md`) — plus the shared user model. Voting, timer and poster
-storage are deferred until those pages are designed.
+booking (`role_registration.md`) — plus the shared user model and the auth tables
+(identity + session) backing `../auth.md`. Voting, timer and poster storage are deferred
+until those pages are designed.
 
 ## Entity overview
 
@@ -15,6 +16,8 @@ storage are deferred until those pages are designed.
 erDiagram
     USER      ||--o{ MEETING   : manages
     USER      ||--o{ USER_PERMISSION : has
+    USER      ||--o{ WECHAT_IDENTITY : "authenticates via"
+    USER      ||--o{ AUTH_SESSION : has
     MEETING   ||--o{ SESSION   : has
     MEETING   ||--o{ ROLE_SLOT : has
     ROLE      ||--o{ ROLE_SLOT : "instances of"
@@ -24,6 +27,15 @@ erDiagram
     USER {
         id     id
         string display_name
+    }
+    WECHAT_IDENTITY {
+        string openid "PK"
+        id     user_id
+    }
+    AUTH_SESSION {
+        string   token "PK"
+        id       user_id
+        datetime created_at
     }
     USER_PERMISSION {
         id       id
@@ -71,8 +83,9 @@ erDiagram
 
 ## `user`
 
-A person the system knows about. Deliberately thin; admin credentials and future WeChat
-identity attach to a user but stay out of this table for now.
+A person the system knows about. Deliberately thin; admin credentials and WeChat
+identity attach to a user through separate tables (`wechat_identity`, and a future
+credential table) rather than columns here.
 
 | Column         | Type    | Notes            |
 | -------------- | ------- | ---------------- |
@@ -81,6 +94,39 @@ identity attach to a user but stay out of this table for now.
 
 Membership (member vs. guest) is intentionally omitted for now — it is a time-sensitive
 relationship. See `todo.md`.
+
+## `wechat_identity`
+
+Maps a WeChat `openid` to a `user`. Auth is **pluggable** (see `../auth.md`): a user may
+authenticate through several providers, so provider-specific identifiers live in their own
+tables and keep `user` thin. A web user/password provider would add its own credential
+table the same way.
+
+| Column    | Type    | Notes                              |
+| --------- | ------- | ---------------------------------- |
+| `openid`  | string (PK) | WeChat openid for this mini program |
+| `user_id` | id (FK)     | -> `user.id`                       |
+
+- On first login the auth layer creates a thin `user` plus this mapping row.
+- The only thing handed to the rest of the app is `user.id`; downstream code never sees
+  `openid`.
+- A future WeChat `session_key` (for decrypting phone/userinfo) would attach here if
+  needed.
+
+## `auth_session`
+
+Server-side session store. Login mints an opaque token; requests carry it as
+`Authorization: Bearer <token>` and the auth guard resolves it back to a `user.id`.
+
+| Column       | Type     | Notes                          |
+| ------------ | -------- | ------------------------------ |
+| `token`      | string (PK) | random opaque session token |
+| `user_id`    | id (FK)     | -> `user.id`                |
+| `created_at` | datetime    | audit / future expiry       |
+
+- Tokens are opaque and stored here, so sessions can be revoked by deleting rows.
+- Expiry / cleanup is not enforced yet (first stage); `created_at` is recorded for when
+  it is added.
 
 ## `user_permission`
 

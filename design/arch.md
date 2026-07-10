@@ -51,6 +51,10 @@ Core service boundaries:
 Use server-rendered HTML for web admin pages and JSON APIs for the WeChat mini program.
 All routes except health/static and login/register run through the auth guard.
 
+For editor-style workflows, the route should not encode every action. The client may
+hold a complete meeting document in memory before it has a server id. Post the document
+body with an `intent` field such as `save_draft`, `publish` or `save_template`.
+
 ### Common
 
 - `GET /healthz` — liveness check.
@@ -62,19 +66,25 @@ All routes except health/static and login/register run through the auth guard.
 - `POST /login` — establish a web session.
 - `POST /logout` — clear the web session.
 
-### Web admin
+### Pages
 
-- `GET /admin` — admin home.
-- `GET /admin/meetings/new` — new meeting editor, defaulting from last meeting.
-- `POST /admin/meetings` — create a draft meeting.
-- `GET /admin/meetings/:meeting_id/edit` — full meeting/session editor.
-- `POST /admin/meetings/:meeting_id` — save meeting info, sessions and role slots.
-- `POST /admin/meetings/:meeting_id/publish` — publish meeting information.
-- `POST /admin/meetings/:meeting_id/save-template` — mark meeting as reusable template.
-- `GET /admin/meetings/:meeting_id/agenda/preview` — preview generated agenda.
-- `POST /admin/meetings/:meeting_id/agenda/publish` — publish agenda output.
-- `GET /admin/users` — user management page, next-stage if needed.
-- `POST /admin/users/:user_id/permissions` — grant/revoke permissions, next-stage if needed.
+- `GET /meetings` — meeting list and entry point.
+- `GET /meetings/:meeting_id` - meeting details.
+- `GET /meetings/:meeting_id/agenda/` — render agenda from the posted meeting document;
+- `GET /meetings/:meeting_id/printed-agenda/` — render printed agenda  from the posted meeting document;
+- `GET /users` — Require `site_admin`. user management page, next-stage if needed.
+
+### APIs
+
+Require `site_admin` for these routes:
+- `POST /api/meetings/:meeting_id` — create or update a meeting from the posted document.
+  Body includes optional `meeting_id`, meeting fields, sessions, role slots and `action`
+  (`save_draft`, `publish`, `save_template`).
+
+- `POST /api/users/:user_id/` — update user info, grant/revoke permissions, next-stage if needed.
+
+- `GET /admin` — admin dashboard.
+
 
 ### WeChat mini program API
 
@@ -87,7 +97,8 @@ All routes except health/static and login/register run through the auth guard.
 - `POST /api/mp/role-slots/:role_slot_id/book` — book an open role slot.
 - `POST /api/mp/role-slots/:role_slot_id/cancel` — cancel the current user's booking.
 - `GET /api/mp/admin/meetings/:meeting_id/review` — lightweight meeting review for managers.
-- `POST /api/mp/admin/meetings/:meeting_id/publish` — lightweight publish action for managers.
+- `POST /api/mp/admin/meetings/update` — lightweight manager action. Body includes
+  `meeting_id`, submitted fields and `action` such as `publish`.
 
 ### Later routes
 

@@ -34,5 +34,19 @@ bootstrap can stay outside the app.
 Finer-grained roles may be needed later for management workflows. For now, the
 `site_admin` model plus meeting-scoped `meeting_manager` is enough.
 
+## Admin tasks in the WeChat mini program
+
+The first-stage mini program has only two tabs (Meetings, Me). Add admin capabilities in
+WeChat later — a management surface (e.g. a Management tab or in-meeting admin actions) for
+lightweight create / edit / publish, role assignment review and templates. Admin editing
+stays web-first for now. A role-based tabBar would need a custom tabBar component.
+
+## Data fetching / freshness
+
+Booking (and other live) pages currently rely on **re-fetch on show + interval polling**
+to stay current as roles are taken/released. Improve this later — e.g. push/subscribe
+(WebSocket or WeChat message channel), ETag/If-None-Match to cut payloads, or a shared
+client cache with targeted invalidation — to reduce latency and traffic.
+
 
 ## Poster generation

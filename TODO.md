@@ -56,3 +56,9 @@ session start times + elapsed time), so attendees can see where the meeting is.
 
 
 ## Poster generation
+
+
+## MISU Logo
+
+
+## WeChat Mini Program Banner

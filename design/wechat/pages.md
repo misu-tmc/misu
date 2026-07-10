@@ -87,13 +87,61 @@ Layout (native top bar + content + native bottom tabBar):
 
 ## Meeting
 
-The **ongoing / current meeting**: info and agenda, plus the during-meeting actions.
+The **ongoing / current meeting**: a title card with info and actions, then the agenda.
 
-- Meeting info (number, date, theme, venue).
-- **Agenda** (client-computed from the meeting document).
-- **Check-in** entry (also reachable by scanning the QR).
-- **Voting** once the voting page is opened.
-- **Timer** for the timer role (full-screen).
+```
+┌─────────────────────────────┐
+│  Meeting                    │  ← native top bar
+├─────────────────────────────┤
+│ #142 · Sat Jul 12 · 19:00 │  ← title card
+│ Embrace Change · Room A     │
+│ [ Check in ] [ Vote for     |
+│   best ] [ Timer mode ]     │
+├─────────────────────────────┤
+│  Agenda                     │
+│  19:00  Opening / TMOD  Bob │
+│  19:06  Speech 1   7'  Carol│
+│  19:14  Evaluation 1 3' Dan │
+│  19:18  Table Topics 20' Eve│
+│  …                          │
+├─────────────────────────────┤
+│ Booking │ Meeting │MISU│ Me │
+└─────────────────────────────┘
+```
+
+### Which meeting it shows
+
+- **During a meeting** → that meeting.
+- Otherwise → the **next upcoming published** meeting (agenda preview).
+- **None** → empty state ("No upcoming meeting yet").
+
+### Title card
+
+Meeting info (number · date · time · theme · venue) plus the action buttons:
+
+- **Check in** — opens the check-in card flow ([../functionalities/check_in.md](../functionalities/check_in.md)); the QR deep-links into the same flow.
+- **Vote for the best** — appears once the voting page is opened; pushes the voting page.
+- **Timer mode** — shown to the timer-role taker (and admins); launches the full-screen timer.
+
+### Agenda
+
+The **client-computed** agenda (same derivation as web: start times from durations +
+buffer), one row per session: `time · name · duration · taker`.
+
+### Phase behavior
+
+- **Before**: agenda preview; check-in hidden or "not open yet".
+- **During**: check-in prominent, timer for the timer role, vote when opened.
+- **After**: a results entry (voting outcomes).
+
+### Deferred / data
+
+- The voting page and timer tool are their own designs
+  ([../functionalities/voting.md](../functionalities/voting.md),
+  [../functionalities/timer_tool.md](../functionalities/timer_tool.md)); this page links
+  into them.
+- Data: `GET /api/meetings/:meeting_id` for the active meeting; during the meeting it
+  benefits from the same refresh approach as Booking (see the data-fetching TODO).
 
 ## Me
 

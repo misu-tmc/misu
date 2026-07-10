@@ -48,5 +48,11 @@ to stay current as roles are taken/released. Improve this later — e.g. push/su
 (WebSocket or WeChat message channel), ETag/If-None-Match to cut payloads, or a shared
 client cache with targeted invalidation — to reduce latency and traffic.
 
+## Current-session highlight on the Meeting agenda
+
+The mini program Meeting agenda currently does not highlight the in-progress session.
+Add a "now" indicator later that marks the current session during a meeting (derived from
+session start times + elapsed time), so attendees can see where the meeting is.
+
 
 ## Poster generation

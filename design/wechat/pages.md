@@ -151,8 +151,46 @@ buffer), one row per session: `time · name · duration · taker`.
 
 ## MISU
 
-Club introduction — static content about MISU (about, meeting cadence, how to join,
-contact). No login required.
+Club introduction — static content, no login. Scrolling sections:
+
+```
+┌─────────────────────────────┐
+│  MISU                       │  ← native top bar
+├─────────────────────────────┤
+│      [ club logo ]          │
+│   Microsoft Suzhou          │
+│   Toastmasters Club         │
+│   "Where leaders are made"  │  ← hero
+├─────────────────────────────┤
+│  About                      │
+│  Who MISU is and what we do.│
+├─────────────────────────────┤
+│  Meetings                   │
+│  Every other Sat · 19:00    │
+│  Room A, Building X         │
+├─────────────────────────────┤
+│  Join us                    │
+│  How to attend / become a   │
+│  member.                    │
+├─────────────────────────────┤
+│  Contact                    │
+│  [ WeChat group QR ]        │
+├─────────────────────────────┤
+│ Booking │ Meeting │MISU│ Me │
+└─────────────────────────────┘
+```
+
+Sections:
+- **Hero** — logo, club name, motto.
+- **About** — short intro paragraph.
+- **Meetings** — cadence + venue.
+- **Join us** — how a guest attends and becomes a member.
+- **Contact** — WeChat group QR and/or officer contact.
+- *(later)* officers list, gallery, achievements.
+
+Content: bundled as static copy + images at first. If admins should edit it without
+republishing, serve it from a small `GET /api/club-info` later. Simple WeChat components
+(`image`, `text`, `view`); no dynamic data initially.
 
 ## Navigation notes
 

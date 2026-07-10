@@ -8,6 +8,8 @@ pub struct Config {
     pub wechat_appid: Option<String>,
     pub wechat_secret: Option<String>,
     pub seed_admin_openid: Option<String>,
+    /// Directory holding the static web admin pages.
+    pub web_dir: String,
 }
 
 fn non_empty(key: &str) -> Option<String> {
@@ -27,6 +29,7 @@ impl Config {
             wechat_appid: non_empty("WECHAT_APPID"),
             wechat_secret: non_empty("WECHAT_SECRET"),
             seed_admin_openid: non_empty("MISU_SEED_ADMIN_OPENID"),
+            web_dir: non_empty("MISU_WEB_DIR").unwrap_or_else(|| "web".to_string()),
         }
     }
 

@@ -39,11 +39,38 @@ Set `MISU_SEED_ADMIN_OPENID` to bootstrap the first `site_admin` (in DEV mode th
 
 The acting user is always taken from the session token, never from the request body.
 
+## Web admin pages
+
+Server-served HTML admin pages (simple HTML/CSS/JS, one self-contained file each under
+`web/`). **No auth guard yet** — they and their APIs live under `/api/admin/*` so the
+authenticated app endpoints above are untouched; a `site_admin` guard drops in later.
+`MISU_WEB_DIR` (default `web`) sets where the HTML files are read from.
+
+| Page | Purpose |
+| ---- | ------- |
+| `/meetings` | overview of open meetings (today onward) with an Archived tab + Create button |
+| `/meetings/new` | meeting editor (start-from template, sessions grid, roles, save/publish) |
+| `/meetings/:id/edit` | edit an existing meeting |
+| `/users` | user list with promote / revoke `site_admin` |
+
+Admin JSON APIs (no auth):
+
+| Method | Path | Purpose |
+| ------ | ---- | ------- |
+| GET  | `/api/admin/meetings?scope=open\|archived\|all\|templates` | meeting list |
+| GET  | `/api/admin/meetings/:id` | full meeting detail (drafts included) |
+| POST | `/api/admin/meetings` | upsert a meeting document (preserves `booker_id` on matched slots) |
+| GET / POST | `/api/admin/roles` | list / create roles (creatable combobox) |
+| GET  | `/api/admin/users` | users + `is_site_admin` |
+| POST | `/api/admin/users/:id/permissions` | `{ permission, grant }` grant/revoke `site_admin` |
+
 ## Layout
 
 - `src/config.rs` — env-based configuration.
 - `src/db.rs` — schema + seed.
 - `src/auth.rs` — WeChat code exchange, sessions, the `AuthUser` extractor, permissions.
-- `src/handlers.rs` — route handlers and JSON DTOs.
+- `src/handlers.rs` — app route handlers and JSON DTOs.
+- `src/admin.rs` — web admin pages + `/api/admin/*` handlers.
 - `src/error.rs` — error → HTTP mapping.
 - `src/main.rs` — router wiring.
+- `web/` — static admin HTML pages.

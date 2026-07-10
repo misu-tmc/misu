@@ -228,16 +228,30 @@ pub async fn meeting_detail(
     _user: AuthUser,
     Path(meeting_id): Path<i64>,
 ) -> AppResult<Json<MeetingDto>> {
+    meeting_dto_by_id(&state.pool, meeting_id)
+        .await?
+        .map(Json)
+        .ok_or(AppError::NotFound)
+}
+
+/// Load one meeting as a nested DTO by id, or `None` if it does not exist.
+/// Shared by the authenticated app endpoint and the admin editor.
+pub(crate) async fn meeting_dto_by_id(
+    pool: &sqlx::SqlitePool,
+    meeting_id: i64,
+) -> AppResult<Option<MeetingDto>> {
     let m = sqlx::query_as::<_, MeetingRow>(
         "SELECT id, number, title, theme, date, start_time, end_time, venue, status \
          FROM meeting WHERE id = ?",
     )
     .bind(meeting_id)
-    .fetch_optional(&state.pool)
-    .await?
-    .ok_or(AppError::NotFound)?;
+    .fetch_optional(pool)
+    .await?;
 
-    Ok(Json(load_meeting_dto(&state.pool, m).await?))
+    match m {
+        Some(m) => Ok(Some(load_meeting_dto(pool, m).await?)),
+        None => Ok(None),
+    }
 }
 
 // ---------------------------------------------------------------------------

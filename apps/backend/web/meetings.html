@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MISU Admin · Meetings</title>
+  <style>
+    :root { --purple: #5b2a86; --ink: #1c1c1e; --muted: #8a8a8f; --line: #ececee; --bg: #f5f5f7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+           color: var(--ink); background: var(--bg); }
+    header { background: var(--purple); color: #fff; padding: 16px 24px; display: flex;
+             align-items: center; gap: 20px; }
+    header .brand { font-weight: 700; font-size: 18px; }
+    header nav a { color: #fff; opacity: .85; text-decoration: none; margin-right: 16px; }
+    header nav a.active { opacity: 1; text-decoration: underline; }
+    main { max-width: 960px; margin: 0 auto; padding: 24px; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+    .tabs button { border: none; background: none; font-size: 15px; color: var(--muted);
+                   padding: 8px 4px; margin-right: 16px; cursor: pointer; border-bottom: 2px solid transparent; }
+    .tabs button.active { color: var(--purple); border-bottom-color: var(--purple); font-weight: 600; }
+    .btn { display: inline-block; padding: 10px 18px; border-radius: 8px; border: none;
+           background: var(--purple); color: #fff; font-size: 14px; cursor: pointer; text-decoration: none; }
+    .btn.outline { background: #fff; color: var(--purple); border: 1px solid var(--purple); }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+    th, td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--line); font-size: 14px; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+    tr:last-child td { border-bottom: none; }
+    tr.row:hover { background: #faf8fd; cursor: pointer; }
+    .pill { font-size: 12px; padding: 3px 10px; border-radius: 999px; }
+    .pill.draft { background: #fff3e0; color: #b26a00; }
+    .pill.published { background: #e8f5e9; color: #2e7d32; }
+    .muted { color: var(--muted); }
+    .empty { text-align: center; color: var(--muted); padding: 48px; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">MISU Admin</span>
+    <nav>
+      <a href="/meetings" class="active">Meetings</a>
+      <a href="/users">Users</a>
+    </nav>
+  </header>
+  <main>
+    <div class="toolbar">
+      <div class="tabs">
+        <button id="tab-open" class="active" onclick="switchScope('open')">Open meetings</button>
+        <button id="tab-archived" onclick="switchScope('archived')">Archived</button>
+      </div>
+      <a class="btn" href="/meetings/new">+ Create new meeting</a>
+    </div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Title</th><th>Date</th><th>Time</th><th>Venue</th><th>Status</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div id="empty" class="empty" style="display:none">No meetings here yet.</div>
+  </main>
+
+  <script>
+    let scope = 'open';
+
+    function switchScope(s) {
+      scope = s;
+      document.getElementById('tab-open').classList.toggle('active', s === 'open');
+      document.getElementById('tab-archived').classList.toggle('active', s === 'archived');
+      load();
+    }
+
+    async function load() {
+      const res = await fetch('/api/admin/meetings?scope=' + scope);
+      const meetings = await res.json();
+      const tbody = document.getElementById('rows');
+      const empty = document.getElementById('empty');
+      tbody.innerHTML = '';
+      empty.style.display = meetings.length ? 'none' : 'block';
+      for (const m of meetings) {
+        const tr = document.createElement('tr');
+        tr.className = 'row';
+        tr.onclick = () => location.href = '/meetings/' + m.id + '/edit';
+        tr.innerHTML = `
+          <td>#${m.number}</td>
+          <td>${escapeHtml(m.title)}<div class="muted">${escapeHtml(m.theme || '')}</div></td>
+          <td>${m.date}</td>
+          <td class="muted">${m.start_time}${m.end_time ? '–' + m.end_time : ''}</td>
+          <td class="muted">${escapeHtml(m.venue || '')}</td>
+          <td><span class="pill ${m.status}">${m.status}</span></td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    load();
+  </script>
+</body>
+</html>

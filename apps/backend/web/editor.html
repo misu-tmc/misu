@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MISU Admin · Meeting editor</title>
+  <style>
+    :root { --purple: #5b2a86; --ink: #1c1c1e; --muted: #8a8a8f; --line: #ececee; --bg: #f5f5f7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+           color: var(--ink); background: var(--bg); }
+    header { background: var(--purple); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 20px; }
+    header .brand { font-weight: 700; font-size: 18px; }
+    header nav a { color: #fff; opacity: .85; text-decoration: none; margin-right: 16px; }
+    main { max-width: 980px; margin: 0 auto; padding: 24px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+    .row { display: flex; flex-wrap: wrap; gap: 16px; }
+    .field { display: flex; flex-direction: column; margin-bottom: 12px; }
+    .field label { font-size: 12px; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .5px; }
+    input, select { font-size: 14px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    input:focus, select:focus { outline: none; border-color: var(--purple); }
+    .grow { flex: 1; min-width: 180px; }
+    h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; padding: 6px 8px; }
+    td { padding: 5px 8px; vertical-align: middle; }
+    td input { width: 100%; }
+    td.narrow input { width: 62px; }
+    .start { font-variant-numeric: tabular-nums; color: var(--purple); font-weight: 600; white-space: nowrap; }
+    .iconbtn { border: none; background: #f0ecf6; color: var(--purple); border-radius: 6px; width: 28px; height: 28px;
+               cursor: pointer; font-size: 14px; line-height: 1; }
+    .iconbtn.del { background: #fbeaec; color: #b00020; }
+    .btn { padding: 10px 18px; border-radius: 8px; border: none; background: var(--purple); color: #fff; font-size: 14px; cursor: pointer; }
+    .btn.outline { background: #fff; color: var(--purple); border: 1px solid var(--purple); }
+    .btn.ghost { background: #f0ecf6; color: var(--purple); }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .actions .spacer { flex: 1; }
+    .muted { color: var(--muted); }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #333; color: #fff;
+             padding: 10px 20px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">MISU Admin</span>
+    <nav><a href="/meetings">← Meetings</a></nav>
+    <span id="heading" style="opacity:.85"></span>
+  </header>
+  <main>
+    <div class="card" id="startFromCard" style="display:none">
+      <div class="field" style="max-width:360px">
+        <label>Start from</label>
+        <select id="startFrom" onchange="onStartFrom()"></select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="field grow"><label>Title</label><input id="title" placeholder="Regular Meeting #142" /></div>
+        <div class="field" style="width:120px"><label>Number</label><input id="number" type="number" /></div>
+      </div>
+      <div class="row">
+        <div class="field grow"><label>Theme</label><input id="theme" placeholder="Embrace Change" /></div>
+        <div class="field grow"><label>Venue</label><input id="venue" placeholder="Room A" /></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Date</label><input id="date" type="date" /></div>
+        <div class="field"><label>Start</label><input id="start_time" type="time" /></div>
+        <div class="field"><label>End</label><input id="end_time" type="time" /></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Sessions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:70px">Order</th><th>Group</th><th style="width:80px">Start</th>
+            <th>Session</th><th style="width:70px">Min</th><th>Role</th><th>Label</th><th style="width:36px"></th>
+          </tr>
+        </thead>
+        <tbody id="sessions"></tbody>
+      </table>
+      <div style="margin-top:12px"><button class="btn ghost" onclick="addSession()">+ Add session</button></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn outline" onclick="save('template')">⭐ Save as template</button>
+      <div class="spacer"></div>
+      <button class="btn outline" onclick="save('draft')">Save draft</button>
+      <button class="btn" onclick="save('published')">Publish</button>
+    </div>
+  </main>
+  <datalist id="roles-list"></datalist>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const BUFFER_MINUTES = 1;
+    let state = {
+      meetingId: null, number: '', title: '', theme: '', date: '', start_time: '19:00',
+      end_time: '21:00', venue: '', sessions: []
+    };
+
+    // --- helpers ---
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 1800);
+    }
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function toMinutes(hhmm) { const [h, m] = (hhmm || '0:0').split(':').map(Number); return h * 60 + m; }
+    function toHHMM(mins) { const h = Math.floor(mins / 60), m = mins % 60; return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'); }
+    function addDays(iso, days) { const d = new Date(iso + 'T00:00'); d.setDate(d.getDate() + days);
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+    function meetingIdFromPath() {
+      const m = location.pathname.match(/\/meetings\/(\d+)\/edit/);
+      return m ? parseInt(m[1], 10) : null;
+    }
+
+    // --- header fields <-> state ---
+    const FIELDS = ['number','title','theme','date','start_time','end_time','venue'];
+    function bindHeader() {
+      for (const f of FIELDS) {
+        const el = document.getElementById(f);
+        el.addEventListener('input', () => { state[f] = el.value; if (f === 'start_time') renderStarts(); });
+      }
+    }
+    function fillHeader() {
+      for (const f of FIELDS) document.getElementById(f).value = state[f] ?? '';
+    }
+
+    // --- sessions grid ---
+    function addSession() {
+      state.sessions.push({ group_label: '', name: '', duration_minutes: 5, roleName: '', label: '', role_slot_id: null });
+      renderSessions();
+    }
+    function deleteSession(i) { state.sessions.splice(i, 1); renderSessions(); }
+    function move(i, dir) {
+      const j = i + dir; if (j < 0 || j >= state.sessions.length) return;
+      [state.sessions[i], state.sessions[j]] = [state.sessions[j], state.sessions[i]];
+      renderSessions();
+    }
+    function renderStarts() {
+      let cursor = toMinutes(document.getElementById('start_time').value || state.start_time);
+      const cells = document.querySelectorAll('#sessions .start');
+      state.sessions.forEach((s, i) => {
+        if (cells[i]) cells[i].textContent = toHHMM(cursor);
+        cursor += Number(s.duration_minutes) || 0;
+        if (i < state.sessions.length - 1) cursor += BUFFER_MINUTES;
+      });
+    }
+    function renderSessions() {
+      const tbody = document.getElementById('sessions');
+      tbody.innerHTML = '';
+      state.sessions.forEach((s, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <button class="iconbtn" onclick="move(${i},-1)">▲</button>
+            <button class="iconbtn" onclick="move(${i},1)">▼</button>
+          </td>
+          <td><input value="${escapeHtml(s.group_label)}" oninput="upd(${i},'group_label',this.value)" /></td>
+          <td class="start"></td>
+          <td><input value="${escapeHtml(s.name)}" oninput="upd(${i},'name',this.value)" /></td>
+          <td class="narrow"><input type="number" min="0" value="${s.duration_minutes}" oninput="upd(${i},'duration_minutes',this.value); renderStarts()" /></td>
+          <td><input list="roles-list" value="${escapeHtml(s.roleName)}" placeholder="—" oninput="onRole(${i},this.value)" /></td>
+          <td><input value="${escapeHtml(s.label)}" placeholder="(role name)" oninput="upd(${i},'label',this.value)" /></td>
+          <td><button class="iconbtn del" onclick="deleteSession(${i})">🗑</button></td>`;
+        tbody.appendChild(tr);
+      });
+      renderStarts();
+    }
+    function upd(i, field, val) { state.sessions[i][field] = val; }
+    function onRole(i, val) {
+      state.sessions[i].roleName = val;
+      // Default the label to the role name until the admin overrides it.
+      if (!state.sessions[i]._labelTouched && !state.sessions[i].label) { /* keep empty; backend defaults */ }
+    }
+
+    // --- load roles for the combobox ---
+    async function loadRoles() {
+      const res = await fetch('/api/admin/roles');
+      const roles = await res.json();
+      const dl = document.getElementById('roles-list');
+      dl.innerHTML = roles.map(r => `<option value="${escapeHtml(r.name)}"></option>`).join('');
+    }
+
+    // --- load an existing meeting into state ---
+    function applyDetail(d, asTemplate) {
+      const slotById = {};
+      (d.role_slots || []).forEach(s => slotById[s.id] = s);
+      const usedSlots = new Set();
+      const sessions = (d.sessions || []).slice().sort((a,b) => a.position - b.position).map(s => {
+        const slot = s.role_slot_id ? slotById[s.role_slot_id] : null;
+        if (slot) usedSlots.add(slot.id);
+        return {
+          group_label: s.group_label || '', name: s.name || '', duration_minutes: s.duration_minutes || 0,
+          roleName: slot ? slot.role_name : '', label: slot ? slot.label : '',
+          role_slot_id: asTemplate ? null : (slot ? slot.id : null)
+        };
+      });
+      state = {
+        meetingId: asTemplate ? null : d.id,
+        number: asTemplate ? (d.number + 1) : d.number,
+        title: d.title, theme: d.theme || '',
+        date: asTemplate ? addDays(d.date, 14) : d.date,
+        start_time: d.start_time || '19:00', end_time: d.end_time || '21:00',
+        venue: d.venue || '', sessions
+      };
+      fillHeader(); renderSessions();
+    }
+
+    // --- "Start from" (new meeting only) ---
+    let templates = [], lastMeeting = null;
+    async function setupStartFrom() {
+      document.getElementById('startFromCard').style.display = 'block';
+      const [allRes, tplRes] = await Promise.all([
+        fetch('/api/admin/meetings?scope=all'), fetch('/api/admin/meetings?scope=templates')
+      ]);
+      const all = await allRes.json();
+      templates = await tplRes.json();
+      lastMeeting = all[0] || null;
+      const sel = document.getElementById('startFrom');
+      let opts = '<option value="blank">Blank</option>';
+      if (lastMeeting) opts += `<option value="last" selected>Last meeting · #${lastMeeting.number} ${escapeHtml(lastMeeting.title)}</option>`;
+      for (const t of templates) opts += `<option value="tpl:${t.id}">Template · ${escapeHtml(t.title)}</option>`;
+      sel.innerHTML = opts;
+      if (lastMeeting) { await loadFrom('last'); } else { renderSessions(); }
+    }
+    function onStartFrom() { loadFrom(document.getElementById('startFrom').value); }
+    async function loadFrom(choice) {
+      if (choice === 'blank') {
+        state = { meetingId: null, number: lastMeeting ? lastMeeting.number + 1 : 1, title: '', theme: '',
+          date: '', start_time: '19:00', end_time: '21:00', venue: '', sessions: [] };
+        fillHeader(); renderSessions(); return;
+      }
+      const id = choice === 'last' ? lastMeeting.id : parseInt(choice.split(':')[1], 10);
+      const res = await fetch('/api/admin/meetings/' + id);
+      applyDetail(await res.json(), true); // asTemplate: fresh draft, ids cleared
+    }
+
+    // --- save ---
+    function buildBody(kind) {
+      const role_slots = [];
+      const sessions = state.sessions.map((s, i) => {
+        let role_slot_index = null;
+        const roleName = (s.roleName || '').trim();
+        if (roleName) {
+          role_slot_index = role_slots.length;
+          role_slots.push({
+            role_slot_id: s.role_slot_id || null,
+            role_name: roleName,
+            label: (s.label || '').trim() || roleName
+          });
+        }
+        return {
+          position: i + 1, group_label: s.group_label || '', name: (s.name || '').trim(),
+          duration_minutes: Number(s.duration_minutes) || 0, role_slot_index
+        };
+      });
+      return {
+        meeting_id: state.meetingId,
+        number: state.number === '' ? null : Number(state.number),
+        title: (state.title || '').trim(), theme: (state.theme || '').trim(),
+        date: state.date, start_time: state.start_time, end_time: state.end_time,
+        venue: (state.venue || '').trim(),
+        is_template: kind === 'template',
+        status: kind === 'published' ? 'published' : 'draft',
+        role_slots, sessions
+      };
+    }
+    async function save(kind) {
+      const body = buildBody(kind);
+      if (!body.title) { toast('Title is required'); return; }
+      if (!body.date) { toast('Date is required'); return; }
+      const res = await fetch('/api/admin/meetings', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+      });
+      if (!res.ok) { toast('Save failed: ' + (await res.text())); return; }
+      const saved = await res.json();
+      state.meetingId = saved.id; state.number = saved.number;
+      document.getElementById('number').value = saved.number;
+      // Switch URL to edit mode so further saves update the same meeting.
+      if (meetingIdFromPath() !== saved.id) {
+        history.replaceState(null, '', '/meetings/' + saved.id + '/edit');
+        document.getElementById('startFromCard').style.display = 'none';
+        document.getElementById('heading').textContent = 'Editing #' + saved.number;
+      }
+      toast(kind === 'published' ? 'Published' : kind === 'template' ? 'Saved as template' : 'Draft saved');
+    }
+
+    // --- init ---
+    async function init() {
+      bindHeader();
+      await loadRoles();
+      const id = meetingIdFromPath();
+      if (id) {
+        document.getElementById('heading').textContent = 'Editing #…';
+        const res = await fetch('/api/admin/meetings/' + id);
+        if (!res.ok) { toast('Meeting not found'); return; }
+        const d = await res.json();
+        applyDetail(d, false);
+        document.getElementById('heading').textContent = 'Editing #' + d.number;
+      } else {
+        document.getElementById('heading').textContent = 'New meeting';
+        await setupStartFrom();
+      }
+    }
+    init();
+  </script>
+</body>
+</html>

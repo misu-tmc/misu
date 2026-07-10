@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MISU Admin · Users</title>
+  <style>
+    :root { --purple: #5b2a86; --ink: #1c1c1e; --muted: #8a8a8f; --line: #ececee; --bg: #f5f5f7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+           color: var(--ink); background: var(--bg); }
+    header { background: var(--purple); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 20px; }
+    header .brand { font-weight: 700; font-size: 18px; }
+    header nav a { color: #fff; opacity: .85; text-decoration: none; margin-right: 16px; }
+    header nav a.active { opacity: 1; text-decoration: underline; }
+    main { max-width: 820px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 20px; margin: 0 0 16px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+    th, td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--line); font-size: 14px; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+    tr:last-child td { border-bottom: none; }
+    .btn { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--purple); background: #fff;
+           color: var(--purple); font-size: 13px; cursor: pointer; }
+    .btn.solid { background: var(--purple); color: #fff; }
+    .btn.danger { border-color: #b00020; color: #b00020; }
+    .badge { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #ede7f6; color: var(--purple); }
+    .muted { color: var(--muted); }
+    .empty { text-align: center; color: var(--muted); padding: 48px; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">MISU Admin</span>
+    <nav>
+      <a href="/meetings">Meetings</a>
+      <a href="/users" class="active">Users</a>
+    </nav>
+  </header>
+  <main>
+    <h1>Users</h1>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Display name</th><th>Role</th><th style="text-align:right">Action</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div id="empty" class="empty" style="display:none">No users yet — sign in from the mini program first.</div>
+  </main>
+
+  <script>
+    async function load() {
+      const res = await fetch('/api/admin/users');
+      const users = await res.json();
+      const tbody = document.getElementById('rows');
+      const empty = document.getElementById('empty');
+      tbody.innerHTML = '';
+      empty.style.display = users.length ? 'none' : 'block';
+      for (const u of users) {
+        const tr = document.createElement('tr');
+        const role = u.is_site_admin ? '<span class="badge">site_admin</span>' : '<span class="muted">member</span>';
+        const action = u.is_site_admin
+          ? `<button class="btn danger" onclick="setAdmin(${u.id}, false)">Revoke admin</button>`
+          : `<button class="btn solid" onclick="setAdmin(${u.id}, true)">Promote to admin</button>`;
+        tr.innerHTML = `
+          <td>${u.id}</td>
+          <td>${escapeHtml(u.display_name)}</td>
+          <td>${role}</td>
+          <td style="text-align:right">${action}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function setAdmin(userId, grant) {
+      const res = await fetch('/api/admin/users/' + userId + '/permissions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ permission: 'site_admin', grant })
+      });
+      if (!res.ok) { alert('Failed: ' + (await res.text())); return; }
+      load();
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    load();
+  </script>
+</body>
+</html>

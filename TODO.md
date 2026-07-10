@@ -33,3 +33,6 @@ bootstrap can stay outside the app.
 
 Finer-grained roles may be needed later for management workflows. For now, the
 `site_admin` model plus meeting-scoped `meeting_manager` is enough.
+
+
+## Poster generation

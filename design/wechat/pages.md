@@ -145,9 +145,41 @@ buffer), one row per session: `time · name · duration · taker`.
 
 ## Me
 
-- WeChat profile / identity.
-- **Update user information**.
-- (Also convenient: a shortcut to Your bookings / role history.)
+WeChat profile + update user info, with shortcuts to the user's roles.
+
+```
+┌─────────────────────────────┐
+│  Me                         │  ← native top bar
+├─────────────────────────────┤
+│  [ avatar ]  <display name> │  ← profile header
+│              Edit profile › │
+├─────────────────────────────┤
+│  My bookings              › │  ← upcoming booked roles
+│  My history               › │  ← past roles taken (later)
+├─────────────────────────────┤
+│  About / Settings         › │  (optional)
+├─────────────────────────────┤
+│ Booking │ Meeting │MISU│ Me │
+└─────────────────────────────┘
+```
+
+### Contents
+
+- **Profile header** — WeChat avatar + `display_name`. **Edit profile** pushes an edit page.
+- **Edit profile page** — edit `display_name` now (contact / Toastmasters details later);
+  saves via `POST /api/users/:user_id` (self). WeChat can prefill avatar/nickname
+  (`wx.getUserProfile`); the user can override the display name.
+- **My bookings** — shortcut to upcoming booked roles (same data as Booking's Your bookings).
+- **My history** — past roles taken (`taker_id = me` on past meetings); deferred until
+  past-meeting queries exist.
+- **About / Settings** — optional (app version, contact).
+
+### Notes
+
+- Identity is WeChat — no password login, no logout button (session from
+  `POST /api/auth/wechat`).
+- `display_name` is the same `user.display_name` used everywhere (booking, check-in, agenda).
+- Membership / officer info is deferred (time-sensitive TODO), so no membership badge yet.
 
 ## MISU
 

@@ -1,0 +1,26 @@
+.title-card { display: flex; flex-direction: column; }
+.title-line { font-size: 32rpx; font-weight: 600; }
+.title-sub { color: #6b6b70; font-size: 26rpx; margin-top: 6rpx; }
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.agenda-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 16rpx 0;
+  border-top: 1rpx solid #f0f0f2;
+}
+.agenda-row:first-child { border-top: none; }
+.agenda-time {
+  width: 110rpx;
+  color: #5b2a86;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.agenda-main { display: flex; flex-direction: column; flex: 1; }
+.agenda-name { font-size: 30rpx; }
+.agenda-meta { font-size: 24rpx; margin-top: 4rpx; }

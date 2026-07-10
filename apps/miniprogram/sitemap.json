@@ -1,0 +1,9 @@
+{
+  "desc": "MISU mini program",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

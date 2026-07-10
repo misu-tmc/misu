@@ -1,0 +1,26 @@
+<view class="container" wx:if="{{info}}">
+
+  <view class="card hero">
+    <view class="logo">MISU</view>
+    <text class="club-name">{{info.name}}</text>
+    <text class="motto">"{{info.motto}}"</text>
+  </view>
+
+  <view class="section-title">About</view>
+  <view class="card"><text class="body">{{info.about}}</text></view>
+
+  <view class="section-title">Meetings</view>
+  <view class="card">
+    <text class="body">{{info.meetings.cadence}}</text>
+    <text class="body muted">{{info.meetings.venue}}</text>
+  </view>
+
+  <view class="section-title">Join us</view>
+  <view class="card"><text class="body">{{info.join}}</text></view>
+
+  <view class="section-title">Contact</view>
+  <view class="card"><text class="body">{{info.contact}}</text></view>
+
+</view>
+
+<view wx:else class="empty">Loading…</view>

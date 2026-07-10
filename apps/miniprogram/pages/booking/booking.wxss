@@ -1,0 +1,38 @@
+.booking-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f0f0f2;
+}
+.booking-row:last-child { border-bottom: none; }
+.booking-info { display: flex; flex-direction: column; }
+.booking-title { font-size: 30rpx; font-weight: 500; }
+.booking-date { font-size: 24rpx; margin-top: 4rpx; }
+.booking-actions { display: flex; align-items: center; }
+.cancel-x {
+  margin-left: 20rpx;
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 52rpx;
+  text-align: center;
+  border-radius: 50%;
+  color: #b00020;
+  background: #fbeaec;
+  font-size: 36rpx;
+}
+
+.card-header { display: flex; flex-direction: column; margin-bottom: 12rpx; }
+.card-number { font-size: 32rpx; font-weight: 600; }
+.card-theme { font-size: 26rpx; margin-top: 4rpx; }
+
+.role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-top: 1rpx solid #f0f0f2;
+}
+.role-label { color: #3a3a3c; }
+.role-taker { color: #6b6b70; }
+.role-taker.mine { color: #5b2a86; font-weight: 600; }

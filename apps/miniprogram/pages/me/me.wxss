@@ -1,0 +1,28 @@
+.profile { display: flex; align-items: center; }
+.avatar {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: #ece6f4;
+}
+.avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5b2a86;
+  font-size: 44rpx;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.profile-main { display: flex; flex-direction: column; margin-left: 24rpx; }
+.name { font-size: 34rpx; font-weight: 600; }
+.edit { font-size: 26rpx; margin-top: 6rpx; }
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18rpx 0;
+  border-top: 1rpx solid #f0f0f2;
+}
+.row:first-child { border-top: none; }

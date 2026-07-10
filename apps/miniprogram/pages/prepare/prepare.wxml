@@ -1,0 +1,9 @@
+<view class="container">
+  <view class="card">
+    <text class="role">{{role}}</text>
+    <text class="muted note">
+      You're booked for this role. Extra preparation details (e.g. speech title and level,
+      or your evaluatee) will be collected here in an upcoming release.
+    </text>
+  </view>
+</view>

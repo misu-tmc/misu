@@ -1,0 +1,31 @@
+<view class="container">
+
+  <view class="card profile" bindtap="onEditProfile">
+    <image wx:if="{{avatarUrl}}" class="avatar" src="{{avatarUrl}}" mode="aspectFill" />
+    <view wx:else class="avatar avatar-fallback">{{displayName[0]}}</view>
+    <view class="profile-main">
+      <text class="name">{{displayName}}</text>
+      <text class="muted edit">Edit profile ›</text>
+    </view>
+  </view>
+
+  <view class="section-title">My bookings</view>
+  <view class="card">
+    <block wx:if="{{bookings.length > 0}}">
+      <view class="row" wx:for="{{bookings}}" wx:key="key" bindtap="onGoBookings">
+        <text>#{{item.number}} · {{item.roleLabel}}</text>
+        <text class="muted">{{item.dateLabel}}</text>
+      </view>
+    </block>
+    <view wx:else class="row muted" bindtap="onGoBookings">
+      <text>No upcoming bookings</text>
+      <text>Book a role ›</text>
+    </view>
+  </view>
+
+  <view class="section-title">About</view>
+  <view class="card">
+    <view class="row muted"><text>Version</text><text>1.0.0</text></view>
+  </view>
+
+</view>

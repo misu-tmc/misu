@@ -1,0 +1,60 @@
+<view class="container">
+
+  <view wx:if="{{loading}}" class="empty">Loading…</view>
+
+  <!-- Your bookings summary — only when the user has any -->
+  <block wx:if="{{bookings.length > 0}}">
+    <view class="section-title">Your bookings</view>
+    <view class="card">
+      <view class="booking-row" wx:for="{{bookings}}" wx:key="slotId">
+        <view class="booking-info">
+          <text class="booking-title">#{{item.number}} · {{item.roleLabel}}</text>
+          <text class="muted booking-date">{{item.dateLabel}}</text>
+        </view>
+        <view class="booking-actions">
+          <view
+            class="btn btn-ghost"
+            data-meeting-id="{{item.meetingId}}"
+            data-slot-id="{{item.slotId}}"
+            data-role-label="{{item.roleLabel}}"
+            bindtap="onPrepare"
+          >Prepare</view>
+          <view
+            class="cancel-x"
+            data-meeting-id="{{item.meetingId}}"
+            data-slot-id="{{item.slotId}}"
+            bindtap="onCancel"
+          >×</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- Meeting cards -->
+  <view class="section-title" wx:if="{{meetings.length > 0}}">Upcoming meetings</view>
+
+  <view class="card" wx:for="{{meetings}}" wx:for-item="m" wx:key="id">
+    <view class="card-header">
+      <text class="card-number">#{{m.number}} · {{m.dateLabel}}</text>
+      <text class="muted card-theme">{{m.theme}}</text>
+    </view>
+    <view class="role-row" wx:for="{{m.slots}}" wx:for-item="s" wx:key="id">
+      <text class="role-label">{{s.label}}</text>
+      <block wx:if="{{s.taken}}">
+        <text class="role-taker {{s.mine ? 'mine' : ''}}">{{s.takerName}}</text>
+      </block>
+      <view
+        wx:else
+        class="btn"
+        data-meeting-id="{{m.id}}"
+        data-slot-id="{{s.id}}"
+        bindtap="onTake"
+      >Take!</view>
+    </view>
+  </view>
+
+  <view wx:if="{{!loading && meetings.length === 0}}" class="empty">
+    No upcoming meetings yet.
+  </view>
+
+</view>

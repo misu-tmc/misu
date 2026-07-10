@@ -1,0 +1,26 @@
+<view class="container">
+
+  <view class="card">
+    <button class="avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+      <image wx:if="{{avatarUrl}}" class="avatar" src="{{avatarUrl}}" mode="aspectFill" />
+      <view wx:else class="avatar avatar-fallback">+</view>
+      <text class="muted avatar-hint">Tap to change avatar</text>
+    </button>
+  </view>
+
+  <view class="card">
+    <text class="field-label muted">Display name</text>
+    <input
+      class="field-input"
+      type="nickname"
+      value="{{displayName}}"
+      placeholder="Your name"
+      bindinput="onNameInput"
+    />
+  </view>
+
+  <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="onSave">
+    {{saving ? 'Saving…' : 'Save'}}
+  </view>
+
+</view>

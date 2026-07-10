@@ -1,0 +1,32 @@
+<view class="container">
+
+  <view wx:if="{{loading}}" class="empty">Loading…</view>
+
+  <block wx:elif="{{hasMeeting}}">
+    <!-- Title card -->
+    <view class="card title-card">
+      <text class="title-line">#{{meeting.number}} · {{meeting.dateLabel}} · {{meeting.timeLabel}}</text>
+      <text class="title-sub">{{meeting.theme}} · {{meeting.venue}}</text>
+      <view class="actions">
+        <view class="btn btn-outline" bindtap="comingSoon">Check in</view>
+        <view class="btn btn-outline" bindtap="comingSoon">Vote for best</view>
+        <view class="btn btn-outline" bindtap="comingSoon">Timer mode</view>
+      </view>
+    </view>
+
+    <!-- Agenda -->
+    <view class="section-title">Agenda</view>
+    <view class="card">
+      <view class="agenda-row" wx:for="{{agenda}}" wx:key="id">
+        <text class="agenda-time">{{item.start}}</text>
+        <view class="agenda-main">
+          <text class="agenda-name">{{item.name}}</text>
+          <text class="agenda-meta muted">{{item.duration_minutes}}' · {{item.taker || '—'}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:else class="empty">No upcoming meeting yet.</view>
+
+</view>

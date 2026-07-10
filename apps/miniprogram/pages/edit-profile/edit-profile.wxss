@@ -1,0 +1,28 @@
+.avatar-btn {
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  line-height: normal;
+}
+.avatar-btn::after { border: none; }
+.avatar { width: 140rpx; height: 140rpx; border-radius: 50%; background: #ece6f4; }
+.avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5b2a86;
+  font-size: 60rpx;
+}
+.avatar-hint { font-size: 24rpx; margin-top: 16rpx; }
+
+.field-label { display: block; font-size: 24rpx; margin-bottom: 12rpx; }
+.field-input {
+  font-size: 32rpx;
+  padding: 8rpx 0;
+  border-bottom: 1rpx solid #ececee;
+}
+
+.save-btn { display: block; text-align: center; margin-top: 24rpx; padding: 22rpx; }
+.save-btn.disabled { opacity: 0.5; }

@@ -48,12 +48,14 @@ Core service boundaries:
 
 ## Server routes
 
-Use server-rendered HTML for web admin pages and JSON APIs for the WeChat mini program.
-All routes except health/static and login/register run through the auth guard.
+All application data is served as **JSON APIs** consumed by both surfaces (client-rendered
+web and the WeChat mini program). Static assets, web login, and some web management pages are HTML.
+All routes except health/static and login run through the auth guard.
 
-For editor-style workflows, the route should not encode every action. The client may
-hold a complete meeting document in memory before it has a server id. Post the document
-body with an `intent` field such as `save_draft`, `publish` or `save_template`.
+Editor-style writes post a **document body**, not a per-action path. A meeting is saved
+by posting the whole meeting document; identifiers of the target resource live in the
+body (see APIs). The **acting user is always taken from the session**, never from the
+request body.
 
 ### Common
 
@@ -66,46 +68,62 @@ body with an `intent` field such as `save_draft`, `publish` or `save_template`.
 - `POST /login` — establish a web session.
 - `POST /logout` — clear the web session.
 
+### WeChat auth
+
+- `POST /api/auth/wechat` — exchange a WeChat login code for a session.
+
 ### Pages
 
-- `GET /meetings` — meeting list and entry point.
-- `GET /meetings/:meeting_id` - meeting details.
-- `GET /meetings/:meeting_id/agenda/` — render agenda from the posted meeting document;
-- `GET /meetings/:meeting_id/printed-agenda/` — render printed agenda  from the posted meeting document;
-- `GET /users` — Require `site_admin`. user management page, next-stage if needed.
+Server rendered (web management, require `site_admin`):
+- /meetings — meeting list
+- /users — user management
+
+Client rendered:
+- /meetings/upcoming — upcoming meetings for role booking.
+- /meetings/new — create a meeting (editor). Require `site_admin`.
+- /meetings/:meeting_id/edit — edit a meeting (editor). Require `site_admin`.
+- /meetings/:meeting_id/voting
+- /meetings/:meeting_id/checkin
+- /meetings/:meeting_id/timer
+- /meetings/:meeting_id/agenda
+
 
 ### APIs
 
-Require `site_admin` for these routes:
-- `POST /api/meetings/:meeting_id` — create or update a meeting from the posted document.
-  Body includes optional `meeting_id`, meeting fields, sessions, role slots and `action`
-  (`save_draft`, `publish`, `save_template`).
+JSON in, JSON out. The acting user comes from the session; never trust an actor id in the
+body. Write operations use a flat, body-based style.
 
-- `POST /api/users/:user_id/` — update user info, grant/revoke permissions, next-stage if needed.
+Meetings:
+- `GET /api/meetings` — meeting list.
+- `GET /api/meetings/upcoming` — future meeting list.
+- `GET /api/meetings/:meeting_id` — meeting detail (sessions, role slots, bookings).
+- `POST /api/meetings` — Require `site_admin`. **Upsert** a meeting from the posted
+  document: `{ meeting_id?, title, theme, date, start_time, end_time, venue, sessions,
+  role_slots, is_template, status }`. Absent `meeting_id` creates; present updates
+  (overwrite). The upsert replaces session/slot **structure** but **preserves existing
+  `booker_id` / `taker_id`** on slots matched by `role_slot_id`, so saving/publishing
+  never clobbers bookings.
 
-- `GET /admin` — admin dashboard.
+Role booking (acts as the current user):
+- `POST /api/book` — `{ meeting_id, role_slot_id, cancel? }`. Book an open role slot;
+  when `cancel` is true, release the current user's booking of that slot.
 
+Check-in (acts as the current user):
+- `POST /api/checkin` — `{ meeting_id, role_slot_ids: [] }`. Record attendance and the
+  actual roles taken (empty list = just attending).
 
-### WeChat mini program API
+Voting (acts as the current user):
+- `GET /api/meetings/:meeting_id/voting` — voting page state (candidates, tallies). Later.
+- `POST /api/vote` — `{ meeting_id, votes: {...} }`. Submit votes.
 
-- `POST /api/mp/auth/login` — exchange WeChat login code for a local session/token.
-- `POST /api/mp/auth/logout` — clear the mini-program session/token if needed.
-- `GET /api/mp/me` — current authenticated user.
-- `GET /api/mp/meetings/upcoming` — upcoming published meetings for attendee flows.
-- `GET /api/mp/meetings/:meeting_id` — published meeting detail.
-- `GET /api/mp/bookings` — current user's booked roles.
-- `POST /api/mp/role-slots/:role_slot_id/book` — book an open role slot.
-- `POST /api/mp/role-slots/:role_slot_id/cancel` — cancel the current user's booking.
-- `GET /api/mp/admin/meetings/:meeting_id/review` — lightweight meeting review for managers.
-- `POST /api/mp/admin/meetings/update` — lightweight manager action. Body includes
-  `meeting_id`, submitted fields and `action` such as `publish`.
+Timer (later):
+- `GET /api/meetings/:meeting_id/timer` — timer state.
 
-### Later routes
+Users:
+- `GET /api/users` — Require `site_admin`. User management, next-stage if needed.
+- `POST /api/users/:user_id` — Require `site_admin`. Update user info, grant/revoke
+  permissions, next-stage if needed.
 
-- `POST /api/mp/meetings/:meeting_id/check-in` — attendance / actual role-taking.
-- `GET /api/mp/meetings/:meeting_id/voting` — published voting page.
-- `POST /api/mp/meetings/:meeting_id/votes` — submit votes.
-- `GET /api/mp/meetings/:meeting_id/timer` — timer setup/state.
 
 ## First-stage build order
 

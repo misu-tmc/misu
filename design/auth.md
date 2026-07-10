@@ -9,9 +9,10 @@
   rest of the system as possible. The dependency points inward (app → auth), never the
   reverse.
 
-Every user-facing and admin-facing page requires authentication first. Web uses a
-user/password provider at this stage. The WeChat mini program will use WeChat identity
-through the same auth contract.
+Every user-facing and admin-facing page requires authentication first. The **WeChat mini
+program is the primary surface** and is built first, using WeChat identity through the
+auth contract. The web app uses a user/password provider for admin/management. Both are
+different providers behind the same contract.
 
 ## Auth contract (shared across surfaces)
 
@@ -89,6 +90,8 @@ contract, the same header works unchanged across providers.
 No top bar — WeChat provides its own navigation chrome. Auth relies fully on WeChat
 identity, resolved through the same auth contract.
 
-The WeChat provider design is next-stage work. For now the requirement is fixed:
-mini-program pages must resolve a `user.id` before showing attendee flows such as
-check-in, role booking and voting.
+This is the **primary surface**, built in the first stage. Every mini-program page
+requires a resolved `user.id` before showing content — the WeChat sign-in flow runs on
+launch and the auth guard gates every page (booking, meeting, check-in, voting, profile).
+The WeChat identity provider exchanges the WeChat login code for a session
+(`POST /api/auth/wechat`) and resolves/creates the `user`.

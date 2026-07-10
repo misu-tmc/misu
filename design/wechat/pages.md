@@ -4,6 +4,10 @@ Native chrome: a bottom **tabBar** for top-level navigation and page-stack drill
 detail. The native top bar (title + back) is provided by WeChat — no custom header like
 the web surface.
 
+**Login required on every page.** The mini program requires the user to be logged in via
+WeChat identity (`POST /api/auth/wechat`) to view any page; the session is established on
+launch and every page assumes an authenticated user.
+
 ## TabBar
 
 Four tabs for everyone:
@@ -183,7 +187,7 @@ WeChat profile + update user info, with shortcuts to the user's roles.
 
 ## MISU
 
-Club introduction — static content, no login. Scrolling sections:
+Club introduction — static content. Scrolling sections:
 
 ```
 ┌─────────────────────────────┐

@@ -30,6 +30,11 @@
     .iconbtn { border: none; background: #f0ecf6; color: var(--purple); border-radius: 6px; width: 28px; height: 28px;
                cursor: pointer; font-size: 14px; line-height: 1; }
     .iconbtn.del { background: #fbeaec; color: #b00020; }
+    td.utils { white-space: nowrap; text-align: right; }
+    .utilgroup { display: flex; gap: 4px; justify-content: flex-end; }
+    .addrow { display: block; width: 100%; margin-top: 6px; border: none; background: #f0ecf6; color: var(--purple);
+              border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
+    input[readonly] { background: var(--bg); color: var(--muted); }
     .btn { padding: 10px 18px; border-radius: 8px; border: none; background: var(--purple); color: #fff; font-size: 14px; cursor: pointer; }
     .btn.outline { background: #fff; color: var(--purple); border: 1px solid var(--purple); }
     .btn.ghost { background: #f0ecf6; color: var(--purple); }
@@ -67,7 +72,7 @@
       <div class="row">
         <div class="field"><label>Date</label><input id="date" type="date" /></div>
         <div class="field"><label>Start</label><input id="start_time" type="time" /></div>
-        <div class="field"><label>End</label><input id="end_time" type="time" /></div>
+        <div class="field"><label>End</label><input id="end_time" type="time" readonly title="Calculated from the sessions" /></div>
       </div>
     </div>
 
@@ -76,8 +81,8 @@
       <table>
         <thead>
           <tr>
-            <th style="width:70px">Order</th><th>Group</th><th style="width:80px">Start</th>
-            <th>Session</th><th style="width:70px">Min</th><th>Role</th><th>Label</th><th style="width:36px"></th>
+            <th style="width:80px">Start</th><th>Group</th>
+            <th>Session</th><th style="width:70px">Min</th><th>Role</th><th>Label</th><th style="width:120px"></th>
           </tr>
         </thead>
         <tbody id="sessions"></tbody>
@@ -138,6 +143,10 @@
       state.sessions.push({ group_label: '', name: '', duration_minutes: 5, roleName: '', label: '', role_slot_id: null });
       renderSessions();
     }
+    function insertSession(i) {
+      state.sessions.splice(i + 1, 0, { group_label: '', name: '', duration_minutes: 5, roleName: '', label: '', role_slot_id: null });
+      renderSessions();
+    }
     function deleteSession(i) { state.sessions.splice(i, 1); renderSessions(); }
     function move(i, dir) {
       const j = i + dir; if (j < 0 || j >= state.sessions.length) return;
@@ -152,6 +161,10 @@
         cursor += Number(s.duration_minutes) || 0;
         if (i < state.sessions.length - 1) cursor += BUFFER_MINUTES;
       });
+      // End time is derived from the sessions (end of the last session).
+      if (state.sessions.length) state.end_time = toHHMM(cursor);
+      const endEl = document.getElementById('end_time');
+      if (endEl) endEl.value = state.end_time || '';
     }
     function renderSessions() {
       const tbody = document.getElementById('sessions');
@@ -159,17 +172,20 @@
       state.sessions.forEach((s, i) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>
-            <button class="iconbtn" onclick="move(${i},-1)">▲</button>
-            <button class="iconbtn" onclick="move(${i},1)">▼</button>
-          </td>
-          <td><input value="${escapeHtml(s.group_label)}" oninput="upd(${i},'group_label',this.value)" /></td>
           <td class="start"></td>
+          <td><input value="${escapeHtml(s.group_label)}" oninput="upd(${i},'group_label',this.value)" /></td>
           <td><input value="${escapeHtml(s.name)}" oninput="upd(${i},'name',this.value)" /></td>
           <td class="narrow"><input type="number" min="0" value="${s.duration_minutes}" oninput="upd(${i},'duration_minutes',this.value); renderStarts()" /></td>
           <td><input list="roles-list" value="${escapeHtml(s.roleName)}" placeholder="—" oninput="onRole(${i},this.value)" /></td>
           <td><input value="${escapeHtml(s.label)}" placeholder="(role name)" oninput="upd(${i},'label',this.value)" /></td>
-          <td><button class="iconbtn del" onclick="deleteSession(${i})">🗑</button></td>`;
+          <td class="utils">
+            <div class="utilgroup">
+              <button class="iconbtn" title="Move up" onclick="move(${i},-1)">▲</button>
+              <button class="iconbtn" title="Move down" onclick="move(${i},1)">▼</button>
+              <button class="iconbtn del" title="Delete" onclick="deleteSession(${i})">🗑</button>
+            </div>
+            <button class="addrow" title="Add a session below" onclick="insertSession(${i})">＋ Add</button>
+          </td>`;
         tbody.appendChild(tr);
       });
       renderStarts();

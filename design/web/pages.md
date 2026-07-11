@@ -91,8 +91,9 @@ A grid of sessions in order. Columns, left to right:
 - **Session** — the agenda item name.
 - **Min** — duration in minutes; editing it re-computes all start times and the meeting END.
 - **Role** — a creatable combobox over the role catalog (`/api/roles`); empty for
-  sessions with no role. The role slot's `label` is not edited here; it defaults to the
-  role name on save.
+  sessions with no role. Each roled session maps to a `role_slot` (a bookable seat);
+  repeated roles across rows become `Speaker 1` / `Speaker 2`, numbered by ordinal at
+  render time. The per-slot booking lives in `role_assignment`.
 - **Utils** (right-most) — one grouped control `[ ＋ ▲ ▼ 🗑 ]`: `＋` inserts a new session
   **below this row**, `▲`/`▼` move it, `🗑` deletes it. There is no separate bottom add
   button, so a fresh/blank meeting always starts with **one empty row** to grow from.
@@ -109,8 +110,9 @@ A grid of sessions in order. Columns, left to right:
 
 - `GET /api/meetings/:id` — full meeting document (sessions, role slots, bookings; drafts
   included) for edit mode and "Start from".
-- `POST /api/meetings` — upsert the whole document. Slots matched by `role_slot_id` keep their
-  `booker_id`, so saving/publishing never clobbers bookings.
+- `POST /api/meetings` — upsert the whole document. Role slots are user-agnostic; slots
+  matched by `role_slot_id` keep their `role_assignment` (booker/taker), so
+  saving/publishing never clobbers bookings.
 - `GET /api/roles`, `POST /api/roles` — role catalog for the combobox; typing a new name
   creates the role (also auto-created on save).
 

@@ -100,17 +100,19 @@ Meetings:
 - `POST /api/meetings` — Require `site_admin`. **Upsert** a meeting from the posted
   document: `{ meeting_id?, title, theme, date, start_time, end_time, venue, sessions,
   role_slots, is_template, status }`. Absent `meeting_id` creates; present updates
-  (overwrite). The upsert replaces session/slot **structure** but **preserves existing
-  `booker_id` / `taker_id`** on slots matched by `role_slot_id`, so saving/publishing
+  (overwrite). The upsert replaces session/slot **structure** but the user-agnostic slots
+  carry no bookings; existing `role_assignment` rows survive on slots matched by
+  `role_slot_id` (removed slots cascade-delete their assignment), so saving/publishing
   never clobbers bookings.
 
 Role booking (acts as the current user):
 - `POST /api/book` — `{ meeting_id, role_slot_id, cancel? }`. Book an open role slot;
-  when `cancel` is true, release the current user's booking of that slot.
+  when `cancel` is true, release the current user's booking of that slot. Booking writes
+  `role_assignment.booker_id` for the slot.
 
 Check-in (acts as the current user):
 - `POST /api/checkin` — `{ meeting_id, role_slot_ids: [] }`. Record attendance and the
-  actual roles taken (empty list = just attending).
+  actual roles taken (empty list = just attending); writes `role_assignment.taker_id`.
 
 Voting (acts as the current user):
 - `GET /api/meetings/:meeting_id/voting` — voting page state (candidates, tallies). Later.

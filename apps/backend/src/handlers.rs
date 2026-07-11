@@ -87,10 +87,12 @@ pub struct RoleSlotDto {
     pub id: i64,
     pub role_id: i64,
     pub role_name: String,
+    /// Display label derived at render time: `role_name` plus an ordinal when the meeting
+    /// has more than one slot of the same role (e.g. `Speaker 1`, `Speaker 2`).
     pub label: String,
     pub booker_id: Option<i64>,
     pub booker_name: Option<String>,
-    pub properties: Option<String>,
+    pub taker_id: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -136,10 +138,9 @@ struct SlotRow {
     id: i64,
     role_id: i64,
     role_name: String,
-    label: String,
     booker_id: Option<i64>,
     booker_name: Option<String>,
-    properties: Option<String>,
+    taker_id: Option<i64>,
 }
 
 async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<MeetingDto> {
@@ -161,28 +162,49 @@ async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<M
     })
     .collect();
 
-    let role_slots = sqlx::query_as::<_, SlotRow>(
-        "SELECT rs.id, rs.role_id, r.name AS role_name, rs.label, rs.booker_id, \
-                u.display_name AS booker_name, rs.properties \
+    let slot_rows = sqlx::query_as::<_, SlotRow>(
+        "SELECT rs.id, rs.role_id, r.name AS role_name, ra.booker_id, \
+                u.display_name AS booker_name, ra.taker_id \
          FROM role_slot rs \
          JOIN role r ON r.id = rs.role_id \
-         LEFT JOIN user u ON u.id = rs.booker_id \
+         LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
+         LEFT JOIN user u ON u.id = ra.booker_id \
          WHERE rs.meeting_id = ? ORDER BY rs.id",
     )
     .bind(m.id)
     .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(|s| RoleSlotDto {
-        id: s.id,
-        role_id: s.role_id,
-        role_name: s.role_name,
-        label: s.label,
-        booker_id: s.booker_id,
-        booker_name: s.booker_name,
-        properties: s.properties,
-    })
-    .collect();
+    .await?;
+
+    // Derive display labels: append an ordinal only when a role repeats in the meeting.
+    let mut counts: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();
+    for s in &slot_rows {
+        *counts.entry(s.role_id).or_insert(0) += 1;
+    }
+    let mut seen: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();
+    let role_slots = slot_rows
+        .into_iter()
+        .map(|s| {
+            let ordinal = {
+                let n = seen.entry(s.role_id).or_insert(0);
+                *n += 1;
+                *n
+            };
+            let label = if counts.get(&s.role_id).copied().unwrap_or(0) > 1 {
+                format!("{} {}", s.role_name, ordinal)
+            } else {
+                s.role_name.clone()
+            };
+            RoleSlotDto {
+                id: s.id,
+                role_id: s.role_id,
+                role_name: s.role_name,
+                label,
+                booker_id: s.booker_id,
+                booker_name: s.booker_name,
+                taker_id: s.taker_id,
+            }
+        })
+        .collect();
 
     Ok(MeetingDto {
         id: m.id,
@@ -276,8 +298,12 @@ pub async fn book(
     user: AuthUser,
     Json(req): Json<BookReq>,
 ) -> AppResult<Json<serde_json::Value>> {
+    // Slot structure is user-agnostic; the current booker comes from role_assignment.
     let slot = sqlx::query_as::<_, SlotBookRow>(
-        "SELECT meeting_id, booker_id FROM role_slot WHERE id = ?",
+        "SELECT rs.meeting_id, ra.booker_id \
+         FROM role_slot rs \
+         LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
+         WHERE rs.id = ?",
     )
     .bind(req.role_slot_id)
     .fetch_optional(&state.pool)
@@ -300,10 +326,13 @@ pub async fn book(
                 if !allowed {
                     return Err(AppError::Forbidden);
                 }
-                sqlx::query("UPDATE role_slot SET booker_id = NULL WHERE id = ?")
-                    .bind(req.role_slot_id)
-                    .execute(&state.pool)
-                    .await?;
+                // Release the booking; keep the row so a taker_id (if any) survives.
+                sqlx::query(
+                    "UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?",
+                )
+                .bind(req.role_slot_id)
+                .execute(&state.pool)
+                .await?;
             }
         }
         return Ok(Json(json!({ "ok": true, "booker_id": null })));
@@ -314,12 +343,14 @@ pub async fn book(
         Some(booker) if booker == user.id => {} // already yours — idempotent
         Some(_) => return Err(AppError::Conflict("role already taken".into())),
         None => {
-            // Guard against a race: only claim if still open.
+            // Upsert the assignment; only claim if still open (guards against a race).
             let affected = sqlx::query(
-                "UPDATE role_slot SET booker_id = ? WHERE id = ? AND booker_id IS NULL",
+                "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
+                 ON CONFLICT(role_slot_id) DO UPDATE SET booker_id = excluded.booker_id \
+                 WHERE role_assignment.booker_id IS NULL",
             )
-            .bind(user.id)
             .bind(req.role_slot_id)
+            .bind(user.id)
             .execute(&state.pool)
             .await?
             .rows_affected();

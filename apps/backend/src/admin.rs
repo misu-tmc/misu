@@ -126,7 +126,6 @@ pub struct SlotIn {
     pub role_slot_id: Option<i64>,
     pub role_id: Option<i64>,
     pub role_name: Option<String>,
-    pub label: String,
 }
 
 #[derive(Deserialize)]
@@ -289,20 +288,18 @@ pub async fn upsert_meeting(
     for (slot, role_id) in input.role_slots.iter().zip(slot_role_ids.iter()) {
         let id = match slot.role_slot_id {
             Some(id) if existing_set.contains(&id) => {
-                sqlx::query("UPDATE role_slot SET role_id = ?, label = ? WHERE id = ?")
+                sqlx::query("UPDATE role_slot SET role_id = ? WHERE id = ?")
                     .bind(role_id)
-                    .bind(slot.label.trim())
                     .bind(id)
                     .execute(&mut *tx)
                     .await?;
                 id
             }
             _ => sqlx::query_scalar::<_, i64>(
-                "INSERT INTO role_slot(meeting_id, role_id, label) VALUES (?, ?, ?) RETURNING id",
+                "INSERT INTO role_slot(meeting_id, role_id) VALUES (?, ?) RETURNING id",
             )
             .bind(meeting_id)
             .bind(role_id)
-            .bind(slot.label.trim())
             .fetch_one(&mut *tx)
             .await?,
         };

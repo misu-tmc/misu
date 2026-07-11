@@ -52,17 +52,16 @@ CREATE TABLE IF NOT EXISTS meeting (
 );
 
 CREATE TABLE IF NOT EXISTS role (
-    id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE,
+    properties TEXT
 );
 
+-- A concrete bookable seat in a meeting. User-agnostic: bookings live in role_assignment.
 CREATE TABLE IF NOT EXISTS role_slot (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     meeting_id INTEGER NOT NULL REFERENCES meeting(id) ON DELETE CASCADE,
-    role_id    INTEGER NOT NULL REFERENCES role(id),
-    label      TEXT NOT NULL,
-    booker_id  INTEGER REFERENCES user(id),
-    properties TEXT
+    role_id    INTEGER NOT NULL REFERENCES role(id)
 );
 
 CREATE TABLE IF NOT EXISTS session (
@@ -73,6 +72,14 @@ CREATE TABLE IF NOT EXISTS session (
     name             TEXT NOT NULL,
     duration_minutes INTEGER NOT NULL DEFAULT 0,
     role_slot_id     INTEGER REFERENCES role_slot(id)
+);
+
+-- Who fills a slot. The only meeting-related table that references a user.
+CREATE TABLE IF NOT EXISTS role_assignment (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    role_slot_id INTEGER NOT NULL UNIQUE REFERENCES role_slot(id) ON DELETE CASCADE,
+    booker_id    INTEGER REFERENCES user(id),
+    taker_id     INTEGER REFERENCES user(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_role_slot_meeting ON role_slot(meeting_id);
@@ -201,12 +208,12 @@ async fn seed_one_meeting(
     .fetch_one(pool)
     .await?;
 
-    // Role slots for the meeting.
-    let tmod = insert_slot(pool, meeting_id, "TMOD", "TMOD").await?;
-    let sp1 = insert_slot(pool, meeting_id, "Speaker", "Speaker 1").await?;
-    let ev1 = insert_slot(pool, meeting_id, "Evaluator", "Evaluator 1").await?;
-    let ttm = insert_slot(pool, meeting_id, "Table Topics Master", "Table Topics Master").await?;
-    let timer = insert_slot(pool, meeting_id, "Timer", "Timer").await?;
+    // Role slots for the meeting (user-agnostic bookable seats).
+    let tmod = insert_slot(pool, meeting_id, "TMOD").await?;
+    let sp1 = insert_slot(pool, meeting_id, "Speaker").await?;
+    let ev1 = insert_slot(pool, meeting_id, "Evaluator").await?;
+    let ttm = insert_slot(pool, meeting_id, "Table Topics Master").await?;
+    let timer = insert_slot(pool, meeting_id, "Timer").await?;
 
     // Sessions (agenda). Start times are computed by clients from durations + buffer.
     let sessions: [(i64, &str, &str, i64, Option<i64>); 5] = [
@@ -237,15 +244,13 @@ async fn insert_slot(
     pool: &SqlitePool,
     meeting_id: i64,
     role_name: &str,
-    label: &str,
 ) -> anyhow::Result<i64> {
     let rid = role_id(pool, role_name).await?;
     Ok(sqlx::query_scalar::<_, i64>(
-        "INSERT INTO role_slot(meeting_id, role_id, label) VALUES (?, ?, ?) RETURNING id",
+        "INSERT INTO role_slot(meeting_id, role_id) VALUES (?, ?) RETURNING id",
     )
     .bind(meeting_id)
     .bind(rid)
-    .bind(label)
     .fetch_one(pool)
     .await?)
 }

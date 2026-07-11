@@ -58,7 +58,7 @@ Admin-scoped JSON APIs (no auth yet; `site_admin` guard drops in later):
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
 | GET  | `/api/meetings?scope=open\|archived\|all\|templates` | meeting list |
-| POST | `/api/meetings` | upsert a meeting document (preserves `booker_id` on matched slots) |
+| POST | `/api/meetings` | upsert a meeting document (preserves `role_assignment` on matched slots) |
 | GET / POST | `/api/roles` | list / create roles (creatable combobox) |
 | GET  | `/api/users` | users + `is_site_admin` |
 | POST | `/api/users/:id/permissions` | `{ permission, grant }` grant/revoke `site_admin` |

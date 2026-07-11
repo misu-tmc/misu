@@ -22,7 +22,9 @@ erDiagram
     MEETING   ||--o{ ROLE_SLOT : has
     ROLE      ||--o{ ROLE_SLOT : "instances of"
     ROLE_SLOT ||--o{ SESSION   : "hosts (0..many)"
-    USER      |o--o{ ROLE_SLOT : "books"
+    ROLE_SLOT ||--o| ROLE_ASSIGNMENT : "filled by"
+    USER      |o--o{ ROLE_ASSIGNMENT : "books"
+    USER      |o--o{ ROLE_ASSIGNMENT : "takes"
 
     USER {
         id     id
@@ -70,14 +72,18 @@ erDiagram
     ROLE {
         id     id
         string name
+        string properties "JSON (later)"
     }
     ROLE_SLOT {
         id     id
         id     meeting_id
         id     role_id
-        string label
-        id     booker_id "-> user.id, nullable; who booked/was assigned"
-        string properties "JSON (later)"
+    }
+    ROLE_ASSIGNMENT {
+        id     id
+        id     role_slot_id "UNIQUE"
+        id     booker_id "-> user.id, nullable; booked/assigned in advance"
+        id     taker_id  "-> user.id, nullable; actually took the role"
     }
 ```
 
@@ -146,7 +152,7 @@ Meeting-scoped management uses `meeting.meeting_manager` rather than this table.
 
 ## `meeting`
 
-The core entity. Sessions, role slots, agenda, timer, voting and check-in all hang off it.
+The core entity. Sessions, role slots, assignments, agenda, timer, voting and check-in all hang off it.
 
 | Column            | Type    | Notes                                                           |
 | ----------------- | ------- | --------------------------------------------------------------- |
@@ -171,7 +177,7 @@ Notes:
 
 ## `session`
 
-An ordered row in a meeting's agenda: what happens, for how long, and which role slot
+An ordered row in a meeting's agenda: what happens, for how long, and which role
 hosts it.
 
 | Column             | Type    | Notes                            |
@@ -185,42 +191,62 @@ hosts it.
 | `role_slot_id`     | id (FK) | -> `role_slot.id`; **nullable**  |
 
 A session references at most one role slot (one role per session for now). Many sessions
-may point to the **same** role slot, so one role can host multiple sessions (e.g. the
-Toastmaster hosting several sessions).
+may point to the **same** slot, so one slot can host multiple sessions (e.g. the
+Toastmaster hosting several sessions). The slot is a user-agnostic structural row; who
+booked or took it lives in `role_assignment`.
 
 ## `role`
 
-The managed catalog of role definitions (distinct from a per-meeting assignment). Grown
-via the creatable combobox on the sessions grid. Role properties (member-only, needs
-extra info) are deferred as next improvements.
+The managed catalog of role **types** (distinct from a per-meeting slot). Grown via the
+creatable combobox in the editor's Roles card. A repeated role (e.g. `Prepared Speaker`)
+is a **single** catalog entry; the meeting gets one `role_slot` row per concrete opening.
 
-| Column | Type    | Notes |
-| ------ | ------- | ----- |
-| `id`   | id (PK) |       |
-| `name` | string  |       |
+| Column       | Type    | Notes                                                             |
+| ------------ | ------- | ----------------------------------------------------------------- |
+| `id`         | id (PK) |                                                                   |
+| `name`       | string  |                                                                   |
+| `properties` | string  | JSON for role-specific config (deferred): member-only, needs speech title/level, evaluatee, etc. |
 
 ## `role_slot`
 
-A role needed in a specific meeting — the pivot every first-stage feature reads and
-writes. `booker_id` is who booked or was assigned in advance. Actual role-taking and
-attendance are deferred to the next-stage check-in design.
+A concrete role opening in a specific meeting — one row per bookable seat. `Prepared
+Speaker × 3` is three `role_slot` rows sharing the same `role_id`. **User-agnostic**: it
+carries no booker/taker, so the whole meeting structure (`meeting`, `session`, `role_slot`)
+can be edited, cloned into templates and published without touching any user data.
 
-| Column       | Type    | Notes                                                        |
-| ------------ | ------- | ------------------------------------------------------------ |
-| `id`         | id (PK) |                                                              |
-| `meeting_id` | id (FK) | -> `meeting.id`                                              |
-| `role_id`    | id (FK) | -> `role.id`                                                |
-| `label`      | string  | e.g. `Speaker 1`                                            |
-| `booker_id`  | id (FK) | -> `user.id`; **nullable** (null = not booked); set by role booking / admin assignment |
-| `properties` | string  | JSON for role-specific extra info (deferred): speech title/level, evaluatee, etc. |
+| Column       | Type    | Notes             |
+| ------------ | ------- | ----------------- |
+| `id`         | id (PK) |                   |
+| `meeting_id` | id (FK) | -> `meeting.id`   |
+| `role_id`    | id (FK) | -> `role.id`      |
 
 - **Session-linked slot**: one or more sessions have `role_slot_id` pointing to it.
-- **Meeting-wide slot**: no session points to it (Timer, Ah-Counter, Grammarian,
-  General Evaluator).
+- **Meeting-wide slot**: no session references it (Timer, Ah-Counter, Grammarian,
+  General Evaluator); it still exists so it can be booked.
+- **Display ordinal**: the `1`/`2`/`3` in `Speaker 1`, `Speaker 2` is **not stored** — it
+  is derived at render time as the slot's ordinal within its `role_id` group, so deleting a
+  slot just re-numbers the rest.
+
+## `role_assignment`
+
+Who fills a `role_slot` — the **only** meeting-related table that references a user, so the
+structural tables above stay user-agnostic. Zero or one assignment per slot. `booker_id` is
+who booked or was assigned in advance; `taker_id` is who actually took it (populated by the
+next-stage check-in flow).
+
+| Column         | Type    | Notes                                                        |
+| -------------- | ------- | ------------------------------------------------------------ |
+| `id`           | id (PK) |                                                              |
+| `role_slot_id` | id (FK) | -> `role_slot.id`; **UNIQUE** (one assignment per slot)      |
+| `booker_id`    | id (FK) | -> `user.id`; **nullable** (null = not booked); set by role booking / admin assignment |
+| `taker_id`     | id (FK) | -> `user.id`; **nullable** (null = not yet taken); set by check-in |
+
 - **Which one downstream reads**: first-stage artifacts (agenda, printed pager, role
-  booking cards) use `booker_id`.
-- **Next stage**: check-in will introduce attendance / actual role-taking records for
-  no-shows, substitutions, walk-ins and no-role attendees.
+  booking cards) use `booker_id`; check-in and post-meeting artifacts prefer `taker_id`
+  and fall back to `booker_id`.
+- **Open slot**: no `role_assignment` row, or a row with `booker_id` NULL.
+- **Next stage**: check-in fills `taker_id` (and attendance for no-role attendees) to
+  handle no-shows, substitutions and walk-ins.
 
 ## Serving a meeting as JSON (optional)
 

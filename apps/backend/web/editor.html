@@ -32,8 +32,10 @@
     .iconbtn.del { background: #fbeaec; color: #b00020; }
     td.utils { white-space: nowrap; text-align: right; }
     .utilgroup { display: flex; gap: 4px; justify-content: flex-end; }
-    .addrow { display: block; width: 100%; margin-top: 6px; border: none; background: #f0ecf6; color: var(--purple);
-              border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
+    .iconbtn.add { background: #e7f5ea; color: #2e7d32; }
+    .pill { display: inline-block; font-size: 12px; padding: 5px 12px; border-radius: 999px; align-self: flex-start; }
+    .pill.draft { background: #fff3e0; color: #b26a00; }
+    .pill.published { background: #e8f5e9; color: #2e7d32; }
     input[readonly] { background: var(--bg); color: var(--muted); }
     .btn { padding: 10px 18px; border-radius: 8px; border: none; background: var(--purple); color: #fff; font-size: 14px; cursor: pointer; }
     .btn.outline { background: #fff; color: var(--purple); border: 1px solid var(--purple); }
@@ -64,6 +66,7 @@
       <div class="row">
         <div class="field grow"><label>Title</label><input id="title" placeholder="Regular Meeting #142" /></div>
         <div class="field" style="width:120px"><label>Number</label><input id="number" type="number" /></div>
+        <div class="field" style="width:120px"><label>Status</label><span id="statusPill" class="pill draft">draft</span></div>
       </div>
       <div class="row">
         <div class="field grow"><label>Theme</label><input id="theme" placeholder="Embrace Change" /></div>
@@ -82,12 +85,11 @@
         <thead>
           <tr>
             <th style="width:80px">Start</th><th>Group</th>
-            <th>Session</th><th style="width:70px">Min</th><th>Role</th><th>Label</th><th style="width:120px"></th>
+            <th>Session</th><th style="width:70px">Min</th><th>Role</th><th style="width:150px"></th>
           </tr>
         </thead>
         <tbody id="sessions"></tbody>
       </table>
-      <div style="margin-top:12px"><button class="btn ghost" onclick="addSession()">+ Add session</button></div>
     </div>
 
     <div class="actions">
@@ -104,7 +106,7 @@
     const BUFFER_MINUTES = 1;
     let state = {
       meetingId: null, number: '', title: '', theme: '', date: '', start_time: '19:00',
-      end_time: '21:00', venue: '', sessions: []
+      end_time: '21:00', venue: '', status: 'draft', sessions: []
     };
 
     // --- helpers ---
@@ -136,15 +138,25 @@
     }
     function fillHeader() {
       for (const f of FIELDS) document.getElementById(f).value = state[f] ?? '';
+      renderStatus();
+    }
+    function renderStatus() {
+      const pill = document.getElementById('statusPill');
+      const st = state.status === 'published' ? 'published' : 'draft';
+      pill.className = 'pill ' + st;
+      pill.textContent = st;
     }
 
     // --- sessions grid ---
+    function emptySession() {
+      return { group_label: '', name: '', duration_minutes: 5, roleName: '', label: '', role_slot_id: null };
+    }
     function addSession() {
-      state.sessions.push({ group_label: '', name: '', duration_minutes: 5, roleName: '', label: '', role_slot_id: null });
+      state.sessions.push(emptySession());
       renderSessions();
     }
     function insertSession(i) {
-      state.sessions.splice(i + 1, 0, { group_label: '', name: '', duration_minutes: 5, roleName: '', label: '', role_slot_id: null });
+      state.sessions.splice(i + 1, 0, emptySession());
       renderSessions();
     }
     function deleteSession(i) { state.sessions.splice(i, 1); renderSessions(); }
@@ -177,14 +189,13 @@
           <td><input value="${escapeHtml(s.name)}" oninput="upd(${i},'name',this.value)" /></td>
           <td class="narrow"><input type="number" min="0" value="${s.duration_minutes}" oninput="upd(${i},'duration_minutes',this.value); renderStarts()" /></td>
           <td><input list="roles-list" value="${escapeHtml(s.roleName)}" placeholder="—" oninput="onRole(${i},this.value)" /></td>
-          <td><input value="${escapeHtml(s.label)}" placeholder="(role name)" oninput="upd(${i},'label',this.value)" /></td>
           <td class="utils">
             <div class="utilgroup">
+              <button class="iconbtn add" title="Add below" onclick="insertSession(${i})">＋</button>
               <button class="iconbtn" title="Move up" onclick="move(${i},-1)">▲</button>
               <button class="iconbtn" title="Move down" onclick="move(${i},1)">▼</button>
               <button class="iconbtn del" title="Delete" onclick="deleteSession(${i})">🗑</button>
             </div>
-            <button class="addrow" title="Add a session below" onclick="insertSession(${i})">＋ Add</button>
           </td>`;
         tbody.appendChild(tr);
       });
@@ -219,13 +230,14 @@
           role_slot_id: asTemplate ? null : (slot ? slot.id : null)
         };
       });
+      if (!sessions.length) sessions.push(emptySession());
       state = {
         meetingId: asTemplate ? null : d.id,
         number: asTemplate ? (d.number + 1) : d.number,
         title: d.title, theme: d.theme || '',
         date: asTemplate ? addDays(d.date, 14) : d.date,
         start_time: d.start_time || '19:00', end_time: d.end_time || '21:00',
-        venue: d.venue || '', sessions
+        venue: d.venue || '', status: asTemplate ? 'draft' : (d.status || 'draft'), sessions
       };
       fillHeader(); renderSessions();
     }
@@ -245,13 +257,13 @@
       if (lastMeeting) opts += `<option value="last" selected>Last meeting · #${lastMeeting.number} ${escapeHtml(lastMeeting.title)}</option>`;
       for (const t of templates) opts += `<option value="tpl:${t.id}">Template · ${escapeHtml(t.title)}</option>`;
       sel.innerHTML = opts;
-      if (lastMeeting) { await loadFrom('last'); } else { renderSessions(); }
+      if (lastMeeting) { await loadFrom('last'); } else { await loadFrom('blank'); }
     }
     function onStartFrom() { loadFrom(document.getElementById('startFrom').value); }
     async function loadFrom(choice) {
       if (choice === 'blank') {
         state = { meetingId: null, number: lastMeeting ? lastMeeting.number + 1 : 1, title: '', theme: '',
-          date: '', start_time: '19:00', end_time: '21:00', venue: '', sessions: [] };
+          date: '', start_time: '19:00', end_time: '21:00', venue: '', status: 'draft', sessions: [emptySession()] };
         fillHeader(); renderSessions(); return;
       }
       const id = choice === 'last' ? lastMeeting.id : parseInt(choice.split(':')[1], 10);
@@ -299,7 +311,9 @@
       if (!res.ok) { toast('Save failed: ' + (await res.text())); return; }
       const saved = await res.json();
       state.meetingId = saved.id; state.number = saved.number;
+      state.status = saved.status;
       document.getElementById('number').value = saved.number;
+      renderStatus();
       // Switch URL to edit mode so further saves update the same meeting.
       if (meetingIdFromPath() !== saved.id) {
         history.replaceState(null, '', '/meetings/' + saved.id + '/edit');

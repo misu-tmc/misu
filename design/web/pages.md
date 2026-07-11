@@ -55,21 +55,18 @@ after the first save.
 ├───────────────────────────────────────────────────────────┤
 │  Start from: [ Last meeting · #142 … ▾ ]   (new only)      │
 ├───────────────────────────────────────────────────────────┤
-│  TITLE                              NUMBER                 │  ← title card
-│  [ Regular Meeting #142        ]    [ 142 ]                │
+│  TITLE                          NUMBER    STATUS           │  ← title card
+│  [ Regular Meeting #142    ]    [ 142 ]   ( draft )        │
 │  THEME                 VENUE                               │
 │  [ Embrace Change ]    [ Room A ]                          │
 │  DATE          START        END                           │
 │  [07/13/2026]  [07:00 PM]   [09:00 PM]  ← END is read-only │
 ├───────────────────────────────────────────────────────────┤
 │  SESSIONS                                                  │
-│  START GROUP      SESSION       MIN ROLE   LABEL   ▪       │
-│  19:00 [Opening ] [Opening/TMOD][6][TOE  ][TOE  ] [▲▼🗑]   │
-│                                                    [＋ Add]│
-│  19:07 [Facilit.] [           ] [5][—    ][      ] [▲▼🗑]   │
-│                                                    [＋ Add]│
+│  START GROUP      SESSION       MIN ROLE      ▪            │
+│  19:00 [Opening ] [Opening/TMOD][6][TOE    ] [＋▲▼🗑]      │
+│  19:07 [Facilit.] [           ] [5][—      ] [＋▲▼🗑]      │
 │  …                                                        │
-│  [ + Add session ]                                        │
 ├───────────────────────────────────────────────────────────┤
 │  [⭐ Save as template]        [ Save draft ] [ Publish ]   │
 └───────────────────────────────────────────────────────────┘
@@ -77,7 +74,8 @@ after the first save.
 
 ### Title card
 
-Meeting header fields: title, number, theme, venue, date, start time, end time.
+Meeting header fields: title, number, theme, venue, date, start time, end time, plus a
+read-only **status** pill (`draft` / `published`) reflecting the last save.
 
 - **END is calculated from the sessions**, not entered: it is the start time plus each
   session's duration (with a 1-minute buffer between sessions). The field is read-only and
@@ -93,11 +91,11 @@ A grid of sessions in order. Columns, left to right:
 - **Session** — the agenda item name.
 - **Min** — duration in minutes; editing it re-computes all start times and the meeting END.
 - **Role** — a creatable combobox over the role catalog (`/api/roles`); empty for
-  sessions with no role.
-- **Label** — the role-slot label shown to bookers (defaults to the role name).
-- **Utils** (right-most) — grouped `▲` move up, `▼` move down, `🗑` delete on one line, with a
-  `＋ Add` button directly below that inserts a new session **below this row** (insert above =
-  add below the previous row). A bottom `+ Add session` appends to the end.
+  sessions with no role. The role slot's `label` is not edited here; it defaults to the
+  role name on save.
+- **Utils** (right-most) — one grouped control `[ ＋ ▲ ▼ 🗑 ]`: `＋` inserts a new session
+  **below this row**, `▲`/`▼` move it, `🗑` deletes it. There is no separate bottom add
+  button, so a fresh/blank meeting always starts with **one empty row** to grow from.
 
 ### Actions
 

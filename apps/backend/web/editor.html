@@ -236,10 +236,15 @@
     }
     function updBooker(i, val) { state.slots[i].bookerName = val; }
 
+    // Assign (bookerId set) or release (null) a slot's booker via the unified booking
+    // endpoint. The admin `user_id` field is honored because the caller is a manager.
     async function setAssignment(slotId, bookerId) {
-      const res = await fetch('/api/slots/' + slotId + '/assignment', {
+      const body = bookerId
+        ? { meeting_id: state.meetingId, role_slot_id: slotId, user_id: bookerId }
+        : { meeting_id: state.meetingId, role_slot_id: slotId, cancel: true };
+      const res = await fetch('/api/book', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ booker_id: bookerId })
+        body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -301,11 +306,11 @@
       }
       await Promise.all(jobs.map(async sl => {
         const want = (sl.bookerName || '').trim();
-        const bookerId = want ? (findUser(want) || {}).id ?? null : null;
-        const res = await setAssignment(sl.role_slot_id, bookerId);
-        sl.booker_id = res.booker_id;
-        sl.booker_name = res.booker_name || null;
-        sl.bookerName = res.booker_name || '';
+        const user = want ? findUser(want) : null;
+        await setAssignment(sl.role_slot_id, user ? user.id : null);
+        sl.booker_id = user ? user.id : null;
+        sl.booker_name = user ? user.display_name : null;
+        sl.bookerName = user ? user.display_name : '';
       }));
       return jobs.length;
     }

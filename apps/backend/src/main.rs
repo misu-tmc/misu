@@ -71,7 +71,6 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/roles", get(admin::list_roles).post(admin::create_role))
         .route("/api/users", get(admin::list_users).post(admin::create_user))
         .route("/api/users/:user_id/permissions", post(admin::set_permission))
-        .route("/api/slots/:role_slot_id/assignment", post(admin::set_assignment))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

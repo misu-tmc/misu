@@ -106,9 +106,11 @@ Meetings:
   never clobbers bookings.
 
 Role booking (acts as the current user):
-- `POST /api/book` — `{ meeting_id, role_slot_id, cancel? }`. Book an open role slot;
-  when `cancel` is true, release the current user's booking of that slot. Booking writes
-  `role_assignment.booker_id` for the slot.
+- `POST /api/book` — `{ meeting_id, role_slot_id, user_id?, cancel? }`. Book an open role
+  slot; when `cancel` is true, release the current user's booking of that slot. Booking
+  writes `role_assignment.booker_id` for the slot. The optional `user_id` assigns a booker
+  on someone else's behalf and is honored **only** when the caller is a site admin or the
+  meeting's manager — this is how the web editor assigns bookers.
 
 Check-in (acts as the current user):
 - `POST /api/checkin` — `{ meeting_id, role_slot_ids: [] }`. Record attendance and the

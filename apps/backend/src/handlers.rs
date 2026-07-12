@@ -7,7 +7,7 @@ use serde_json::json;
 use sqlx::FromRow;
 
 use crate::auth::{
-    create_session, is_site_admin, resolve_openid, upsert_wechat_user, AuthUser,
+    create_session, is_site_admin, resolve_openid, upsert_wechat_user, AuthUser, MaybeAuthUser,
 };
 use crate::error::{AppError, AppResult};
 use crate::{db, AppState};
@@ -285,6 +285,10 @@ pub struct BookReq {
     pub role_slot_id: i64,
     #[serde(default)]
     pub cancel: bool,
+    /// Admin-only: book/assign on behalf of this user instead of the session user.
+    /// Ignored (rejected) unless the caller is a site admin or the meeting's manager.
+    #[serde(default)]
+    pub user_id: Option<i64>,
 }
 
 #[derive(FromRow)]
@@ -293,9 +297,15 @@ struct SlotBookRow {
     booker_id: Option<i64>,
 }
 
+/// Book, release or (for admins) assign a role slot.
+///
+/// - No `user_id`: acts as the session user (self-booking) — a session is required.
+/// - With `user_id`: assigns that user to the slot; allowed only when the caller is a
+///   site admin or the meeting's manager. The web admin editor (currently unauthenticated)
+///   is treated as trusted until the `site_admin` web guard lands.
 pub async fn book(
     State(state): State<AppState>,
-    user: AuthUser,
+    MaybeAuthUser(maybe_user): MaybeAuthUser,
     Json(req): Json<BookReq>,
 ) -> AppResult<Json<serde_json::Value>> {
     // Slot structure is user-agnostic; the current booker comes from role_assignment.
@@ -316,13 +326,44 @@ pub async fn book(
         ));
     }
 
+    // Is the caller allowed to act on behalf of others / override bookings?
+    // A missing session is the (still unauthenticated) web admin surface.
+    let acting_is_admin = match &maybe_user {
+        Some(u) => {
+            is_meeting_manager(&state.pool, slot.meeting_id, u.id).await?
+                || is_site_admin(&state.pool, u.id).await?
+        }
+        None => true,
+    };
+
+    // --- Admin assignment on behalf of a specific user ---
+    if let Some(target) = req.user_id {
+        if !acting_is_admin {
+            return Err(AppError::Forbidden);
+        }
+        let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user WHERE id = ?")
+            .bind(target)
+            .fetch_one(&state.pool)
+            .await?;
+        if exists == 0 {
+            return Err(AppError::BadRequest("user does not exist".into()));
+        }
+        sqlx::query(
+            "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
+             ON CONFLICT(role_slot_id) DO UPDATE SET booker_id = excluded.booker_id",
+        )
+        .bind(req.role_slot_id)
+        .bind(target)
+        .execute(&state.pool)
+        .await?;
+        return Ok(Json(json!({ "ok": true, "booker_id": target })));
+    }
+
     if req.cancel {
         match slot.booker_id {
             None => {} // already open — idempotent
             Some(booker) => {
-                let allowed = booker == user.id
-                    || is_meeting_manager(&state.pool, slot.meeting_id, user.id).await?
-                    || is_site_admin(&state.pool, user.id).await?;
+                let allowed = matches!(&maybe_user, Some(u) if booker == u.id) || acting_is_admin;
                 if !allowed {
                     return Err(AppError::Forbidden);
                 }
@@ -338,9 +379,10 @@ pub async fn book(
         return Ok(Json(json!({ "ok": true, "booker_id": null })));
     }
 
-    // Booking an open slot.
+    // --- Self-booking: requires a session ---
+    let me = maybe_user.ok_or(AppError::Unauthorized)?.id;
     match slot.booker_id {
-        Some(booker) if booker == user.id => {} // already yours — idempotent
+        Some(booker) if booker == me => {} // already yours — idempotent
         Some(_) => return Err(AppError::Conflict("role already taken".into())),
         None => {
             // Upsert the assignment; only claim if still open (guards against a race).
@@ -350,7 +392,7 @@ pub async fn book(
                  WHERE role_assignment.booker_id IS NULL",
             )
             .bind(req.role_slot_id)
-            .bind(user.id)
+            .bind(me)
             .execute(&state.pool)
             .await?
             .rows_affected();
@@ -359,7 +401,7 @@ pub async fn book(
             }
         }
     }
-    Ok(Json(json!({ "ok": true, "booker_id": user.id })))
+    Ok(Json(json!({ "ok": true, "booker_id": me })))
 }
 
 async fn is_meeting_manager(

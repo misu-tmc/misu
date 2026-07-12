@@ -58,6 +58,26 @@ fn bearer_token(parts: &Parts) -> Option<String> {
     }
 }
 
+/// Optional variant of [`AuthUser`]: resolves the caller if a valid session is present,
+/// otherwise yields `None` instead of rejecting. Used where the web admin surface (still
+/// unauthenticated for now) and the authenticated mini program share one endpoint.
+pub struct MaybeAuthUser(pub Option<AuthUser>);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for MaybeAuthUser
+where
+    SqlitePool: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        Ok(MaybeAuthUser(
+            AuthUser::from_request_parts(parts, state).await.ok(),
+        ))
+    }
+}
+
 /// Resolve the WeChat `openid` for a login code. Uses jscode2session when credentials
 /// are configured; otherwise (DEV mode) derives a stable fake openid from the code.
 pub async fn resolve_openid(config: &Config, code: &str) -> Result<String, AppError> {

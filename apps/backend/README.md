@@ -33,7 +33,7 @@ Set `MISU_SEED_ADMIN_OPENID` to bootstrap the first `site_admin` (in DEV mode th
 | POST | `/api/auth/wechat` | — | `{ code }` → `{ token, user }` |
 | GET  | `/api/meetings/upcoming` | Bearer | upcoming published meetings (sessions + role slots + takers) |
 | GET  | `/api/meetings/:id` | — | one meeting's detail (drafts included; shared with the editor) |
-| POST | `/api/book` | Bearer | `{ meeting_id, role_slot_id, cancel? }` book/release a role |
+| POST | `/api/book` | Bearer* | `{ meeting_id, role_slot_id, user_id?, cancel? }` book/release a role; admin `user_id` assigns on behalf (*self-booking needs a session; admin assign is open while the web guard is pending) |
 | POST | `/api/users/:id` | Bearer | `{ display_name }` update profile (self or site_admin) |
 | GET  | `/api/club-info` | — | static club introduction |
 
@@ -62,7 +62,6 @@ Admin-scoped JSON APIs (no auth yet; `site_admin` guard drops in later):
 | GET / POST | `/api/roles` | list / create roles (creatable combobox) |
 | GET / POST | `/api/users` | list users / create a bare (identity-less) user |
 | POST | `/api/users/:id/permissions` | `{ permission, grant }` grant/revoke `site_admin` |
-| POST | `/api/slots/:id/assignment` | `{ booker_id \| null }` assign/clear a slot's booker (admin) |
 
 ## Layout
 

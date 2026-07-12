@@ -56,17 +56,20 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/healthz", get(handlers::healthz))
         .route("/api/auth/wechat", post(handlers::auth_wechat))
+        .route("/api/auth/login", post(handlers::auth_login))
+        .route("/api/auth/logout", post(handlers::auth_logout))
         .route("/api/meetings/upcoming", get(handlers::meetings_upcoming))
         .route("/api/meetings/:meeting_id", get(handlers::meeting_detail))
         .route("/api/book", post(handlers::book))
         .route("/api/users/:user_id", post(handlers::update_user))
         .route("/api/club-info", get(handlers::club_info))
-        // Web admin pages (no auth for now).
+        // Web admin pages (require a web session; redirect to /login otherwise).
+        .route("/login", get(admin::page_login))
         .route("/meetings", get(admin::page_meetings))
         .route("/meetings/new", get(admin::page_editor))
         .route("/meetings/:meeting_id/edit", get(admin::page_editor))
         .route("/users", get(admin::page_users))
-        // Admin-scoped JSON APIs (no auth for now; site_admin guard drops in later).
+        // Admin-scoped JSON APIs (require `site_admin`).
         .route("/api/meetings", get(admin::list_meetings).post(admin::upsert_meeting))
         .route("/api/roles", get(admin::list_roles).post(admin::create_role))
         .route("/api/users", get(admin::list_users).post(admin::create_user))

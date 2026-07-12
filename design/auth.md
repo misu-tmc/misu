@@ -95,3 +95,25 @@ requires a resolved `user.id` before showing content — the WeChat sign-in flow
 launch and the auth guard gates every page (booking, meeting, check-in, voting, profile).
 The WeChat identity provider exchanges the WeChat login code for a session
 (`POST /api/auth/wechat`) and resolves/creates the `user`.
+
+## Implementation (current)
+
+Two providers behind the shared contract, both resolving to a `user.id` and a row in the
+shared `auth_session` store:
+
+- **WeChat** (`wechat_identity`): `POST /api/auth/wechat { code }` exchanges the code for
+  an `openid`, upserts the user, and returns an opaque **bearer token** the mini program
+  sends as `Authorization: Bearer <token>`.
+- **Web username/password** (`web_credential`): `POST /api/auth/login { username, password }`
+  verifies against a **bcrypt** hash and sets the session as an HttpOnly `misu_session`
+  **cookie**. `POST /api/auth/logout` drops the session row and clears the cookie.
+
+The `AuthUser` extractor resolves either transport (bearer or cookie) against the one
+`auth_session` table — the rest of the app only sees `user.id`. Web management pages
+redirect to `/login` without a session; management APIs additionally require a `site_admin`
+grant (`AdminUser`). A password credential carries **no special access** on its own;
+`site_admin` is a separate grant.
+
+**Bootstrap**: the first web `site_admin` is seeded from `MISU_WEB_ADMIN_USER` /
+`MISU_WEB_ADMIN_PASSWORD` (or `admin`/`admin` in DEV mode). Passwords are stored only as
+bcrypt hashes.

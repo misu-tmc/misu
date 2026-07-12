@@ -22,6 +22,14 @@ CREATE TABLE IF NOT EXISTS wechat_identity (
     user_id INTEGER NOT NULL REFERENCES user(id)
 );
 
+-- Username/password identity for the web surface. Another pluggable provider; the
+-- password is stored only as a bcrypt hash, never in cleartext.
+CREATE TABLE IF NOT EXISTS web_credential (
+    username      TEXT PRIMARY KEY,
+    user_id       INTEGER NOT NULL REFERENCES user(id),
+    password_hash TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS auth_session (
     token      TEXT PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES user(id),
@@ -140,6 +148,8 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
         }
     }
 
+    seed_web_admin(pool, config).await?;
+
     let meeting_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting")
         .fetch_one(pool)
         .await?;
@@ -147,6 +157,33 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
         seed_sample_meetings(pool).await?;
     }
 
+    Ok(())
+}
+
+/// Bootstrap a `site_admin` web user (username/password) so the admin surface is
+/// reachable. Uses the configured credentials, or falls back to `admin`/`admin` in DEV
+/// mode. No-op if the username already has a credential.
+async fn seed_web_admin(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
+    let (username, password) = match (
+        &config.seed_web_admin_user,
+        &config.seed_web_admin_password,
+    ) {
+        (Some(u), Some(p)) => (u.clone(), p.clone()),
+        _ if config.dev_mode() => {
+            tracing::warn!(
+                "seeding DEV web admin admin/admin (set MISU_WEB_ADMIN_USER/PASSWORD to override)"
+            );
+            ("admin".to_string(), "admin".to_string())
+        }
+        _ => return Ok(()),
+    };
+
+    if crate::auth::web_username_exists(pool, &username).await? {
+        return Ok(());
+    }
+    let user_id = crate::auth::create_web_user(pool, &username, &password, "Site Admin").await?;
+    grant_site_admin(pool, user_id).await?;
+    tracing::info!("created web admin user '{username}' (site_admin)");
     Ok(())
 }
 

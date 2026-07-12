@@ -53,6 +53,7 @@
     <span class="brand">MISU Admin</span>
     <nav><a href="/meetings">← Meetings</a></nav>
     <span id="heading" style="opacity:.85"></span>
+    <a href="#" onclick="logout(event)" style="margin-left:auto;color:#fff;opacity:.85;text-decoration:none">Logout</a>
   </header>
   <main>
     <div class="card" id="startFromCard" style="display:none">
@@ -120,6 +121,11 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    async function logout(e) {
+      e.preventDefault();
+      await fetch('/api/auth/logout', { method: 'POST' });
+      location.href = '/login';
+    }
     const BUFFER_MINUTES = 1;
     let state = {
       meetingId: null, number: '', title: '', theme: '', date: '', start_time: '19:00',

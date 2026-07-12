@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MISU Admin · Sign in</title>
+  <style>
+    :root { --purple: #5b2a86; --ink: #1c1c1e; --muted: #8a8a8f; --line: #ececee; --bg: #f5f5f7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+           font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); }
+    .card { background: #fff; border-radius: 14px; padding: 32px; width: 340px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    .brand { font-weight: 700; font-size: 20px; color: var(--purple); margin-bottom: 4px; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
+    label { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 5px; }
+    input { width: 100%; font-size: 14px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; }
+    input:focus { outline: none; border-color: var(--purple); }
+    button { width: 100%; margin-top: 22px; padding: 11px; border: none; border-radius: 8px; background: var(--purple);
+             color: #fff; font-size: 15px; cursor: pointer; }
+    .err { color: #b00020; font-size: 13px; margin-top: 14px; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <form class="card" onsubmit="return signIn(event)">
+    <div class="brand">MISU Admin</div>
+    <div class="sub">Sign in to manage meetings and roles.</div>
+    <label for="username">Username</label>
+    <input id="username" autocomplete="username" autofocus />
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" />
+    <button type="submit">Sign in</button>
+    <div class="err" id="err"></div>
+  </form>
+
+  <script>
+    async function signIn(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const err = document.getElementById('err');
+      err.textContent = '';
+      const res = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (!res.ok) {
+        err.textContent = res.status === 401 ? 'Invalid username or password.' : 'Sign in failed.';
+        return false;
+      }
+      const params = new URLSearchParams(location.search);
+      location.href = params.get('next') || '/meetings';
+      return false;
+    }
+  </script>
+</body>
+</html>

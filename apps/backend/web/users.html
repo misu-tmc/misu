@@ -36,6 +36,7 @@
       <a href="/meetings">Meetings</a>
       <a href="/users" class="active">Users</a>
     </nav>
+    <a href="#" onclick="logout(event)" style="margin-left:auto;color:#fff;opacity:.85;text-decoration:none">Logout</a>
   </header>
   <main>
     <h1>Users</h1>
@@ -49,6 +50,11 @@
   </main>
 
   <script>
+    async function logout(e) {
+      e.preventDefault();
+      await fetch('/api/auth/logout', { method: 'POST' });
+      location.href = '/login';
+    }
     async function load() {
       const res = await fetch('/api/users');
       const users = await res.json();

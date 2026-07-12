@@ -42,6 +42,7 @@
       <a href="/meetings" class="active">Meetings</a>
       <a href="/users">Users</a>
     </nav>
+    <a href="#" onclick="logout(event)" style="margin-left:auto;color:#fff;opacity:.85;text-decoration:none">Logout</a>
   </header>
   <main>
     <div class="toolbar">
@@ -61,6 +62,11 @@
   </main>
 
   <script>
+    async function logout(e) {
+      e.preventDefault();
+      await fetch('/api/auth/logout', { method: 'POST' });
+      location.href = '/login';
+    }
     let scope = 'open';
 
     function switchScope(s) {

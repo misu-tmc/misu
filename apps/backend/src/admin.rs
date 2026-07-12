@@ -2,13 +2,13 @@
 // (meeting list/upsert, roles catalog, user management) served on the shared
 // `/api/*` paths.
 //
-// These endpoints are intentionally NOT behind the auth guard for now (first-stage
-// setup convenience). A `site_admin` guard can be added here later without affecting
-// the mini program.
+// The pages require a web session and redirect to `/login` when absent; the JSON APIs
+// require a `site_admin` grant (the `AdminUser` extractor).
 
 use axum::{
     extract::{Path, Query, State},
-    response::Html,
+    http::StatusCode,
+    response::{Html, IntoResponse, Redirect, Response},
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,7 @@ use serde_json::json;
 use sqlx::FromRow;
 use std::collections::HashSet;
 
+use crate::auth::{AdminUser, MaybeAuthUser};
 use crate::error::{AppError, AppResult};
 use crate::handlers;
 use crate::AppState;
@@ -24,24 +25,41 @@ use crate::AppState;
 // Page serving (self-contained HTML files under the configured web dir)
 // ---------------------------------------------------------------------------
 
-async fn serve(state: &AppState, file: &str) -> AppResult<Html<String>> {
+async fn read_page(state: &AppState, file: &str) -> Response {
     let path = std::path::Path::new(&state.config.web_dir).join(file);
-    let content = tokio::fs::read_to_string(&path).await.map_err(|e| {
-        AppError::Internal(anyhow::anyhow!("failed to read {}: {e}", path.display()))
-    })?;
-    Ok(Html(content))
+    match tokio::fs::read_to_string(&path).await {
+        Ok(content) => Html(content).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("failed to read {}: {e}", path.display()),
+        )
+            .into_response(),
+    }
 }
 
-pub async fn page_meetings(State(s): State<AppState>) -> AppResult<Html<String>> {
-    serve(&s, "meetings.html").await
+/// Serve an admin page, redirecting to `/login` when there is no web session.
+async fn serve_admin(state: &AppState, maybe: MaybeAuthUser, file: &str) -> Response {
+    match maybe.0 {
+        Some(_) => read_page(state, file).await,
+        None => Redirect::to("/login").into_response(),
+    }
 }
 
-pub async fn page_users(State(s): State<AppState>) -> AppResult<Html<String>> {
-    serve(&s, "users.html").await
+/// The login page is always reachable (it is how you get a session).
+pub async fn page_login(State(s): State<AppState>) -> Response {
+    read_page(&s, "login.html").await
 }
 
-pub async fn page_editor(State(s): State<AppState>) -> AppResult<Html<String>> {
-    serve(&s, "editor.html").await
+pub async fn page_meetings(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
+    serve_admin(&s, m, "meetings.html").await
+}
+
+pub async fn page_users(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
+    serve_admin(&s, m, "users.html").await
+}
+
+pub async fn page_editor(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
+    serve_admin(&s, m, "editor.html").await
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +91,7 @@ const SUMMARY_COLS: &str = "id, number, title, theme, date, start_time, end_time
 /// `scope`: `open` (today onward, default), `archived` (past), `all`, or `templates`.
 pub async fn list_meetings(
     State(state): State<AppState>,
+    _admin: AdminUser,
     Query(q): Query<ListQuery>,
 ) -> AppResult<Json<Vec<MeetingSummary>>> {
     let today = chrono::Local::now().date_naive().to_string();
@@ -167,6 +186,7 @@ pub struct MeetingIn {
 /// so saving/publishing never clobbers bookings.
 pub async fn upsert_meeting(
     State(state): State<AppState>,
+    _admin: AdminUser,
     Json(input): Json<MeetingIn>,
 ) -> AppResult<Json<handlers::MeetingDto>> {
     if input.title.trim().is_empty() {
@@ -357,7 +377,7 @@ pub struct RoleDto {
     pub name: String,
 }
 
-pub async fn list_roles(State(state): State<AppState>) -> AppResult<Json<Vec<RoleDto>>> {
+pub async fn list_roles(State(state): State<AppState>, _admin: AdminUser) -> AppResult<Json<Vec<RoleDto>>> {
     let rows = sqlx::query_as::<_, RoleDto>("SELECT id, name FROM role ORDER BY name")
         .fetch_all(&state.pool)
         .await?;
@@ -371,6 +391,7 @@ pub struct RoleIn {
 
 pub async fn create_role(
     State(state): State<AppState>,
+    _admin: AdminUser,
     Json(input): Json<RoleIn>,
 ) -> AppResult<Json<RoleDto>> {
     let name = input.name.trim();
@@ -409,7 +430,7 @@ pub struct UserRowDto {
     pub is_site_admin: bool,
 }
 
-pub async fn list_users(State(state): State<AppState>) -> AppResult<Json<Vec<UserRowDto>>> {
+pub async fn list_users(State(state): State<AppState>, _admin: AdminUser) -> AppResult<Json<Vec<UserRowDto>>> {
     let rows = sqlx::query_as::<_, UserRow>(
         "SELECT u.id, u.display_name, \
          EXISTS(SELECT 1 FROM user_permission p WHERE p.user_id = u.id \
@@ -439,6 +460,7 @@ pub struct PermissionIn {
 /// Grant or revoke a permission for a user. Currently only `site_admin`.
 pub async fn set_permission(
     State(state): State<AppState>,
+    _admin: AdminUser,
     Path(user_id): Path<i64>,
     Json(input): Json<PermissionIn>,
 ) -> AppResult<Json<serde_json::Value>> {
@@ -499,6 +521,7 @@ pub struct NewUserIn {
 /// design (identity is separate from the user record).
 pub async fn create_user(
     State(state): State<AppState>,
+    _admin: AdminUser,
     Json(input): Json<NewUserIn>,
 ) -> AppResult<Json<UserRowDto>> {
     let name = input.display_name.trim();

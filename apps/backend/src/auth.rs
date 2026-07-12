@@ -29,7 +29,7 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let pool = SqlitePool::from_ref(state);
-        let token = bearer_token(parts).ok_or(AppError::Unauthorized)?;
+        let token = session_token(parts).ok_or(AppError::Unauthorized)?;
 
         let row = sqlx::query_as::<_, (i64, String)>(
             "SELECT u.id, u.display_name FROM auth_session s \
@@ -44,6 +44,29 @@ where
             None => Err(AppError::Unauthorized),
         }
     }
+}
+
+/// The name of the web session cookie.
+pub const SESSION_COOKIE: &str = "misu_session";
+
+/// Resolve the session token from either the `Authorization: Bearer` header (mini program)
+/// or the `misu_session` cookie (web surface).
+fn session_token(parts: &Parts) -> Option<String> {
+    bearer_token(parts).or_else(|| cookie_value(parts, SESSION_COOKIE))
+}
+
+fn cookie_value(parts: &Parts, name: &str) -> Option<String> {
+    let header = parts.headers.get(axum::http::header::COOKIE)?;
+    let value = header.to_str().ok()?;
+    for pair in value.split(';') {
+        let pair = pair.trim();
+        if let Some(rest) = pair.strip_prefix(name).and_then(|r| r.strip_prefix('=')) {
+            if !rest.is_empty() {
+                return Some(rest.to_string());
+            }
+        }
+    }
+    None
 }
 
 fn bearer_token(parts: &Parts) -> Option<String> {
@@ -76,6 +99,121 @@ where
             AuthUser::from_request_parts(parts, state).await.ok(),
         ))
     }
+}
+
+/// A `site_admin`-gated caller. Resolves [`AuthUser`], then requires an active
+/// `site_admin` grant — used to guard the web management APIs.
+pub struct AdminUser(#[allow(dead_code)] pub AuthUser);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for AdminUser
+where
+    SqlitePool: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let pool = SqlitePool::from_ref(state);
+        let user = AuthUser::from_request_parts(parts, state).await?;
+        if is_site_admin(&pool, user.id).await? {
+            Ok(AdminUser(user))
+        } else {
+            Err(AppError::Forbidden)
+        }
+    }
+}
+
+/// Extracts the raw session token (bearer or cookie) if present — used by logout.
+pub struct SessionToken(pub Option<String>);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for SessionToken
+where
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(SessionToken(session_token(parts)))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Web (username/password) provider
+// ---------------------------------------------------------------------------
+
+/// Hash a plaintext password for storage.
+pub fn hash_password(password: &str) -> Result<String, AppError> {
+    bcrypt::hash(password, bcrypt::DEFAULT_COST)
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("password hash failed: {e}")))
+}
+
+/// Verify a plaintext password against a stored bcrypt hash.
+fn verify_password(password: &str, hash: &str) -> bool {
+    bcrypt::verify(password, hash).unwrap_or(false)
+}
+
+/// Verify a web login. Returns `(user_id, display_name)` on success, `None` on any
+/// mismatch (unknown username or wrong password — indistinguishable to the caller).
+pub async fn verify_web_login(
+    pool: &SqlitePool,
+    username: &str,
+    password: &str,
+) -> Result<Option<(i64, String)>, AppError> {
+    let row = sqlx::query_as::<_, (i64, String, String)>(
+        "SELECT u.id, u.display_name, c.password_hash FROM web_credential c \
+         JOIN user u ON u.id = c.user_id WHERE c.username = ?",
+    )
+    .bind(username)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(match row {
+        Some((id, name, hash)) if verify_password(password, &hash) => Some((id, name)),
+        _ => None,
+    })
+}
+
+/// Create a web user with a username/password credential. Returns the new `user.id`.
+pub async fn create_web_user(
+    pool: &SqlitePool,
+    username: &str,
+    password: &str,
+    display_name: &str,
+) -> Result<i64, AppError> {
+    let hash = hash_password(password)?;
+    let user_id: i64 =
+        sqlx::query_scalar("INSERT INTO user(display_name) VALUES (?) RETURNING id")
+            .bind(display_name)
+            .fetch_one(pool)
+            .await?;
+    sqlx::query("INSERT INTO web_credential(username, user_id, password_hash) VALUES (?, ?, ?)")
+        .bind(username)
+        .bind(user_id)
+        .bind(hash)
+        .execute(pool)
+        .await?;
+    Ok(user_id)
+}
+
+/// Whether a web credential already exists for a username.
+pub async fn web_username_exists(pool: &SqlitePool, username: &str) -> Result<bool, AppError> {
+    let count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM web_credential WHERE username = ?")
+            .bind(username)
+            .fetch_one(pool)
+            .await?;
+    Ok(count > 0)
+}
+
+/// Delete a session by its token (logout).
+pub async fn delete_session(pool: &SqlitePool, token: &str) -> Result<(), AppError> {
+    sqlx::query("DELETE FROM auth_session WHERE token = ?")
+        .bind(token)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 /// Resolve the WeChat `openid` for a login code. Uses jscode2session when credentials

@@ -64,9 +64,10 @@ request body.
 
 ### Web auth
 
-- `GET /login` — login/register page.
-- `POST /login` — establish a web session.
-- `POST /logout` — clear the web session.
+- `GET /login` — login page (username/password).
+- `POST /api/auth/login` — `{ username, password }`; establishes a web session as an
+  HttpOnly `misu_session` cookie.
+- `POST /api/auth/logout` — clear the web session and cookie.
 
 ### WeChat auth
 

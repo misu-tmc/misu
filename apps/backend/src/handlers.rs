@@ -1,5 +1,7 @@
 use axum::{
     extract::{Path, State},
+    http::header::SET_COOKIE,
+    response::{IntoResponse, Response},
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -7,7 +9,8 @@ use serde_json::json;
 use sqlx::FromRow;
 
 use crate::auth::{
-    create_session, is_site_admin, resolve_openid, upsert_wechat_user, AuthUser, MaybeAuthUser,
+    create_session, delete_session, is_site_admin, resolve_openid, upsert_wechat_user,
+    verify_web_login, AuthUser, SessionToken, SESSION_COOKIE,
 };
 use crate::error::{AppError, AppResult};
 use crate::{db, AppState};
@@ -66,6 +69,62 @@ pub async fn auth_wechat(
             display_name,
         },
     }))
+}
+
+// ---------------------------------------------------------------------------
+// Auth: web username/password login
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct WebLoginReq {
+    pub username: String,
+    pub password: String,
+}
+
+fn session_cookie(token: &str) -> String {
+    // 30 days; HttpOnly + Lax so it rides top-level navigations to the admin pages.
+    format!("{SESSION_COOKIE}={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000")
+}
+
+fn cleared_cookie() -> String {
+    format!("{SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0")
+}
+
+/// Web login: verify username/password, mint a session, and set it as an HttpOnly cookie.
+pub async fn auth_login(
+    State(state): State<AppState>,
+    Json(req): Json<WebLoginReq>,
+) -> AppResult<Response> {
+    let username = req.username.trim();
+    if username.is_empty() || req.password.is_empty() {
+        return Err(AppError::BadRequest("username and password are required".into()));
+    }
+    let (user_id, display_name) = verify_web_login(&state.pool, username, &req.password)
+        .await?
+        .ok_or(AppError::Unauthorized)?;
+
+    let token = create_session(&state.pool, user_id).await?;
+    let mut resp = Json(json!({
+        "user": { "id": user_id, "display_name": display_name }
+    }))
+    .into_response();
+    resp.headers_mut()
+        .insert(SET_COOKIE, session_cookie(&token).parse().unwrap());
+    Ok(resp)
+}
+
+/// Web logout: drop the session row and clear the cookie.
+pub async fn auth_logout(
+    State(state): State<AppState>,
+    SessionToken(token): SessionToken,
+) -> AppResult<Response> {
+    if let Some(token) = token {
+        delete_session(&state.pool, &token).await?;
+    }
+    let mut resp = Json(json!({ "ok": true })).into_response();
+    resp.headers_mut()
+        .insert(SET_COOKIE, cleared_cookie().parse().unwrap());
+    Ok(resp)
 }
 
 // ---------------------------------------------------------------------------
@@ -247,6 +306,7 @@ pub async fn meetings_upcoming(
 
 pub async fn meeting_detail(
     State(state): State<AppState>,
+    _user: AuthUser,
     Path(meeting_id): Path<i64>,
 ) -> AppResult<Json<MeetingDto>> {
     meeting_dto_by_id(&state.pool, meeting_id)
@@ -299,13 +359,12 @@ struct SlotBookRow {
 
 /// Book, release or (for admins) assign a role slot.
 ///
-/// - No `user_id`: acts as the session user (self-booking) — a session is required.
+/// - No `user_id`: acts as the session user (self-booking).
 /// - With `user_id`: assigns that user to the slot; allowed only when the caller is a
-///   site admin or the meeting's manager. The web admin editor (currently unauthenticated)
-///   is treated as trusted until the `site_admin` web guard lands.
+///   site admin or the meeting's manager.
 pub async fn book(
     State(state): State<AppState>,
-    MaybeAuthUser(maybe_user): MaybeAuthUser,
+    user: AuthUser,
     Json(req): Json<BookReq>,
 ) -> AppResult<Json<serde_json::Value>> {
     // Slot structure is user-agnostic; the current booker comes from role_assignment.
@@ -326,15 +385,9 @@ pub async fn book(
         ));
     }
 
-    // Is the caller allowed to act on behalf of others / override bookings?
-    // A missing session is the (still unauthenticated) web admin surface.
-    let acting_is_admin = match &maybe_user {
-        Some(u) => {
-            is_meeting_manager(&state.pool, slot.meeting_id, u.id).await?
-                || is_site_admin(&state.pool, u.id).await?
-        }
-        None => true,
-    };
+    // May the caller act on behalf of others / override bookings?
+    let acting_is_admin = is_meeting_manager(&state.pool, slot.meeting_id, user.id).await?
+        || is_site_admin(&state.pool, user.id).await?;
 
     // --- Admin assignment on behalf of a specific user ---
     if let Some(target) = req.user_id {
@@ -363,8 +416,7 @@ pub async fn book(
         match slot.booker_id {
             None => {} // already open — idempotent
             Some(booker) => {
-                let allowed = matches!(&maybe_user, Some(u) if booker == u.id) || acting_is_admin;
-                if !allowed {
+                if booker != user.id && !acting_is_admin {
                     return Err(AppError::Forbidden);
                 }
                 // Release the booking; keep the row so a taker_id (if any) survives.
@@ -379,8 +431,8 @@ pub async fn book(
         return Ok(Json(json!({ "ok": true, "booker_id": null })));
     }
 
-    // --- Self-booking: requires a session ---
-    let me = maybe_user.ok_or(AppError::Unauthorized)?.id;
+    // --- Self-booking ---
+    let me = user.id;
     match slot.booker_id {
         Some(booker) if booker == me => {} // already yours — idempotent
         Some(_) => return Err(AppError::Conflict("role already taken".into())),

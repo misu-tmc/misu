@@ -98,12 +98,12 @@ source of truth for who can be booked; sessions only *reference* these slots.
 - **Label** — read-only, derived: the role name plus an ordinal when the role repeats
   (`Speaker 1`, `Speaker 2`); a lone role shows just its name. Numbered at render time,
   never stored.
-- **Booked by** — a **searchable combobox** over existing users (`/api/users`) that
-  assigns the slot's booker directly (`POST /api/slots/:id/assignment`), independent of the
-  meeting document save. Clearing it releases the booking. Typing a name that doesn't match
-  any user **creates a bare user** (`POST /api/users`) and assigns them — such a user has
-  no auth identity and cannot log in, by design (identity is separate from the user
-  record). Editable only after the slot is saved (a new slot shows "save meeting first").
+- **Booked by** — a **searchable combobox** over existing users (`/api/users`). Edits are
+  **local until Save**: the Save button commits the meeting document first, then applies
+  all booker changes in one batch — creating any typed-but-unknown names as **bare users**
+  (`POST /api/users`) and assigning each slot (`POST /api/slots/:id/assignment`). A bare
+  user has no auth identity and cannot log in, by design (identity is separate from the
+  user record). Clearing a field releases that booking on the next Save.
 - **Utils** — `🗑` deletes the slot (and clears any session pointing at it). `+ Add role`
   appends a new slot.
 - **Meeting-wide roles** (Timer, Grammarian, Ah-Counter…) are simply slots that **no

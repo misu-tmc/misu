@@ -168,7 +168,7 @@
     function render() { renderSlots(); renderSessions(); }
 
     // --- roles (slots) ---
-    function emptySlot() { return { role_slot_id: null, roleName: '', booker_id: null, booker_name: null }; }
+    function emptySlot() { return { role_slot_id: null, roleName: '', booker_id: null, booker_name: null, bookerName: '' }; }
     function addSlot() { state.slots.push(emptySlot()); render(); }
     function deleteSlot(i) {
       state.slots.splice(i, 1);
@@ -206,13 +206,10 @@
       tbody.innerHTML = '';
       state.slots.forEach((sl, i) => {
         const tr = document.createElement('tr');
-        const bookedCell = sl.role_slot_id
-          ? `<input list="users-list" class="booker" value="${escapeHtml(sl.booker_name || '')}" placeholder="— unassigned —" onchange="assignBooker(${i}, this.value)" />`
-          : `<span class="muted">save meeting first</span>`;
         tr.innerHTML = `
           <td><input list="roles-list" value="${escapeHtml(sl.roleName)}" placeholder="Role name" oninput="updSlot(${i}, this.value)" /></td>
           <td class="muted slot-label">${escapeHtml(slotLabel(i) || '—')}</td>
-          <td>${bookedCell}</td>
+          <td><input list="users-list" class="booker" value="${escapeHtml(sl.bookerName || '')}" placeholder="— unassigned —" oninput="updBooker(${i}, this.value)" /></td>
           <td class="utils">
             <div class="utilgroup">
               <button class="iconbtn del" title="Delete role" onclick="deleteSlot(${i})">🗑</button>
@@ -223,6 +220,8 @@
     }
 
     // --- users (booker assignment) ---
+    // Booker edits are local; they are applied in a batch by save() after the meeting
+    // document is saved (new users are created then, too).
     let allUsers = [];
     async function loadUsers() {
       try {
@@ -235,6 +234,8 @@
       const dl = document.getElementById('users-list');
       dl.innerHTML = allUsers.map(u => `<option value="${escapeHtml(u.display_name)}"></option>`).join('');
     }
+    function updBooker(i, val) { state.slots[i].bookerName = val; }
+
     async function setAssignment(slotId, bookerId) {
       const res = await fetch('/api/slots/' + slotId + '/assignment', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -253,27 +254,60 @@
       allUsers.push(u); refreshUsersList();
       return u;
     }
-    async function assignBooker(i, rawValue) {
-      const sl = state.slots[i];
-      if (!sl.role_slot_id) return;
-      const name = (rawValue || '').trim();
-      try {
-        if (!name) {
-          await setAssignment(sl.role_slot_id, null);
-          sl.booker_id = null; sl.booker_name = null;
-          toast('Cleared');
-          return;
+    function findUser(name) {
+      const n = name.toLowerCase();
+      return allUsers.find(u => u.display_name.toLowerCase() === n);
+    }
+
+    /// After a meeting save, patch server slot ids onto the live slots (existing by id,
+    /// new by unclaimed-id order) and refresh each slot's server booker baseline.
+    function reconcileSavedSlots(saved) {
+      state.meetingId = saved.id;
+      state.number = saved.number;
+      state.status = saved.status;
+      const savedSlots = saved.role_slots || [];
+      const byId = {};
+      savedSlots.forEach(s => { byId[s.id] = s; });
+      const roleBearing = state.slots.filter(sl => (sl.roleName || '').trim());
+      const claimed = new Set();
+      roleBearing.forEach(sl => {
+        if (sl.role_slot_id && byId[sl.role_slot_id]) {
+          claimed.add(sl.role_slot_id);
+          const s = byId[sl.role_slot_id];
+          sl.booker_id = s.booker_id; sl.booker_name = s.booker_name || null;
         }
-        // Match an existing user by name (case-insensitive); otherwise create one.
-        let user = allUsers.find(u => u.display_name.toLowerCase() === name.toLowerCase());
-        if (!user) user = await createUser(name);
-        const saved = await setAssignment(sl.role_slot_id, user.id);
-        sl.booker_id = saved.booker_id; sl.booker_name = saved.booker_name;
-        toast('Assigned to ' + saved.booker_name);
-      } catch (e) {
-        toast('Assign failed: ' + (e.message || e));
-        renderSlots(); // revert the cell to the last known value
+      });
+      const unclaimed = savedSlots.filter(s => !claimed.has(s.id)).sort((a, b) => a.id - b.id);
+      let ui = 0;
+      roleBearing.forEach(sl => {
+        if (!sl.role_slot_id || !byId[sl.role_slot_id]) {
+          const s = unclaimed[ui++];
+          if (s) { sl.role_slot_id = s.id; sl.booker_id = s.booker_id; sl.booker_name = s.booker_name || null; }
+        }
+      });
+    }
+
+    /// Apply the pending booker edits as a batch: create any new users, then assign.
+    /// Returns the number of slots changed.
+    async function applyAssignments() {
+      const jobs = state.slots.filter(sl =>
+        (sl.roleName || '').trim() && sl.role_slot_id &&
+        (sl.bookerName || '').trim() !== (sl.booker_name || '').trim());
+      if (!jobs.length) return 0;
+      // Create any users that don't exist yet (sequential so duplicates collapse).
+      for (const sl of jobs) {
+        const want = (sl.bookerName || '').trim();
+        if (want && !findUser(want)) await createUser(want);
       }
+      await Promise.all(jobs.map(async sl => {
+        const want = (sl.bookerName || '').trim();
+        const bookerId = want ? (findUser(want) || {}).id ?? null : null;
+        const res = await setAssignment(sl.role_slot_id, bookerId);
+        sl.booker_id = res.booker_id;
+        sl.booker_name = res.booker_name || null;
+        sl.bookerName = res.booker_name || '';
+      }));
+      return jobs.length;
     }
 
     // --- sessions grid ---
@@ -356,7 +390,8 @@
         role_slot_id: asTemplate ? null : s.id,
         roleName: s.role_name,
         booker_id: asTemplate ? null : s.booker_id,
-        booker_name: asTemplate ? null : s.booker_name
+        booker_name: asTemplate ? null : s.booker_name,
+        bookerName: asTemplate ? '' : (s.booker_name || '')
       }));
       const idToIndex = {};
       rawSlots.forEach((s, idx) => { idToIndex[s.id] = idx; });
@@ -448,14 +483,21 @@
       if (!res.ok) { toast('Save failed: ' + (await res.text())); return; }
       const saved = await res.json();
       const wasNew = meetingIdFromPath() !== saved.id;
-      // Re-apply the saved document so new role slots gain ids (Booked by becomes editable).
-      applyDetail(saved, false);
+      // Patch server slot ids onto the live slots (keeps pending booker edits intact).
+      reconcileSavedSlots(saved);
+      document.getElementById('number').value = saved.number;
+      renderStatus();
+      // Apply the pending booker assignments (and create new users) in one batch.
+      let assignErr = null;
+      try { await applyAssignments(); } catch (e) { assignErr = e; }
+      renderSlots(); renderSessions();
       // Switch URL to edit mode so further saves update the same meeting.
       if (wasNew) {
         history.replaceState(null, '', '/meetings/' + saved.id + '/edit');
         document.getElementById('startFromCard').style.display = 'none';
       }
       document.getElementById('heading').textContent = 'Editing #' + saved.number;
+      if (assignErr) { toast('Saved, but some assignments failed: ' + (assignErr.message || assignErr)); return; }
       toast(kind === 'published' ? 'Published' : kind === 'template' ? 'Saved as template' : 'Draft saved');
     }
 

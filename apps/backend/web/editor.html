@@ -116,6 +116,7 @@
     </div>
   </main>
   <datalist id="roles-list"></datalist>
+  <datalist id="users-list"></datalist>
   <div class="toast" id="toast"></div>
 
   <script>
@@ -167,7 +168,7 @@
     function render() { renderSlots(); renderSessions(); }
 
     // --- roles (slots) ---
-    function emptySlot() { return { role_slot_id: null, roleName: '', booker_name: null }; }
+    function emptySlot() { return { role_slot_id: null, roleName: '', booker_id: null, booker_name: null }; }
     function addSlot() { state.slots.push(emptySlot()); render(); }
     function deleteSlot(i) {
       state.slots.splice(i, 1);
@@ -205,10 +206,13 @@
       tbody.innerHTML = '';
       state.slots.forEach((sl, i) => {
         const tr = document.createElement('tr');
+        const bookedCell = sl.role_slot_id
+          ? `<input list="users-list" class="booker" value="${escapeHtml(sl.booker_name || '')}" placeholder="— unassigned —" onchange="assignBooker(${i}, this.value)" />`
+          : `<span class="muted">save meeting first</span>`;
         tr.innerHTML = `
           <td><input list="roles-list" value="${escapeHtml(sl.roleName)}" placeholder="Role name" oninput="updSlot(${i}, this.value)" /></td>
           <td class="muted slot-label">${escapeHtml(slotLabel(i) || '—')}</td>
-          <td class="muted">${sl.booker_name ? escapeHtml(sl.booker_name) : '—'}</td>
+          <td>${bookedCell}</td>
           <td class="utils">
             <div class="utilgroup">
               <button class="iconbtn del" title="Delete role" onclick="deleteSlot(${i})">🗑</button>
@@ -216,6 +220,60 @@
           </td>`;
         tbody.appendChild(tr);
       });
+    }
+
+    // --- users (booker assignment) ---
+    let allUsers = [];
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users');
+        allUsers = await res.json();
+      } catch (e) { allUsers = []; }
+      refreshUsersList();
+    }
+    function refreshUsersList() {
+      const dl = document.getElementById('users-list');
+      dl.innerHTML = allUsers.map(u => `<option value="${escapeHtml(u.display_name)}"></option>`).join('');
+    }
+    async function setAssignment(slotId, bookerId) {
+      const res = await fetch('/api/slots/' + slotId + '/assignment', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ booker_id: bookerId })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+    async function createUser(name) {
+      const res = await fetch('/api/users', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ display_name: name })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const u = await res.json();
+      allUsers.push(u); refreshUsersList();
+      return u;
+    }
+    async function assignBooker(i, rawValue) {
+      const sl = state.slots[i];
+      if (!sl.role_slot_id) return;
+      const name = (rawValue || '').trim();
+      try {
+        if (!name) {
+          await setAssignment(sl.role_slot_id, null);
+          sl.booker_id = null; sl.booker_name = null;
+          toast('Cleared');
+          return;
+        }
+        // Match an existing user by name (case-insensitive); otherwise create one.
+        let user = allUsers.find(u => u.display_name.toLowerCase() === name.toLowerCase());
+        if (!user) user = await createUser(name);
+        const saved = await setAssignment(sl.role_slot_id, user.id);
+        sl.booker_id = saved.booker_id; sl.booker_name = saved.booker_name;
+        toast('Assigned to ' + saved.booker_name);
+      } catch (e) {
+        toast('Assign failed: ' + (e.message || e));
+        renderSlots(); // revert the cell to the last known value
+      }
     }
 
     // --- sessions grid ---
@@ -297,6 +355,7 @@
       const slots = rawSlots.map(s => ({
         role_slot_id: asTemplate ? null : s.id,
         roleName: s.role_name,
+        booker_id: asTemplate ? null : s.booker_id,
         booker_name: asTemplate ? null : s.booker_name
       }));
       const idToIndex = {};
@@ -388,23 +447,22 @@
       });
       if (!res.ok) { toast('Save failed: ' + (await res.text())); return; }
       const saved = await res.json();
-      state.meetingId = saved.id; state.number = saved.number;
-      state.status = saved.status;
-      document.getElementById('number').value = saved.number;
-      renderStatus();
+      const wasNew = meetingIdFromPath() !== saved.id;
+      // Re-apply the saved document so new role slots gain ids (Booked by becomes editable).
+      applyDetail(saved, false);
       // Switch URL to edit mode so further saves update the same meeting.
-      if (meetingIdFromPath() !== saved.id) {
+      if (wasNew) {
         history.replaceState(null, '', '/meetings/' + saved.id + '/edit');
         document.getElementById('startFromCard').style.display = 'none';
-        document.getElementById('heading').textContent = 'Editing #' + saved.number;
       }
+      document.getElementById('heading').textContent = 'Editing #' + saved.number;
       toast(kind === 'published' ? 'Published' : kind === 'template' ? 'Saved as template' : 'Draft saved');
     }
 
     // --- init ---
     async function init() {
       bindHeader();
-      await loadRoles();
+      await Promise.all([loadRoles(), loadUsers()]);
       const id = meetingIdFromPath();
       if (id) {
         document.getElementById('heading').textContent = 'Editing #…';

@@ -484,3 +484,94 @@ pub async fn set_permission(
 
     Ok(Json(json!({ "ok": true, "user_id": user_id, "is_site_admin": input.grant })))
 }
+
+// ---------------------------------------------------------------------------
+// Create a bare (identity-less) user
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct NewUserIn {
+    pub display_name: String,
+}
+
+/// Create a user with only a display name and no auth identity. Such a user can be
+/// assigned to roles but cannot log in until an identity (e.g. WeChat) is linked, by
+/// design (identity is separate from the user record).
+pub async fn create_user(
+    State(state): State<AppState>,
+    Json(input): Json<NewUserIn>,
+) -> AppResult<Json<UserRowDto>> {
+    let name = input.display_name.trim();
+    if name.is_empty() {
+        return Err(AppError::BadRequest("display_name is required".into()));
+    }
+    let id = sqlx::query_scalar::<_, i64>("INSERT INTO user(display_name) VALUES (?) RETURNING id")
+        .bind(name)
+        .fetch_one(&state.pool)
+        .await?;
+    Ok(Json(UserRowDto {
+        id,
+        display_name: name.to_string(),
+        is_site_admin: false,
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// Assign / clear a role slot's booker (admin direct assignment)
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct AssignIn {
+    /// The user to assign as booker, or null to clear the booking.
+    pub booker_id: Option<i64>,
+}
+
+#[derive(Serialize)]
+pub struct AssignmentDto {
+    pub role_slot_id: i64,
+    pub booker_id: Option<i64>,
+    pub booker_name: Option<String>,
+}
+
+/// Set or clear who has booked a role slot. Unlike `/api/book` (which always acts as the
+/// session user), this lets a manager assign any user directly. Writes
+/// `role_assignment.booker_id`, preserving any `taker_id`.
+pub async fn set_assignment(
+    State(state): State<AppState>,
+    Path(role_slot_id): Path<i64>,
+    Json(input): Json<AssignIn>,
+) -> AppResult<Json<AssignmentDto>> {
+    let slot_exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM role_slot WHERE id = ?")
+        .bind(role_slot_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if slot_exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    let booker_name = match input.booker_id {
+        Some(uid) => Some(
+            sqlx::query_scalar::<_, String>("SELECT display_name FROM user WHERE id = ?")
+                .bind(uid)
+                .fetch_optional(&state.pool)
+                .await?
+                .ok_or_else(|| AppError::BadRequest("user does not exist".into()))?,
+        ),
+        None => None,
+    };
+
+    sqlx::query(
+        "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
+         ON CONFLICT(role_slot_id) DO UPDATE SET booker_id = excluded.booker_id",
+    )
+    .bind(role_slot_id)
+    .bind(input.booker_id)
+    .execute(&state.pool)
+    .await?;
+
+    Ok(Json(AssignmentDto {
+        role_slot_id,
+        booker_id: input.booker_id,
+        booker_name,
+    }))
+}

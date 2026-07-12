@@ -98,8 +98,12 @@ source of truth for who can be booked; sessions only *reference* these slots.
 - **Label** — read-only, derived: the role name plus an ordinal when the role repeats
   (`Speaker 1`, `Speaker 2`); a lone role shows just its name. Numbered at render time,
   never stored.
-- **Booked by** — read-only booker name (from `role_assignment`), so an admin sees fill
-  status at a glance. Editing bookings happens in the booking flow, not here.
+- **Booked by** — a **searchable combobox** over existing users (`/api/users`) that
+  assigns the slot's booker directly (`POST /api/slots/:id/assignment`), independent of the
+  meeting document save. Clearing it releases the booking. Typing a name that doesn't match
+  any user **creates a bare user** (`POST /api/users`) and assigns them — such a user has
+  no auth identity and cannot log in, by design (identity is separate from the user
+  record). Editable only after the slot is saved (a new slot shows "save meeting first").
 - **Utils** — `🗑` deletes the slot (and clears any session pointing at it). `+ Add role`
   appends a new slot.
 - **Meeting-wide roles** (Timer, Grammarian, Ah-Counter…) are simply slots that **no
@@ -136,24 +140,12 @@ The timed agenda, one row per session. Columns, left to right:
 - `POST /api/meetings` — upsert the whole document. Role slots are user-agnostic; slots
   matched by `role_slot_id` keep their `role_assignment` (booker/taker), so
   saving/publishing never clobbers bookings.
-
-### Actions
-
-- **Save as template** — persists as a reusable template (`is_template`, `status=draft`).
-- **Save draft** — `status=draft`.
-- **Publish** — `status=published`; the meeting becomes visible to the booking surfaces.
-- **Start from** (new only) — seed a fresh draft from `Blank`, the `Last meeting`, or a
-  `Template`; ids are cleared so it saves as a new meeting.
-
-### Data
-
-- `GET /api/meetings/:id` — full meeting document (sessions, role slots, bookings; drafts
-  included) for edit mode and "Start from".
-- `POST /api/meetings` — upsert the whole document. Role slots are user-agnostic; slots
-  matched by `role_slot_id` keep their `role_assignment` (booker/taker), so
-  saving/publishing never clobbers bookings.
 - `GET /api/roles`, `POST /api/roles` — role catalog for the combobox; typing a new name
   creates the role (also auto-created on save).
+- `GET /api/users`, `POST /api/users` — list users / create a bare (identity-less) user
+  for the Booked-by combobox.
+- `POST /api/slots/:role_slot_id/assignment` — `{ booker_id | null }` assign or clear a
+  slot's booker directly (admin), separate from self-booking via `/api/book`.
 
 ## Users — `/users`
 

@@ -69,8 +69,9 @@ async fn main() -> anyhow::Result<()> {
         // Admin-scoped JSON APIs (no auth for now; site_admin guard drops in later).
         .route("/api/meetings", get(admin::list_meetings).post(admin::upsert_meeting))
         .route("/api/roles", get(admin::list_roles).post(admin::create_role))
-        .route("/api/users", get(admin::list_users))
+        .route("/api/users", get(admin::list_users).post(admin::create_user))
         .route("/api/users/:user_id/permissions", post(admin::set_permission))
+        .route("/api/slots/:role_slot_id/assignment", post(admin::set_assignment))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

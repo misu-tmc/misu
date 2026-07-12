@@ -62,10 +62,17 @@ after the first save.
 │  DATE          START        END                           │
 │  [07/13/2026]  [07:00 PM]   [09:00 PM]  ← END is read-only │
 ├───────────────────────────────────────────────────────────┤
+│  ROLES                                                    │  ← roles card
+│  ROLE                LABEL       BOOKED BY        ▪        │
+│  [ Speaker       ▾]  Speaker 1   Alice          [🗑]      │
+│  [ Speaker       ▾]  Speaker 2   —              [🗑]      │
+│  [ Timer         ▾]  Timer       Dan            [🗑]      │
+│  [ + Add role ]                                           │
+├───────────────────────────────────────────────────────────┤
 │  SESSIONS                                                  │
-│  START GROUP      SESSION       MIN ROLE      ▪            │
-│  19:00 [Opening ] [Opening/TMOD][6][TOE    ] [＋▲▼🗑]      │
-│  19:07 [Facilit.] [           ] [5][—      ] [＋▲▼🗑]      │
+│  START GROUP      SESSION       MIN ROLE           ▪      │
+│  19:00 [Opening ] [Opening/TMOD][6][ TMOD      ▾] [＋▲▼🗑] │
+│  19:07 [Speeches] [Speech 1    ][7][ Speaker 1 ▾] [＋▲▼🗑] │
 │  …                                                        │
 ├───────────────────────────────────────────────────────────┤
 │  [⭐ Save as template]        [ Save draft ] [ Publish ]   │
@@ -81,22 +88,54 @@ read-only **status** pill (`draft` / `published`) reflecting the last save.
   session's duration (with a 1-minute buffer between sessions). The field is read-only and
   updates live as durations change.
 
+### Roles card
+
+The meeting's independent cast — one row per `role_slot` (a bookable seat). This is the
+source of truth for who can be booked; sessions only *reference* these slots.
+
+- **Role** — a creatable combobox over the role catalog (`/api/roles`); typing a new name
+  grows the catalog.
+- **Label** — read-only, derived: the role name plus an ordinal when the role repeats
+  (`Speaker 1`, `Speaker 2`); a lone role shows just its name. Numbered at render time,
+  never stored.
+- **Booked by** — read-only booker name (from `role_assignment`), so an admin sees fill
+  status at a glance. Editing bookings happens in the booking flow, not here.
+- **Utils** — `🗑` deletes the slot (and clears any session pointing at it). `+ Add role`
+  appends a new slot.
+- **Meeting-wide roles** (Timer, Grammarian, Ah-Counter…) are simply slots that **no
+  session references** — they live here and never appear in the agenda.
+
 ### Sessions card
 
-A grid of sessions in order. Columns, left to right:
+The timed agenda, one row per session. Columns, left to right:
 
 - **Start** — computed clock time for each session (start time + preceding durations +
   buffers). Read-only, first column.
 - **Group** — grouping label (e.g. `Opening`, `Prepared Speech`, `Evaluation`).
 - **Session** — the agenda item name.
 - **Min** — duration in minutes; editing it re-computes all start times and the meeting END.
-- **Role** — a creatable combobox over the role catalog (`/api/roles`); empty for
-  sessions with no role. Each roled session maps to a `role_slot` (a bookable seat);
-  repeated roles across rows become `Speaker 1` / `Speaker 2`, numbered by ordinal at
-  render time. The per-slot booking lives in `role_assignment`.
+- **Role** — a **dropdown** over the slots defined in the Roles card (plus `— none —`).
+  Repeated roles appear as `Speaker 1` / `Speaker 2` so an agenda row binds to a specific
+  seat. Slots are defined in the Roles card, not created here.
 - **Utils** (right-most) — one grouped control `[ ＋ ▲ ▼ 🗑 ]`: `＋` inserts a new session
   **below this row**, `▲`/`▼` move it, `🗑` deletes it. There is no separate bottom add
   button, so a fresh/blank meeting always starts with **one empty row** to grow from.
+
+### Actions
+
+- **Save as template** — persists as a reusable template (`is_template`, `status=draft`).
+- **Save draft** — `status=draft`.
+- **Publish** — `status=published`; the meeting becomes visible to the booking surfaces.
+- **Start from** (new only) — seed a fresh draft from `Blank`, the `Last meeting`, or a
+  `Template`; ids are cleared so it saves as a new meeting.
+
+### Data
+
+- `GET /api/meetings/:id` — full meeting document (sessions, role slots, bookings; drafts
+  included) for edit mode and "Start from".
+- `POST /api/meetings` — upsert the whole document. Role slots are user-agnostic; slots
+  matched by `role_slot_id` keep their `role_assignment` (booker/taker), so
+  saving/publishing never clobbers bookings.
 
 ### Actions
 

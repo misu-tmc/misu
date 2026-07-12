@@ -80,12 +80,28 @@
     </div>
 
     <div class="card">
+      <h2>Roles</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th><th style="width:150px">Label</th><th style="width:170px">Booked by</th><th style="width:80px"></th>
+          </tr>
+        </thead>
+        <tbody id="slots"></tbody>
+      </table>
+      <div style="margin-top:12px"><button class="btn ghost" onclick="addSlot()">+ Add role</button></div>
+      <div class="muted" style="margin-top:8px; font-size:12px">
+        Roles with no session are meeting-wide (Timer, Grammarian…). Repeated roles are numbered automatically.
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Sessions</h2>
       <table>
         <thead>
           <tr>
             <th style="width:80px">Start</th><th>Group</th>
-            <th>Session</th><th style="width:70px">Min</th><th>Role</th><th style="width:150px"></th>
+            <th>Session</th><th style="width:70px">Min</th><th style="width:200px">Role</th><th style="width:150px"></th>
           </tr>
         </thead>
         <tbody id="sessions"></tbody>
@@ -106,7 +122,7 @@
     const BUFFER_MINUTES = 1;
     let state = {
       meetingId: null, number: '', title: '', theme: '', date: '', start_time: '19:00',
-      end_time: '21:00', venue: '', status: 'draft', sessions: []
+      end_time: '21:00', venue: '', status: 'draft', slots: [], sessions: []
     };
 
     // --- helpers ---
@@ -147,9 +163,64 @@
       pill.textContent = st;
     }
 
+    // --- rendering ---
+    function render() { renderSlots(); renderSessions(); }
+
+    // --- roles (slots) ---
+    function emptySlot() { return { role_slot_id: null, roleName: '', booker_name: null }; }
+    function addSlot() { state.slots.push(emptySlot()); render(); }
+    function deleteSlot(i) {
+      state.slots.splice(i, 1);
+      // Fix up sessions that referenced this or a later slot.
+      state.sessions.forEach(s => {
+        if (s.slotIndex === i) s.slotIndex = null;
+        else if (s.slotIndex != null && s.slotIndex > i) s.slotIndex -= 1;
+      });
+      render();
+    }
+    function updSlot(i, val) {
+      state.slots[i].roleName = val;
+      // Keep focus in the input: refresh only derived labels + the session pickers.
+      refreshSlotLabels();
+      renderSessions();
+    }
+    /// Display label for a slot: role name plus an ordinal when the role repeats.
+    function slotLabel(index) {
+      const sl = state.slots[index];
+      const name = (sl && sl.roleName || '').trim();
+      if (!name) return '';
+      let total = 0, ordinal = 0;
+      state.slots.forEach((o, j) => {
+        if ((o.roleName || '').trim() === name) { total++; if (j <= index) ordinal++; }
+      });
+      return total > 1 ? `${name} ${ordinal}` : name;
+    }
+    function refreshSlotLabels() {
+      document.querySelectorAll('#slots .slot-label').forEach((cell, i) => {
+        cell.textContent = slotLabel(i) || '—';
+      });
+    }
+    function renderSlots() {
+      const tbody = document.getElementById('slots');
+      tbody.innerHTML = '';
+      state.slots.forEach((sl, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input list="roles-list" value="${escapeHtml(sl.roleName)}" placeholder="Role name" oninput="updSlot(${i}, this.value)" /></td>
+          <td class="muted slot-label">${escapeHtml(slotLabel(i) || '—')}</td>
+          <td class="muted">${sl.booker_name ? escapeHtml(sl.booker_name) : '—'}</td>
+          <td class="utils">
+            <div class="utilgroup">
+              <button class="iconbtn del" title="Delete role" onclick="deleteSlot(${i})">🗑</button>
+            </div>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
     // --- sessions grid ---
     function emptySession() {
-      return { group_label: '', name: '', duration_minutes: 5, roleName: '', label: '', role_slot_id: null };
+      return { group_label: '', name: '', duration_minutes: 5, slotIndex: null };
     }
     function addSession() {
       state.sessions.push(emptySession());
@@ -178,6 +249,14 @@
       const endEl = document.getElementById('end_time');
       if (endEl) endEl.value = state.end_time || '';
     }
+    function roleOptions(selected) {
+      let opts = `<option value="">— none —</option>`;
+      state.slots.forEach((sl, j) => {
+        const label = slotLabel(j) || '(unnamed role)';
+        opts += `<option value="${j}" ${selected === j ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+      });
+      return opts;
+    }
     function renderSessions() {
       const tbody = document.getElementById('sessions');
       tbody.innerHTML = '';
@@ -188,7 +267,7 @@
           <td><input value="${escapeHtml(s.group_label)}" oninput="upd(${i},'group_label',this.value)" /></td>
           <td><input value="${escapeHtml(s.name)}" oninput="upd(${i},'name',this.value)" /></td>
           <td class="narrow"><input type="number" min="0" value="${s.duration_minutes}" oninput="upd(${i},'duration_minutes',this.value); renderStarts()" /></td>
-          <td><input list="roles-list" value="${escapeHtml(s.roleName)}" placeholder="—" oninput="onRole(${i},this.value)" /></td>
+          <td><select onchange="setSlot(${i}, this.value)">${roleOptions(s.slotIndex)}</select></td>
           <td class="utils">
             <div class="utilgroup">
               <button class="iconbtn add" title="Add below" onclick="insertSession(${i})">＋</button>
@@ -202,11 +281,7 @@
       renderStarts();
     }
     function upd(i, field, val) { state.sessions[i][field] = val; }
-    function onRole(i, val) {
-      state.sessions[i].roleName = val;
-      // Default the label to the role name until the admin overrides it.
-      if (!state.sessions[i]._labelTouched && !state.sessions[i].label) { /* keep empty; backend defaults */ }
-    }
+    function setSlot(i, val) { state.sessions[i].slotIndex = val === '' ? null : Number(val); }
 
     // --- load roles for the combobox ---
     async function loadRoles() {
@@ -218,18 +293,18 @@
 
     // --- load an existing meeting into state ---
     function applyDetail(d, asTemplate) {
-      const slotById = {};
-      (d.role_slots || []).forEach(s => slotById[s.id] = s);
-      const usedSlots = new Set();
-      const sessions = (d.sessions || []).slice().sort((a,b) => a.position - b.position).map(s => {
-        const slot = s.role_slot_id ? slotById[s.role_slot_id] : null;
-        if (slot) usedSlots.add(slot.id);
-        return {
-          group_label: s.group_label || '', name: s.name || '', duration_minutes: s.duration_minutes || 0,
-          roleName: slot ? slot.role_name : '', label: slot ? slot.label : '',
-          role_slot_id: asTemplate ? null : (slot ? slot.id : null)
-        };
-      });
+      const rawSlots = d.role_slots || [];
+      const slots = rawSlots.map(s => ({
+        role_slot_id: asTemplate ? null : s.id,
+        roleName: s.role_name,
+        booker_name: asTemplate ? null : s.booker_name
+      }));
+      const idToIndex = {};
+      rawSlots.forEach((s, idx) => { idToIndex[s.id] = idx; });
+      const sessions = (d.sessions || []).slice().sort((a,b) => a.position - b.position).map(s => ({
+        group_label: s.group_label || '', name: s.name || '', duration_minutes: s.duration_minutes || 0,
+        slotIndex: (s.role_slot_id != null && idToIndex[s.role_slot_id] != null) ? idToIndex[s.role_slot_id] : null
+      }));
       if (!sessions.length) sessions.push(emptySession());
       state = {
         meetingId: asTemplate ? null : d.id,
@@ -237,9 +312,9 @@
         title: d.title, theme: d.theme || '',
         date: asTemplate ? addDays(d.date, 14) : d.date,
         start_time: d.start_time || '19:00', end_time: d.end_time || '21:00',
-        venue: d.venue || '', status: asTemplate ? 'draft' : (d.status || 'draft'), sessions
+        venue: d.venue || '', status: asTemplate ? 'draft' : (d.status || 'draft'), slots, sessions
       };
-      fillHeader(); renderSessions();
+      fillHeader(); render();
     }
 
     // --- "Start from" (new meeting only) ---
@@ -263,8 +338,8 @@
     async function loadFrom(choice) {
       if (choice === 'blank') {
         state = { meetingId: null, number: lastMeeting ? lastMeeting.number + 1 : 1, title: '', theme: '',
-          date: '', start_time: '19:00', end_time: '21:00', venue: '', status: 'draft', sessions: [emptySession()] };
-        fillHeader(); renderSessions(); return;
+          date: '', start_time: '19:00', end_time: '21:00', venue: '', status: 'draft', slots: [], sessions: [emptySession()] };
+        fillHeader(); render(); return;
       }
       const id = choice === 'last' ? lastMeeting.id : parseInt(choice.split(':')[1], 10);
       const res = await fetch('/api/meetings/' + id);
@@ -273,16 +348,20 @@
 
     // --- save ---
     function buildBody(kind) {
+      // Only slots with a role name are real; remap indices after filtering blanks.
       const role_slots = [];
+      const slotRemap = {}; // state.slots index -> posted role_slots index
+      state.slots.forEach((sl, idx) => {
+        const roleName = (sl.roleName || '').trim();
+        if (roleName) {
+          slotRemap[idx] = role_slots.length;
+          role_slots.push({ role_slot_id: sl.role_slot_id || null, role_name: roleName });
+        }
+      });
       const sessions = state.sessions.map((s, i) => {
         let role_slot_index = null;
-        const roleName = (s.roleName || '').trim();
-        if (roleName) {
-          role_slot_index = role_slots.length;
-          role_slots.push({
-            role_slot_id: s.role_slot_id || null,
-            role_name: roleName
-          });
+        if (s.slotIndex != null && slotRemap[s.slotIndex] != null) {
+          role_slot_index = slotRemap[s.slotIndex];
         }
         return {
           position: i + 1, group_label: s.group_label || '', name: (s.name || '').trim(),

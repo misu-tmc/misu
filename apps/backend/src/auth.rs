@@ -222,8 +222,12 @@ pub async fn resolve_openid(config: &Config, code: &str) -> Result<String, AppEr
     if config.dev_mode() {
         return Ok(format!("dev-{code}"));
     }
-    let appid = config.wechat_appid.as_ref().unwrap();
-    let secret = config.wechat_secret.as_ref().unwrap();
+    let appid = config.wechat_appid.as_ref().ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!("WECHAT_APPID is not configured"))
+    })?;
+    let secret = config.wechat_secret.as_ref().ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!("WECHAT_SECRET is not configured"))
+    })?;
     let url = format!(
         "https://api.weixin.qq.com/sns/jscode2session?appid={appid}&secret={secret}&js_code={code}&grant_type=authorization_code"
     );

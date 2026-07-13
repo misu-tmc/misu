@@ -14,6 +14,9 @@ pub struct Config {
     pub seed_web_admin_password: Option<String>,
     /// Directory holding the static web admin pages.
     pub web_dir: String,
+    /// Explicit DEV auth toggle (`MISU_DEV_MODE`). When on, WeChat `code` is treated as
+    /// a fake openid and the fallback web admin is seeded. Never enable in production.
+    dev_mode: bool,
 }
 
 fn non_empty(key: &str) -> Option<String> {
@@ -21,6 +24,14 @@ fn non_empty(key: &str) -> Option<String> {
         Ok(v) if !v.trim().is_empty() => Some(v.trim().to_string()),
         _ => None,
     }
+}
+
+/// Parse a boolean env var: `1`, `true`, `yes`, `on` (case-insensitive) are truthy.
+fn env_bool(key: &str) -> bool {
+    matches!(
+        non_empty(key).map(|v| v.to_ascii_lowercase()).as_deref(),
+        Some("1" | "true" | "yes" | "on")
+    )
 }
 
 impl Config {
@@ -36,13 +47,14 @@ impl Config {
             seed_web_admin_user: non_empty("MISU_WEB_ADMIN_USER"),
             seed_web_admin_password: non_empty("MISU_WEB_ADMIN_PASSWORD"),
             web_dir: non_empty("MISU_WEB_DIR").unwrap_or_else(|| "web".to_string()),
+            dev_mode: env_bool("MISU_DEV_MODE"),
         }
     }
 
-    /// DEV mode is on when WeChat credentials are not configured. In DEV mode the
+    /// DEV mode is on when `MISU_DEV_MODE` is set to a truthy value. In DEV mode the
     /// login `code` is treated as a stable fake openid, so the flow is testable
-    /// without a real WeChat backend.
+    /// without a real WeChat backend. It is an explicit opt-in and never inferred.
     pub fn dev_mode(&self) -> bool {
-        self.wechat_appid.is_none() || self.wechat_secret.is_none()
+        self.dev_mode
     }
 }

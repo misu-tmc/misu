@@ -17,10 +17,11 @@ applying the schema and seeding the role catalog plus two sample published meeti
 
 ### DEV auth mode
 
-Without `WECHAT_APPID` / `WECHAT_SECRET`, the server runs in **DEV mode**: the login
-`code` is treated as a stable fake openid (`dev-<code>`), so you can test the whole flow
-without a real WeChat backend. Set both variables to call WeChat's `jscode2session` for
-real logins.
+Set `MISU_DEV_MODE=1` to run in **DEV mode**: the login `code` is treated as a stable
+fake openid (`dev-<code>`), so you can test the whole flow without a real WeChat backend.
+DEV mode is an explicit opt-in and is **never** inferred — leave it unset (and set
+`WECHAT_APPID` / `WECHAT_SECRET`) to call WeChat's `jscode2session` for real logins.
+Never enable it in production.
 
 Set `MISU_SEED_ADMIN_OPENID` to bootstrap the first `site_admin` (in DEV mode this is
 `dev-<code>`, e.g. `dev-tester`).
@@ -29,8 +30,8 @@ Set `MISU_SEED_ADMIN_OPENID` to bootstrap the first `site_admin` (in DEV mode th
 
 The web surface uses a **username/password** provider (bcrypt-hashed, stored in
 `web_credential`). Set `MISU_WEB_ADMIN_USER` / `MISU_WEB_ADMIN_PASSWORD` to seed a
-`site_admin` web login on startup. In DEV mode (no WeChat creds) it defaults to
-`admin` / `admin` if unset. Sign in at `/login`; the session is an HttpOnly cookie.
+`site_admin` web login on startup. In DEV mode it defaults to `admin` / `admin` if
+unset. Sign in at `/login`; the session is an HttpOnly cookie.
 
 ## Endpoints
 

@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::from_env();
     if config.dev_mode() {
         tracing::warn!(
-            "running in DEV auth mode (no WECHAT_APPID/WECHAT_SECRET): login code is treated as a fake openid"
+            "running in DEV auth mode (MISU_DEV_MODE): login code is treated as a fake openid — never enable in production"
         );
     }
 

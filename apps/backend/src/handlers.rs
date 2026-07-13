@@ -185,6 +185,7 @@ pub struct MeetingDto {
     pub end_time: String,
     pub venue: String,
     pub status: String,
+    pub is_template: bool,
     pub sessions: Vec<SessionDto>,
     pub role_slots: Vec<RoleSlotDto>,
 }
@@ -200,6 +201,7 @@ struct MeetingRow {
     end_time: String,
     venue: String,
     status: String,
+    is_template: bool,
 }
 
 #[derive(FromRow)]
@@ -295,6 +297,7 @@ async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<M
         end_time: m.end_time,
         venue: m.venue,
         status: m.status,
+        is_template: m.is_template,
         sessions,
         role_slots,
     })
@@ -308,7 +311,7 @@ pub async fn meetings_upcoming(
 ) -> AppResult<Json<Vec<MeetingDto>>> {
     let today = chrono::Local::now().date_naive().to_string();
     let rows = sqlx::query_as::<_, MeetingRow>(
-        "SELECT id, number, title, theme, date, start_time, end_time, venue, status \
+        "SELECT id, number, title, theme, date, start_time, end_time, venue, status, is_template \
          FROM meeting \
          WHERE status = 'published' AND is_template = 0 AND date >= ? \
          ORDER BY date ASC, number ASC",
@@ -342,7 +345,7 @@ pub(crate) async fn meeting_dto_by_id(
     meeting_id: i64,
 ) -> AppResult<Option<MeetingDto>> {
     let m = sqlx::query_as::<_, MeetingRow>(
-        "SELECT id, number, title, theme, date, start_time, end_time, venue, status \
+        "SELECT id, number, title, theme, date, start_time, end_time, venue, status, is_template \
          FROM meeting WHERE id = ?",
     )
     .bind(meeting_id)

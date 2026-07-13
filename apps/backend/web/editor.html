@@ -110,10 +110,10 @@
     </div>
 
     <div class="actions">
-      <button class="btn outline" onclick="save('template')">⭐ Save as template</button>
+      <button class="btn outline" onclick="saveAsTemplate()">⭐ Save as template</button>
       <div class="spacer"></div>
-      <button class="btn outline" onclick="save('draft')">Save draft</button>
-      <button class="btn" onclick="save('published')">Publish</button>
+      <button class="btn outline" onclick="saveDraft()">Save draft</button>
+      <button class="btn" onclick="publish()">Publish</button>
     </div>
   </main>
   <datalist id="roles-list"></datalist>
@@ -129,7 +129,7 @@
     const BUFFER_MINUTES = 1;
     let state = {
       meetingId: null, number: '', title: '', theme: '', date: '', start_time: '19:00',
-      end_time: '21:00', venue: '', status: 'draft', slots: [], sessions: []
+      end_time: '21:00', venue: '', status: 'draft', is_template: false, slots: [], sessions: []
     };
 
     // --- helpers ---
@@ -417,7 +417,8 @@
         title: d.title, theme: d.theme || '',
         date: asTemplate ? addDays(d.date, 14) : d.date,
         start_time: d.start_time || '19:00', end_time: d.end_time || '21:00',
-        venue: d.venue || '', status: asTemplate ? 'draft' : (d.status || 'draft'), slots, sessions
+        venue: d.venue || '', status: asTemplate ? 'draft' : (d.status || 'draft'),
+        is_template: asTemplate ? false : !!d.is_template, slots, sessions
       };
       fillHeader(); render();
     }
@@ -443,7 +444,7 @@
     async function loadFrom(choice) {
       if (choice === 'blank') {
         state = { meetingId: null, number: lastMeeting ? lastMeeting.number + 1 : 1, title: '', theme: '',
-          date: '', start_time: '19:00', end_time: '21:00', venue: '', status: 'draft', slots: [], sessions: [emptySession()] };
+          date: '', start_time: '19:00', end_time: '21:00', venue: '', status: 'draft', is_template: false, slots: [], sessions: [emptySession()] };
         fillHeader(); render(); return;
       }
       const id = choice === 'last' ? lastMeeting.id : parseInt(choice.split(':')[1], 10);
@@ -452,7 +453,7 @@
     }
 
     // --- save ---
-    function buildBody(kind) {
+    function buildBody() {
       // Only slots with a role name are real; remap indices after filtering blanks.
       const role_slots = [];
       const slotRemap = {}; // state.slots index -> posted role_slots index
@@ -479,13 +480,13 @@
         title: (state.title || '').trim(), theme: (state.theme || '').trim(),
         date: state.date, start_time: state.start_time, end_time: state.end_time,
         venue: (state.venue || '').trim(),
-        is_template: kind === 'template',
-        status: kind === 'published' ? 'published' : 'draft',
+        is_template: !!state.is_template,
+        status: state.status === 'published' ? 'published' : 'draft',
         role_slots, sessions
       };
     }
-    async function save(kind) {
-      const body = buildBody(kind);
+    async function save() {
+      const body = buildBody();
       if (!body.title) { toast('Title is required'); return; }
       if (!body.date) { toast('Date is required'); return; }
       const res = await fetch('/api/meetings', {
@@ -509,8 +510,12 @@
       }
       document.getElementById('heading').textContent = 'Editing #' + saved.number;
       if (assignErr) { toast('Saved, but some assignments failed: ' + (assignErr.message || assignErr)); return; }
-      toast(kind === 'published' ? 'Published' : kind === 'template' ? 'Saved as template' : 'Draft saved');
+      toast(state.is_template ? 'Saved as template' : state.status === 'published' ? 'Published' : 'Draft saved');
     }
+    // The buttons set the meeting object's properties, then persist it.
+    function saveAsTemplate() { state.is_template = true; state.status = 'draft'; save(); }
+    function saveDraft() { state.is_template = false; state.status = 'draft'; save(); }
+    function publish() { state.is_template = false; state.status = 'published'; save(); }
 
     // --- init ---
     async function init() {

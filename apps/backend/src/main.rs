@@ -63,11 +63,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/book", post(handlers::book))
         .route("/api/users/:user_id", post(handlers::update_user))
         .route("/api/club-info", get(handlers::club_info))
+        .route("/static/*path", get(admin::static_asset))
         // Web admin pages (require a web session; redirect to /login otherwise).
         .route("/login", get(admin::page_login))
         .route("/meetings", get(admin::page_meetings))
         .route("/meetings/new", get(admin::page_editor))
         .route("/meetings/:meeting_id/edit", get(admin::page_editor))
+        .route("/meetings/:meeting_id/agenda/print", get(admin::page_agenda_print))
         .route("/users", get(admin::page_users))
         // Admin-scoped JSON APIs (require `site_admin`).
         .route("/api/meetings", get(admin::list_meetings).post(admin::upsert_meeting))

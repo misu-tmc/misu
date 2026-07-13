@@ -14,6 +14,8 @@ pub struct Config {
     pub seed_web_admin_password: Option<String>,
     /// Directory holding the static web admin pages.
     pub web_dir: String,
+    /// Directory holding static assets (logos, QR codes, print images).
+    pub static_dir: String,
     /// Explicit DEV auth toggle (`MISU_DEV_MODE`). When on, WeChat `code` is treated as
     /// a fake openid and the fallback web admin is seeded. Never enable in production.
     dev_mode: bool,
@@ -47,6 +49,7 @@ impl Config {
             seed_web_admin_user: non_empty("MISU_WEB_ADMIN_USER"),
             seed_web_admin_password: non_empty("MISU_WEB_ADMIN_PASSWORD"),
             web_dir: non_empty("MISU_WEB_DIR").unwrap_or_else(|| "web".to_string()),
+            static_dir: non_empty("MISU_STATIC_DIR").unwrap_or_else(|| "static".to_string()),
             dev_mode: env_bool("MISU_DEV_MODE"),
         }
     }

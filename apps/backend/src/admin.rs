@@ -7,7 +7,7 @@
 
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{header, StatusCode},
     response::{Html, IntoResponse, Redirect, Response},
     Json,
 };
@@ -60,6 +60,33 @@ pub async fn page_users(State(s): State<AppState>, m: MaybeAuthUser) -> Response
 
 pub async fn page_editor(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
     serve_admin(&s, m, "editor.html").await
+}
+
+pub async fn page_agenda_print(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
+    serve_admin(&s, m, "agenda-print.html").await
+}
+
+/// Serve static assets used by the print agenda and web pages.
+pub async fn static_asset(State(s): State<AppState>, Path(path): Path<String>) -> Response {
+    if path.contains("..") || path.starts_with('/') {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+    let full = std::path::Path::new(&s.config.static_dir).join(&path);
+    match tokio::fs::read(&full).await {
+        Ok(bytes) => {
+            let content_type = match full.extension().and_then(|e| e.to_str()).unwrap_or("") {
+                "png" => "image/png",
+                "jpg" | "jpeg" => "image/jpeg",
+                "svg" => "image/svg+xml",
+                "webp" => "image/webp",
+                "css" => "text/css; charset=utf-8",
+                "js" => "application/javascript; charset=utf-8",
+                _ => "application/octet-stream",
+            };
+            ([(header::CONTENT_TYPE, content_type)], bytes).into_response()
+        }
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 // ---------------------------------------------------------------------------

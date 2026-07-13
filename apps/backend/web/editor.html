@@ -118,6 +118,7 @@
 
     <div class="actions">
       <div class="spacer"></div>
+      <button class="btn outline" onclick="previewAgenda()">Preview agenda</button>
       <button class="btn" onclick="save()">Save</button>
     </div>
   </main>
@@ -520,6 +521,10 @@
       document.getElementById('heading').textContent = 'Editing #' + saved.number;
       if (assignErr) { toast('Saved, but some assignments failed: ' + (assignErr.message || assignErr)); return; }
       toast('Saved');
+    }
+    function previewAgenda() {
+      if (!state.meetingId) { toast('Save the meeting first'); return; }
+      window.open('/meetings/' + state.meetingId + '/agenda/print', '_blank');
     }
 
     // --- init ---

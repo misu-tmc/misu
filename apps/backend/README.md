@@ -55,7 +55,8 @@ never from the request body.
 Server-served HTML admin pages (simple HTML/CSS/JS, one self-contained file each under
 `web/`). Pages require a **web session** and redirect to `/login` when absent; their JSON
 APIs share the canonical `/api/*` paths and require a `site_admin` grant. `MISU_WEB_DIR`
-(default `web`) sets where the HTML files are read from.
+(default `web`) sets where the HTML files are read from. `MISU_STATIC_DIR` (default
+`static`) serves logos, QR codes and other print assets under `/static/*`.
 
 | Page | Purpose |
 | ---- | ------- |
@@ -63,6 +64,7 @@ APIs share the canonical `/api/*` paths and require a `site_admin` grant. `MISU_
 | `/meetings` | overview of open meetings (today onward) with an Archived tab + Create button |
 | `/meetings/new` | meeting editor (start-from template, sessions grid, roles, save/publish) |
 | `/meetings/:id/edit` | edit an existing meeting |
+| `/meetings/:id/agenda/print` | single-sided A4 printable agenda preview |
 | `/users` | user list with promote / revoke `site_admin` |
 
 Admin-scoped JSON APIs (require a `site_admin` session):
@@ -85,3 +87,4 @@ Admin-scoped JSON APIs (require a `site_admin` session):
 - `src/error.rs` — error → HTTP mapping.
 - `src/main.rs` — router wiring.
 - `web/` — static admin HTML pages.
+- `static/` — image/static assets served under `/static/*`.

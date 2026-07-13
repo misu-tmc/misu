@@ -81,13 +81,29 @@ pub struct WebLoginReq {
     pub password: String,
 }
 
-fn session_cookie(token: &str) -> String {
-    // 30 days; HttpOnly + Lax so it rides top-level navigations to the admin pages.
-    format!("{SESSION_COOKIE}={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000")
+/// `Secure` is added unless running in DEV mode, so the cookie only travels over HTTPS
+/// in production while local HTTP dev still works.
+fn secure_attr(dev_mode: bool) -> &'static str {
+    if dev_mode {
+        ""
+    } else {
+        "; Secure"
+    }
 }
 
-fn cleared_cookie() -> String {
-    format!("{SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0")
+fn session_cookie(token: &str, dev_mode: bool) -> String {
+    // 30 days; HttpOnly + Lax so it rides top-level navigations to the admin pages.
+    format!(
+        "{SESSION_COOKIE}={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000{}",
+        secure_attr(dev_mode)
+    )
+}
+
+fn cleared_cookie(dev_mode: bool) -> String {
+    format!(
+        "{SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0{}",
+        secure_attr(dev_mode)
+    )
 }
 
 /// Web login: verify username/password, mint a session, and set it as an HttpOnly cookie.
@@ -108,8 +124,10 @@ pub async fn auth_login(
         "user": { "id": user_id, "display_name": display_name }
     }))
     .into_response();
-    resp.headers_mut()
-        .insert(SET_COOKIE, session_cookie(&token).parse().unwrap());
+    resp.headers_mut().insert(
+        SET_COOKIE,
+        session_cookie(&token, state.config.dev_mode()).parse().unwrap(),
+    );
     Ok(resp)
 }
 
@@ -122,8 +140,10 @@ pub async fn auth_logout(
         delete_session(&state.pool, &token).await?;
     }
     let mut resp = Json(json!({ "ok": true })).into_response();
-    resp.headers_mut()
-        .insert(SET_COOKIE, cleared_cookie().parse().unwrap());
+    resp.headers_mut().insert(
+        SET_COOKIE,
+        cleared_cookie(state.config.dev_mode()).parse().unwrap(),
+    );
     Ok(resp)
 }
 

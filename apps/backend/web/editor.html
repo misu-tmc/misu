@@ -37,6 +37,9 @@
     .pill.draft { background: #fff3e0; color: #b26a00; }
     .pill.published { background: #e8f5e9; color: #2e7d32; }
     input[readonly] { background: var(--bg); color: var(--muted); }
+    .checks { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; }
+    .check { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+    .check input { width: auto; }
     .btn { padding: 10px 18px; border-radius: 8px; border: none; background: var(--purple); color: #fff; font-size: 14px; cursor: pointer; }
     .btn.outline { background: #fff; color: var(--purple); border: 1px solid var(--purple); }
     .btn.ghost { background: #f0ecf6; color: var(--purple); }
@@ -78,6 +81,10 @@
         <div class="field"><label>Start</label><input id="start_time" type="time" /></div>
         <div class="field"><label>End</label><input id="end_time" type="time" readonly title="Calculated from the sessions" /></div>
       </div>
+      <div class="checks">
+        <label class="check"><input id="is_template" type="checkbox" /> Template</label>
+        <label class="check"><input id="is_published" type="checkbox" /> Published</label>
+      </div>
     </div>
 
     <div class="card">
@@ -110,10 +117,8 @@
     </div>
 
     <div class="actions">
-      <button class="btn outline" onclick="saveAsTemplate()">⭐ Save as template</button>
       <div class="spacer"></div>
-      <button class="btn outline" onclick="saveDraft()">Save draft</button>
-      <button class="btn" onclick="publish()">Publish</button>
+      <button class="btn" onclick="save()">Save</button>
     </div>
   </main>
   <datalist id="roles-list"></datalist>
@@ -158,9 +163,13 @@
         const el = document.getElementById(f);
         el.addEventListener('input', () => { state[f] = el.value; if (f === 'start_time') renderStarts(); });
       }
+      document.getElementById('is_template').addEventListener('change', e => { state.is_template = e.target.checked; });
+      document.getElementById('is_published').addEventListener('change', e => { state.status = e.target.checked ? 'published' : 'draft'; renderStatus(); });
     }
     function fillHeader() {
       for (const f of FIELDS) document.getElementById(f).value = state[f] ?? '';
+      document.getElementById('is_template').checked = !!state.is_template;
+      document.getElementById('is_published').checked = state.status === 'published';
       renderStatus();
     }
     function renderStatus() {
@@ -510,12 +519,8 @@
       }
       document.getElementById('heading').textContent = 'Editing #' + saved.number;
       if (assignErr) { toast('Saved, but some assignments failed: ' + (assignErr.message || assignErr)); return; }
-      toast(state.is_template ? 'Saved as template' : state.status === 'published' ? 'Published' : 'Draft saved');
+      toast('Saved');
     }
-    // The buttons set the meeting object's properties, then persist it.
-    function saveAsTemplate() { state.is_template = true; state.status = 'draft'; save(); }
-    function saveDraft() { state.is_template = false; state.status = 'draft'; save(); }
-    function publish() { state.is_template = false; state.status = 'published'; save(); }
 
     // --- init ---
     async function init() {

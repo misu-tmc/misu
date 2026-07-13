@@ -61,6 +61,7 @@ after the first save.
 │  [ Embrace Change ]    [ Room A ]                          │
 │  DATE          START        END                           │
 │  [07/13/2026]  [07:00 PM]   [09:00 PM]  ← END is read-only │
+│  [ ] Template          [x] Published                       │
 ├───────────────────────────────────────────────────────────┤
 │  ROLES                                                    │  ← roles card
 │  ROLE                LABEL       BOOKED BY        ▪        │
@@ -75,18 +76,23 @@ after the first save.
 │  19:07 [Speeches] [Speech 1    ][7][ Speaker 1 ▾] [＋▲▼🗑] │
 │  …                                                        │
 ├───────────────────────────────────────────────────────────┤
-│  [⭐ Save as template]        [ Save draft ] [ Publish ]   │
+│                                                 [ Save ]   │
 └───────────────────────────────────────────────────────────┘
 ```
 
 ### Title card
 
 Meeting header fields: title, number, theme, venue, date, start time, end time, plus a
-read-only **status** pill (`draft` / `published`) reflecting the last save.
+read-only **status** pill (`draft` / `published`) reflecting the current Published
+checkbox.
 
 - **END is calculated from the sessions**, not entered: it is the start time plus each
   session's duration (with a 1-minute buffer between sessions). The field is read-only and
   updates live as durations change.
+- **Template** — checkbox controlling `is_template`; Save preserves this value unless the
+  admin changes it.
+- **Published** — checkbox controlling `status`; Save preserves the current status unless
+  this checkbox is changed. A normal Save never implicitly unpublishes a meeting.
 
 ### Roles card
 
@@ -127,9 +133,8 @@ The timed agenda, one row per session. Columns, left to right:
 
 ### Actions
 
-- **Save as template** — persists as a reusable template (`is_template`, `status=draft`).
-- **Save draft** — `status=draft`.
-- **Publish** — `status=published`; the meeting becomes visible to the booking surfaces.
+- **Save** — persists the current meeting document, preserving `is_template` and `status`
+  as shown by the Template / Published checkboxes.
 - **Start from** (new only) — seed a fresh draft from `Blank`, the `Last meeting`, or a
   `Template`; ids are cleared so it saves as a new meeting.
 

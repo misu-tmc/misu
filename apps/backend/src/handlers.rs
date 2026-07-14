@@ -166,9 +166,12 @@ pub struct RoleSlotDto {
     pub id: i64,
     pub role_id: i64,
     pub role_name: String,
-    /// Display label derived at render time: `role_name` plus an ordinal when the meeting
-    /// has more than one slot of the same role (e.g. `Speaker 1`, `Speaker 2`).
+    /// Display label: the custom `label` when set, otherwise `role_name` plus an ordinal
+    /// when the meeting has more than one slot of the same role (e.g. `Speaker 1`).
     pub label: String,
+    /// The admin-entered custom label, if any (null means "use the derived label").
+    pub custom_label: Option<String>,
+    pub is_optional: bool,
     pub booker_id: Option<i64>,
     pub booker_name: Option<String>,
     pub taker_id: Option<i64>,
@@ -219,6 +222,8 @@ struct SlotRow {
     id: i64,
     role_id: i64,
     role_name: String,
+    label: Option<String>,
+    is_optional: i64,
     booker_id: Option<i64>,
     booker_name: Option<String>,
     taker_id: Option<i64>,
@@ -244,7 +249,7 @@ async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<M
     .collect();
 
     let slot_rows = sqlx::query_as::<_, SlotRow>(
-        "SELECT rs.id, rs.role_id, r.name AS role_name, ra.booker_id, \
+        "SELECT rs.id, rs.role_id, r.name AS role_name, rs.label, rs.is_optional, ra.booker_id, \
                 u.display_name AS booker_name, ra.taker_id \
          FROM role_slot rs \
          JOIN role r ON r.id = rs.role_id \
@@ -270,16 +275,25 @@ async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<M
                 *n += 1;
                 *n
             };
-            let label = if counts.get(&s.role_id).copied().unwrap_or(0) > 1 {
+            let derived = if counts.get(&s.role_id).copied().unwrap_or(0) > 1 {
                 format!("{} {}", s.role_name, ordinal)
             } else {
                 s.role_name.clone()
             };
+            let custom_label = s
+                .label
+                .as_deref()
+                .map(str::trim)
+                .filter(|x| !x.is_empty())
+                .map(str::to_string);
+            let label = custom_label.clone().unwrap_or_else(|| derived.clone());
             RoleSlotDto {
                 id: s.id,
                 role_id: s.role_id,
                 role_name: s.role_name,
                 label,
+                custom_label,
+                is_optional: s.is_optional != 0,
                 booker_id: s.booker_id,
                 booker_name: s.booker_name,
                 taker_id: s.taker_id,

@@ -81,10 +81,6 @@
         <div class="field"><label>Start</label><input id="start_time" type="time" /></div>
         <div class="field"><label>End</label><input id="end_time" type="time" /></div>
       </div>
-      <div class="checks">
-        <label class="check"><input id="is_template" type="checkbox" /> Template</label>
-        <label class="check"><input id="is_published" type="checkbox" /> Published</label>
-      </div>
     </div>
 
     <div class="card">
@@ -92,7 +88,7 @@
       <table>
         <thead>
           <tr>
-            <th>Role</th><th style="width:150px">Label</th><th style="width:170px">Booked by</th><th style="width:150px"></th>
+            <th>Role</th><th style="width:150px">Label</th><th style="width:80px">Optional?</th><th style="width:170px">Booked by</th><th style="width:150px"></th>
           </tr>
         </thead>
         <tbody id="slots"></tbody>
@@ -116,6 +112,8 @@
     </div>
 
     <div class="actions">
+      <label class="check"><input id="is_template" type="checkbox" /> Template</label>
+      <label class="check"><input id="is_published" type="checkbox" /> Published</label>
       <div class="spacer"></div>
       <button class="btn outline" onclick="previewAgenda()">Preview agenda</button>
       <button class="btn" onclick="save()">Save</button>
@@ -183,7 +181,7 @@
     function render() { renderSlots(); renderSessions(); }
 
     // --- roles (slots) ---
-    function emptySlot() { return { role_slot_id: null, roleName: '', booker_id: null, booker_name: null, bookerName: '' }; }
+    function emptySlot() { return { role_slot_id: null, roleName: '', label: '', optional: false, booker_id: null, booker_name: null, bookerName: '' }; }
     function insertSlot(i) {
       state.slots.splice(i + 1, 0, emptySlot());
       // Shift session references that point past the insertion point.
@@ -227,9 +225,20 @@
       return total > 1 ? `${name} ${ordinal}` : name;
     }
     function refreshSlotLabels() {
-      document.querySelectorAll('#slots .slot-label').forEach((cell, i) => {
-        cell.textContent = slotLabel(i) || '—';
+      // Update only the auto (non-custom) label inputs so a role rename re-derives them
+      // while custom labels stay untouched.
+      document.querySelectorAll('#slots .slot-label-input').forEach((input, i) => {
+        const sl = state.slots[i];
+        if (sl && !(sl.label || '').trim()) input.value = slotLabel(i) || '';
       });
+    }
+    function updSlotLabel(i, val) { state.slots[i].label = val; renderSessions(); }
+    function toggleOptional(i, checked) { state.slots[i].optional = !!checked; }
+    /// Effective display label: the custom label when set, otherwise the derived one.
+    function effectiveLabel(i) {
+      const sl = state.slots[i];
+      const custom = (sl && sl.label || '').trim();
+      return custom || slotLabel(i);
     }
     function renderSlots() {
       const tbody = document.getElementById('slots');
@@ -239,7 +248,8 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><input list="roles-list" value="${escapeHtml(sl.roleName)}" placeholder="Role name" oninput="updSlot(${i}, this.value)" /></td>
-          <td class="muted slot-label">${escapeHtml(slotLabel(i) || '—')}</td>
+          <td><input class="slot-label-input" value="${escapeHtml(effectiveLabel(i))}" placeholder="Label" oninput="updSlotLabel(${i}, this.value)" /></td>
+          <td style="text-align:center"><input type="checkbox" style="width:auto" ${sl.optional ? 'checked' : ''} onchange="toggleOptional(${i}, this.checked)" /></td>
           <td><input list="users-list" class="booker" value="${escapeHtml(sl.bookerName || '')}" placeholder="— unassigned —" oninput="updBooker(${i}, this.value)" /></td>
           <td class="utils">
             <div class="utilgroup">
@@ -379,7 +389,7 @@
     function roleOptions(selected) {
       let opts = `<option value="">— none —</option>`;
       state.slots.forEach((sl, j) => {
-        const label = slotLabel(j) || '(unnamed role)';
+        const label = effectiveLabel(j) || '(unnamed role)';
         opts += `<option value="${j}" ${selected === j ? 'selected' : ''}>${escapeHtml(label)}</option>`;
       });
       return opts;
@@ -425,6 +435,8 @@
       const slots = rawSlots.map(s => ({
         role_slot_id: asTemplate ? null : s.id,
         roleName: s.role_name,
+        label: s.custom_label || '',
+        optional: !!s.is_optional,
         booker_id: asTemplate ? null : s.booker_id,
         booker_name: asTemplate ? null : s.booker_name,
         bookerName: asTemplate ? '' : (s.booker_name || '')
@@ -486,7 +498,7 @@
         const roleName = (sl.roleName || '').trim();
         if (roleName) {
           slotRemap[idx] = role_slots.length;
-          role_slots.push({ role_slot_id: sl.role_slot_id || null, role_name: roleName });
+          role_slots.push({ role_slot_id: sl.role_slot_id || null, role_name: roleName, label: (sl.label || '').trim() || null, is_optional: !!sl.optional });
         }
       });
       const sessions = state.sessions.map((s, i) => {

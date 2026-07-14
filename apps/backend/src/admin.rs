@@ -172,6 +172,10 @@ pub struct SlotIn {
     pub role_slot_id: Option<i64>,
     pub role_id: Option<i64>,
     pub role_name: Option<String>,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub is_optional: bool,
 }
 
 #[derive(Deserialize)]
@@ -333,20 +337,32 @@ pub async fn upsert_meeting(
     let mut index_to_id: Vec<i64> = Vec::with_capacity(input.role_slots.len());
     let mut keep: HashSet<i64> = HashSet::new();
     for (slot, role_id) in input.role_slots.iter().zip(slot_role_ids.iter()) {
+        let label = slot
+            .label
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
         let id = match slot.role_slot_id {
             Some(id) if existing_set.contains(&id) => {
-                sqlx::query("UPDATE role_slot SET role_id = ? WHERE id = ?")
-                    .bind(role_id)
-                    .bind(id)
-                    .execute(&mut *tx)
-                    .await?;
+                sqlx::query(
+                    "UPDATE role_slot SET role_id = ?, label = ?, is_optional = ? WHERE id = ?",
+                )
+                .bind(role_id)
+                .bind(label)
+                .bind(slot.is_optional as i64)
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
                 id
             }
             _ => sqlx::query_scalar::<_, i64>(
-                "INSERT INTO role_slot(meeting_id, role_id) VALUES (?, ?) RETURNING id",
+                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
+                 VALUES (?, ?, ?, ?) RETURNING id",
             )
             .bind(meeting_id)
             .bind(role_id)
+            .bind(label)
+            .bind(slot.is_optional as i64)
             .fetch_one(&mut *tx)
             .await?,
         };

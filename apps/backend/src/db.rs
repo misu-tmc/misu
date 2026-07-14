@@ -67,9 +67,11 @@ CREATE TABLE IF NOT EXISTS role (
 
 -- A concrete bookable seat in a meeting. User-agnostic: bookings live in role_assignment.
 CREATE TABLE IF NOT EXISTS role_slot (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    meeting_id INTEGER NOT NULL REFERENCES meeting(id) ON DELETE CASCADE,
-    role_id    INTEGER NOT NULL REFERENCES role(id)
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    meeting_id  INTEGER NOT NULL REFERENCES meeting(id) ON DELETE CASCADE,
+    role_id     INTEGER NOT NULL REFERENCES role(id),
+    label       TEXT,
+    is_optional INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS session (
@@ -111,8 +113,25 @@ pub async fn connect(config: &Config) -> anyhow::Result<SqlitePool> {
         .await
         .context("failed to apply schema")?;
 
+    migrate(&pool).await?;
     seed(&pool, config).await?;
     Ok(pool)
+}
+
+/// Idempotent column additions for databases created before these columns existed.
+async fn migrate(pool: &SqlitePool) -> anyhow::Result<()> {
+    for stmt in [
+        "ALTER TABLE role_slot ADD COLUMN label TEXT",
+        "ALTER TABLE role_slot ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0",
+    ] {
+        if let Err(e) = sqlx::query(stmt).execute(pool).await {
+            // The column already exists on an up-to-date database; anything else is fatal.
+            if !e.to_string().contains("duplicate column name") {
+                return Err(e).context("migration failed");
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Seed the role catalog and, in an empty database, a couple of sample meetings so

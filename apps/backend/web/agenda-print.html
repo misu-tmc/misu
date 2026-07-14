@@ -6,18 +6,15 @@
   <title>MISU · Printable agenda</title>
   <style>
     :root {
-      --blue: #0b5774;
-      --dark-blue: #06435d;
-      --line: #9fb2bd;
-      --soft-line: #cbd7dd;
-      --ink: #111;
-      --muted: #555;
-      --green: #92d050;
-      --yellow: #ffff00;
-      --red: #ff0000;
+      --blue: #0f3a52;
+      --ink: #17252d;
+      --muted: #466573;
+      --green: #a4d66f;
+      --yellow: #fff276;
+      --red: #ed654c;
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; background: #ddd; color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
+    html, body { margin: 0; background: #ccc; color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
     body { padding: 8mm 0; }
     .toolbar { max-width: 210mm; margin: 0 auto 10px; display: flex; justify-content: flex-end; gap: 8px; }
     .toolbar button { border: 0; border-radius: 6px; padding: 8px 14px; background: var(--blue); color: #fff; cursor: pointer; }
@@ -27,12 +24,11 @@
       margin: 0 auto;
       background: #fff;
       overflow: hidden;
-      position: relative;
       box-shadow: 0 2px 12px rgba(0,0,0,.18);
       display: grid;
-      grid-template-rows: 28mm 231mm 38mm;
-      font-size: 10px;
-      line-height: 1.28;
+      grid-template-rows: 26mm 1fr;
+      font-size: 13px;
+      line-height: 1.32;
     }
     @page { size: A4 portrait; margin: 0; }
     @media print {
@@ -41,141 +37,134 @@
       .sheet { box-shadow: none; margin: 0; width: 210mm; height: 297mm; }
     }
 
+    /* Header shares the body column geometry (2.5mm pad | 48mm | 3mm gap | 1fr),
+       so the club brand aligns with the main cards' left edge and the Microsoft
+       mark aligns with their right edge. */
     .top {
-      display: grid;
-      grid-template-columns: 48mm 1fr 17mm;
-      background: linear-gradient(135deg, #07384f 0%, #0a607d 78%);
+      background: linear-gradient(135deg, #0f3a52 0%, #2b6c89 100%);
       color: #fff;
-      border-bottom: 1.2mm solid #d6e2e8;
-      min-height: 0;
-    }
-    .brand-logo { display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.05); }
-    .brand-logo img { width: 25mm; height: 25mm; object-fit: contain; }
-    .headline { padding: 2.1mm 3mm 1.5mm; display: grid; grid-template-rows: auto auto auto; align-content: center; min-width: 0; }
-    .club-name { font-size: 16px; font-weight: 800; letter-spacing: .2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .meeting-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: .8mm; font-size: 10px; font-weight: 700; min-width: 0; }
-    .meeting-title span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .meeting-title .theme { font-weight: 600; }
-    .ms-mark { display: flex; align-items: center; justify-content: center; padding-right: 3mm; }
-    .ms-mark img { width: 11mm; height: 11mm; object-fit: contain; }
-
-    .middle { display: grid; grid-template-columns: 48mm 1fr; min-height: 0; }
-    .sidebar {
-      padding: 5mm 3mm 3mm;
-      border-right: 1px solid var(--line);
-      display: grid;
-      grid-template-rows: auto auto auto auto auto auto 1fr auto auto;
-      gap: 2.3mm;
-    }
-    .slogan { font-size: 7.8px; font-weight: 800; text-transform: uppercase; }
-    .side-block h3 { margin: 0 0 1mm; font-size: 8px; font-weight: 800; }
-    .side-block p { margin: 0; font-size: 7.8px; }
-    .officers { font-size: 7.2px; }
-    .join { font-size: 7.2px; }
-    .join ul { margin: 1mm 0 0 4mm; padding: 0; }
-    .join li { margin-bottom: .7mm; }
-    .qr-row { text-align: center; }
-    .qr-row img { width: 24mm; height: 24mm; object-fit: contain; display: block; margin: 0 auto 1mm; }
-    .qr-caption { font-size: 7px; }
-
-    .main { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
-    .mission {
-      padding: 2.5mm 4mm 1.5mm;
-      text-align: center;
-      border-bottom: 1px solid var(--soft-line);
-    }
-    .mission h2 { margin: 0; font-size: 10px; font-weight: 800; }
-    .mission p { margin: .8mm 0 0; font-size: 8.2px; line-height: 1.2; }
-    .mission a { color: #003f74; font-weight: 700; }
-
-    .agenda-wrap { padding: 0 4mm 2mm; min-height: 0; }
-    table { border-collapse: collapse; width: 100%; }
-    .agenda th, .agenda td { border: 1px solid var(--soft-line); padding: 1.3mm 1.4mm; vertical-align: top; }
-    .agenda th { font-size: 8.4px; font-weight: 700; background: #f7fbfd; text-align: center; }
-    .agenda td { font-size: 8.7px; }
-    .agenda .time { width: 14mm; text-align: center; white-space: nowrap; }
-    .agenda .dur { width: 16mm; text-align: center; white-space: nowrap; }
-    .agenda .taker { width: 35mm; }
-    .agenda .section td { text-align: center; font-weight: 700; background: #fff; padding: .9mm; }
-    .session-title { font-weight: 400; }
-    .speech-meta { margin-top: .5mm; font-size: 7.5px; color: var(--muted); font-style: italic; }
-
-    .bottom {
       display: grid;
       grid-template-columns: 48mm 1fr;
-      border-top: 1px solid var(--line);
-      min-height: 0;
+      column-gap: 3mm;
+      padding: 0 2.5mm;
+      align-items: center;
     }
-    .fee { border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1mm; }
-    .fee img { width: 25mm; height: 25mm; object-fit: contain; }
-    .fee .amount { font-size: 10px; font-weight: 800; }
-    .timer { padding: 4mm 5mm; }
-    .timer th, .timer td { border: 1px solid var(--soft-line); padding: 1.4mm 1.8mm; font-size: 8px; }
-    .timer th { background: #f5f7f9; font-weight: 800; }
-    .timer .green { background: var(--green); color: #fff; }
-    .timer .yellow { background: var(--yellow); }
-    .timer .red { background: var(--red); color: #fff; }
+    .tm-logo { display: flex; align-items: center; justify-content: center; }
+    .tm-logo img { height: 20mm; object-fit: contain; }
+    .club-wrap { display: grid; grid-template-columns: 1fr 14mm; column-gap: 3mm; align-items: center; }
+    .club-brand { min-width: 0; }
+    .club-brand .name { font-size: 25px; font-weight: 800; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .club-brand .ids { margin-top: 2mm; font-size: 12px; font-weight: 700; opacity: .92; }
+    .ms-logo { display: flex; align-items: center; justify-content: center; }
+    .ms-logo img { width: 13mm; height: 13mm; object-fit: contain; }
+
+    .body { display: grid; grid-template-columns: 48mm 1fr; gap: 3mm; padding: 2.5mm; min-height: 0; }
+
+    /* Sidebar: visible outer card; inner sections are invisible cards sharing one edge. */
+    .sidebar { background: #f3f7f9; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: column; gap: 1.5mm; min-height: 0; }
+    .side-card { padding: 1.5mm 2mm; }
+    .sidebar h4 { margin: 0 0 1mm; font-size: 12px; text-transform: uppercase; color: #31566a; }
+    .sidebar p, .sidebar ul { margin: 0; font-size: 11px; }
+    .sidebar ul { margin-left: 4mm; padding: 0; }
+    .side-qr { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; text-align: center; font-size: 10px; }
+    .side-qr img { width: 17mm; height: 17mm; object-fit: contain; display: block; margin: 0 auto 1mm; }
+    .qr-caption { font-size: 10px; }
+
+    /* Main column: session area (meeting card + agenda) over the timer card. */
+    .tables { display: grid; grid-template-rows: 1fr auto; gap: 3mm; min-height: 0; }
+    .session-area { display: flex; flex-direction: column; gap: 3mm; min-height: 0; overflow: hidden; }
+
+    /* One shared card shell → identical left/right edges across all cards. */
+    .card { border-radius: 2mm; padding: 2.5mm 3.5mm; }
+    .meeting-info { background: #e9f2f5; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 5mm; align-items: center; flex: 0 0 auto; }
+    .meeting-info .title { grid-column: 1 / -1; font-size: 20px; font-weight: 800; color: #173f53; margin-bottom: .5mm; }
+    .meeting-info .field { font-size: 13px; color: var(--muted); }
+    .meeting-info .field strong { color: #284f62; }
+
+    .agenda-panel { background: #f4f8fa; flex: 1; min-height: 0; overflow: hidden; padding-top: 1mm; padding-bottom: 2mm; }
+    .agenda-grid { width: 100%; border-collapse: separate; border-spacing: 0 var(--rowgap, 1mm); table-layout: fixed; font-size: var(--agfs, 12px); }
+    .agenda-grid th { font-size: .92em; text-transform: uppercase; color: #56717e; text-align: left; padding: 1.5mm 2mm .5mm; }
+    .agenda-grid th:first-child, .agenda-grid td:first-child { width: 15mm; text-align: center; }
+    .agenda-grid th:nth-child(3), .agenda-grid td:nth-child(3) { width: 17mm; text-align: center; }
+    .agenda-grid th:nth-child(4), .agenda-grid td:nth-child(4) { width: 30mm; }
+    .agenda-grid td { background: #fff; padding: 1.8mm 2mm; font-size: 1em; vertical-align: top; }
+    .agenda-grid td:first-child { border-radius: 1.5mm 0 0 1.5mm; color: #1f5874; font-weight: 700; }
+    .agenda-grid td:last-child { border-radius: 0 1.5mm 1.5mm 0; }
+    .agenda-grid .section td { background: #dbe9ef; color: #214e63; text-align: center !important; font-weight: 800; border-radius: 1.5mm; padding: 1.2mm; }
+    .session-title { font-weight: 400; }
+    .speech-meta { margin-top: .4mm; font-size: .82em; color: var(--muted); font-style: italic; }
+
+    .timer { background: #eef5f7; }
+    .timer-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #31566a; margin-bottom: 1mm; }
+    .timer-table { width: calc(100% + 3mm); margin: 0 -1.5mm; border-collapse: separate; border-spacing: 1.5mm 1mm; table-layout: fixed; }
+    .timer-table th, .timer-table td { border: 0; border-radius: 1.5mm; background: #fff; padding: 1.2mm 1.6mm; font-size: 10px; vertical-align: middle; }
+    .timer-table th { font-size: 11px; font-weight: 800; }
+    .timer-table .green { background: var(--green); }
+    .timer-table .yellow { background: var(--yellow); }
+    .timer-table .red { background: var(--red); color: #fff; }
+    .timer-table .speech { width: 24%; }
+    .timer-table .bell { width: 16%; }
   </style>
 </head>
 <body>
   <div class="toolbar"><button onclick="window.print()">Print</button></div>
   <section class="sheet">
     <header class="top">
-      <div class="brand-logo"><img src="/static/Toastmasters_2011.png" alt="Toastmasters International" /></div>
-      <div class="headline">
-        <div class="club-name">Microsoft Suzhou Toastmasters Club</div>
-        <div class="meeting-title">
-          <span><span id="meetingNo">#---</span> Regular Meeting</span>
-          <span id="meetingDate">----</span>
+      <div class="tm-logo"><img src="/static/Toastmasters_2011.png" alt="Toastmasters International" /></div>
+      <div class="club-wrap">
+        <div class="club-brand">
+          <div class="name">Microsoft Suzhou Toastmasters Club</div>
+          <div class="ids">Club #07964606 · District 128 · Region 3</div>
         </div>
-        <div class="meeting-title">
-          <span>Theme: <span class="theme" id="theme">----</span></span>
-          <span>Club #: 07964606, D128, R3 Area</span>
-        </div>
+        <div class="ms-logo"><img src="/static/Microsoft_logo.svg" alt="Microsoft" /></div>
       </div>
-      <div class="ms-mark"><img src="/static/Microsoft_logo.svg" alt="Microsoft" /></div>
     </header>
 
-    <main class="middle">
+    <main class="body">
       <aside class="sidebar">
-        <div class="slogan">Where Leaders Are Made</div>
-        <div class="side-block"><h3>MISU Mission:</h3><p>To empower every individual to grow into an inspiring communicator and authentic leader.</p></div>
-        <div class="side-block"><h3>Keyword:</h3><p id="keyword">Glory</p></div>
-        <div class="side-block"><h3>Regular Meeting Time:</h3><p>Every alternate Monday<br />18:45–21:00</p></div>
-        <div class="side-block"><h3>Venue:</h3><p id="venue">Room A</p></div>
-        <div class="side-block officers"><h3>Officer Team:</h3><p>President: Cecily Wang<br />VPE: Chao Chen<br />VPM: Serena Zhan<br />VPPR: Sophia Chen<br />Secretary: Jiajia Bao<br />Treasurer: Johnny Yao<br />SAA: Tao Lu</p></div>
-        <div class="side-block join"><h3>How to join us?</h3><ul><li>Attend at least three meetings.</li><li>Submit the new member application form to VPM.</li><li>Interview by President/VPE/VPM.</li></ul></div>
-        <div class="qr-row"><img src="/static/VPM QR code.jpg" alt="VPM QR code" /><div class="qr-caption">VPM: Serena Zhan</div></div>
+        <div class="side-card"><h4>MISU Mission</h4><p>To empower every individual to grow into an inspiring communicator and authentic leader.</p></div>
+        <div class="side-card"><h4>Regular Meeting</h4><p>Every alternate Monday<br />18:45–21:00</p></div>
+        <div class="side-card"><h4>Officer Team</h4><p>President: Cecily Wang<br />VPE: Chao Chen<br />VPM: Serena Zhan<br />VPPR: Sophia Chen<br />Secretary: Jiajia Bao<br />Treasurer: Johnny Yao<br />SAA: Tao Lu</p></div>
+        <div class="side-card"><h4>How to join us?</h4><ul><li>Attend at least three meetings.</li><li>Submit the new member application form to VPM.</li><li>Interview by President/VPE/VPM.</li></ul></div>
+        <div class="side-card side-qr">
+          <div><img src="/static/VPM QR code.jpg" alt="VPM QR code" /><div class="qr-caption">VPM: Serena Zhan</div></div>
+          <div><img src="/static/Guest Fee QRCode.png" alt="Guest fee QR" /><div class="qr-caption">Guest Fee ¥20</div></div>
+        </div>
       </aside>
 
-      <section class="main">
-        <div class="mission">
-          <h2>The Mission of Toastmasters Club</h2>
-          <p>We provide a supportive and positive learning experience in which members are empowered to develop communication and leadership skills, resulting in greater self-confidence and personal growth. More information: <a>www.toastmasters.org</a></p>
-        </div>
-        <div class="agenda-wrap">
-          <table class="agenda">
-            <thead><tr><th>Time</th><th>Sessions</th><th>Duration</th><th>Role Takers</th></tr></thead>
-            <tbody id="agendaRows"></tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+      <div class="tables">
+        <section class="session-area">
+          <div class="card meeting-info">
+            <div class="title" id="mTitle">#--- Regular Meeting</div>
+            <div class="field"><strong>Theme:</strong> <span id="fTheme"></span></div>
+            <div class="field"><strong>Time:</strong> <span id="fTime"></span></div>
+            <div class="field"><strong>Keyword:</strong> <span id="fKeyword"></span></div>
+            <div class="field"><strong>Venue:</strong> <span id="fVenue"></span></div>
+            <div class="field"><strong>Meeting Manager:</strong> <span id="fManager"></span></div>
+            <div class="field"><strong>Photographer:</strong> <span id="fPhotographer"></span></div>
+          </div>
+          <div class="card agenda-panel">
+            <table class="agenda-grid">
+              <thead><tr><th>Time</th><th>Sessions</th><th>Duration</th><th>Role Takers</th></tr></thead>
+              <tbody id="agendaRows"></tbody>
+            </table>
+          </div>
+        </section>
 
-    <footer class="bottom">
-      <div class="fee"><div class="amount">¥20.00</div><img src="/static/Guest Fee QRCode.png" alt="Guest fee QR" /><div class="qr-caption">Guest Fee<br />Non-Toastmaster Guest</div></div>
-      <div class="timer">
-        <table>
-          <thead><tr><th>Type of Speech</th><th class="green">Green Card</th><th class="yellow">Yellow Card</th><th class="red">Red Card</th><th>Ring Bell</th></tr></thead>
-          <tbody>
-            <tr><td>Prepared Speech</td><td class="green">2 mins left</td><td class="yellow">1 min left</td><td class="red" rowspan="4">Time is up!<br />You have 30” to finish</td><td rowspan="4">Stop<br />Immediately</td></tr>
-            <tr><td>Table Topic</td><td class="green">1 min left</td><td class="yellow">30” left</td></tr>
-            <tr><td>Individual Evaluator</td><td class="green">1 min left</td><td class="yellow">30” left</td></tr>
-            <tr><td>Role Taker</td><td class="green">1 min left</td><td class="yellow">30” left</td></tr>
-          </tbody>
-        </table>
+        <section class="card timer">
+          <div class="timer-title">Timer Guide</div>
+          <table class="timer-table">
+            <thead><tr><th class="speech">Speech Type</th><th class="green">Green</th><th class="yellow">Yellow</th><th class="red">Red</th><th class="bell">Ring Bell</th></tr></thead>
+            <tbody>
+              <tr><td>Prepared Speech</td><td class="green">2 min left</td><td class="yellow">1 min left</td><td class="red" rowspan="4">Time is up!<br />30” to finish</td><td rowspan="4">Stop immediately</td></tr>
+              <tr><td>Table Topic</td><td class="green">1 min left</td><td class="yellow">30” left</td></tr>
+              <tr><td>Individual Evaluator</td><td class="green">1 min left</td><td class="yellow">30” left</td></tr>
+              <tr><td>Role Taker</td><td class="green">1 min left</td><td class="yellow">30” left</td></tr>
+            </tbody>
+          </table>
+        </section>
       </div>
-    </footer>
+    </main>
   </section>
 
   <script>
@@ -219,6 +208,29 @@
       });
       document.getElementById('agendaRows').innerHTML = rows.join('');
     }
+    /// Shrink the agenda type until it fits the fixed panel (auto-compact, never a 2nd page).
+    function fitAgenda() {
+      const panel = document.querySelector('.agenda-panel');
+      const grid = panel.querySelector('.agenda-grid');
+      let fs = 12, gap = 1, guard = 0;
+      grid.style.setProperty('--agfs', fs + 'px');
+      grid.style.setProperty('--rowgap', gap + 'mm');
+      while (panel.scrollHeight > panel.clientHeight + 1 && guard++ < 30) {
+        if (fs > 8) fs -= 0.5;
+        else if (gap > 0.3) gap = Math.max(0.3, gap - 0.1);
+        else break;
+        grid.style.setProperty('--agfs', fs + 'px');
+        grid.style.setProperty('--rowgap', gap + 'mm');
+      }
+    }
+    /// Build the big title as `#<number> <title>` without duplicating the number.
+    function meetingTitle(meeting) {
+      const num = meeting.number;
+      const bare = String(meeting.title || '')
+        .replace(new RegExp('\\s*#?0*' + num + '\\s*$'), '')
+        .trim();
+      return `#${num}${bare ? ' ' + bare : ''}`;
+    }
     async function init() {
       const id = meetingIdFromPath();
       if (!id) return;
@@ -226,12 +238,19 @@
       if (!res.ok) { document.getElementById('agendaRows').innerHTML = '<tr><td colspan="4">Failed to load meeting.</td></tr>'; return; }
       const meeting = await res.json();
       document.title = `MISU · Agenda #${meeting.number}`;
-      document.getElementById('meetingNo').textContent = '#' + meeting.number;
-      document.getElementById('meetingDate').textContent = `${shortDate(meeting.date)} ${meeting.start_time || ''}`;
-      document.getElementById('theme').textContent = meeting.theme || '';
-      document.getElementById('keyword').textContent = meeting.theme || 'Glory';
-      document.getElementById('venue').textContent = meeting.venue || '';
+      document.getElementById('mTitle').textContent = meetingTitle(meeting);
+      document.getElementById('fTheme').textContent = meeting.theme || '';
+      const end = meeting.end_time ? '–' + meeting.end_time : '';
+      document.getElementById('fTime').textContent = `${shortDate(meeting.date)} · ${meeting.start_time || ''}${end}`;
+      document.getElementById('fKeyword').textContent = 'Glory';
+      document.getElementById('fVenue').textContent = meeting.venue || '';
+      document.getElementById('fManager').textContent = '';
+      const photographer = (meeting.role_slots || [])
+        .find(s => (s.role_name || '').toLowerCase() === 'photographer');
+      document.getElementById('fPhotographer').textContent =
+        photographer ? (photographer.booker_name || '') : '';
       renderRows(meeting);
+      fitAgenda();
     }
     init();
   </script>

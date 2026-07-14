@@ -40,8 +40,9 @@ Overview of meetings with an Open / Archived split and a create action.
 ### Data
 
 - `GET /api/meetings?scope=open|archived|all|templates` — meeting summaries.
-- `open` = future non-templates (soonest first); `archived` = past non-templates; `all` and
-  `templates` are used by the editor's "Start from".
+- `open` = future meetings (soonest first); `archived` = past meetings; `all` and
+  `templates` are used by the editor's "Start from". Templates are included in Open /
+  Archived according to their date, and remain separately queryable via `scope=templates`.
 
 ## Meeting editor — `/meetings/new` and `/meetings/:id/edit`
 

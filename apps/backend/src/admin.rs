@@ -137,15 +137,14 @@ pub async fn list_meetings(
         }
         "all" => {
             sqlx::query_as::<_, MeetingSummary>(&format!(
-                "SELECT {SUMMARY_COLS} FROM meeting WHERE is_template = 0 \
-                 ORDER BY date DESC, number DESC"
+                "SELECT {SUMMARY_COLS} FROM meeting ORDER BY date DESC, number DESC"
             ))
             .fetch_all(&state.pool)
             .await?
         }
         "archived" => {
             sqlx::query_as::<_, MeetingSummary>(&format!(
-                "SELECT {SUMMARY_COLS} FROM meeting WHERE is_template = 0 AND date < ? \
+                "SELECT {SUMMARY_COLS} FROM meeting WHERE date < ? \
                  ORDER BY date DESC, number DESC"
             ))
             .bind(&today)
@@ -155,7 +154,7 @@ pub async fn list_meetings(
         _ => {
             // open
             sqlx::query_as::<_, MeetingSummary>(&format!(
-                "SELECT {SUMMARY_COLS} FROM meeting WHERE is_template = 0 AND date >= ? \
+                "SELECT {SUMMARY_COLS} FROM meeting WHERE date >= ? \
                  ORDER BY date ASC, number ASC"
             ))
             .bind(&today)

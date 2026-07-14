@@ -197,6 +197,26 @@ pub async fn create_web_user(
     Ok(user_id)
 }
 
+/// Update the stored password for an existing web credential. Returns the credential's
+/// `user.id`. Errors if no credential exists for the username.
+pub async fn set_web_password(
+    pool: &SqlitePool,
+    username: &str,
+    password: &str,
+) -> Result<i64, AppError> {
+    let hash = hash_password(password)?;
+    let user_id: Option<i64> = sqlx::query_scalar(
+        "UPDATE web_credential SET password_hash = ? WHERE username = ? RETURNING user_id",
+    )
+    .bind(hash)
+    .bind(username)
+    .fetch_optional(pool)
+    .await?;
+    user_id.ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!("web credential '{username}' not found"))
+    })
+}
+
 /// Whether a web credential already exists for a username.
 pub async fn web_username_exists(pool: &SqlitePool, username: &str) -> Result<bool, AppError> {
     let count: i64 =

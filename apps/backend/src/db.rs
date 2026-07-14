@@ -164,21 +164,28 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
 /// reachable. Uses the configured credentials, or falls back to `admin`/`admin` in DEV
 /// mode. No-op if the username already has a credential.
 async fn seed_web_admin(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
-    let (username, password) = match (
+    let (username, password, explicit) = match (
         &config.seed_web_admin_user,
         &config.seed_web_admin_password,
     ) {
-        (Some(u), Some(p)) => (u.clone(), p.clone()),
+        (Some(u), Some(p)) => (u.clone(), p.clone(), true),
         _ if config.dev_mode() => {
             tracing::warn!(
                 "seeding DEV web admin admin/admin (set MISU_WEB_ADMIN_USER/PASSWORD to override)"
             );
-            ("admin".to_string(), "admin".to_string())
+            ("admin".to_string(), "admin".to_string(), false)
         }
         _ => return Ok(()),
     };
 
     if crate::auth::web_username_exists(pool, &username).await? {
+        // When credentials are explicitly configured (production), keep the stored
+        // password in sync with `.env` so rotating MISU_WEB_ADMIN_PASSWORD takes effect
+        // on the next startup. The DEV fallback (admin/admin) stays insert-only.
+        if explicit {
+            crate::auth::set_web_password(pool, &username, &password).await?;
+            tracing::info!("updated web admin '{username}' password from configured credentials");
+        }
         return Ok(());
     }
     let user_id = crate::auth::create_web_user(pool, &username, &password, "Site Admin").await?;

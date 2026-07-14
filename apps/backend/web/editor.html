@@ -79,7 +79,7 @@
       <div class="row">
         <div class="field"><label>Date</label><input id="date" type="date" /></div>
         <div class="field"><label>Start</label><input id="start_time" type="time" /></div>
-        <div class="field"><label>End</label><input id="end_time" type="time" readonly title="Calculated from the sessions" /></div>
+        <div class="field"><label>End</label><input id="end_time" type="time" /></div>
       </div>
       <div class="checks">
         <label class="check"><input id="is_template" type="checkbox" /> Template</label>
@@ -92,12 +92,11 @@
       <table>
         <thead>
           <tr>
-            <th>Role</th><th style="width:150px">Label</th><th style="width:170px">Booked by</th><th style="width:80px"></th>
+            <th>Role</th><th style="width:150px">Label</th><th style="width:170px">Booked by</th><th style="width:150px"></th>
           </tr>
         </thead>
         <tbody id="slots"></tbody>
       </table>
-      <div style="margin-top:12px"><button class="btn ghost" onclick="addSlot()">+ Add role</button></div>
       <div class="muted" style="margin-top:8px; font-size:12px">
         Roles with no session are meeting-wide (Timer, Grammarian…). Repeated roles are numbered automatically.
       </div>
@@ -185,7 +184,22 @@
 
     // --- roles (slots) ---
     function emptySlot() { return { role_slot_id: null, roleName: '', booker_id: null, booker_name: null, bookerName: '' }; }
-    function addSlot() { state.slots.push(emptySlot()); render(); }
+    function insertSlot(i) {
+      state.slots.splice(i + 1, 0, emptySlot());
+      // Shift session references that point past the insertion point.
+      state.sessions.forEach(s => { if (s.slotIndex != null && s.slotIndex > i) s.slotIndex += 1; });
+      render();
+    }
+    function moveSlot(i, dir) {
+      const j = i + dir; if (j < 0 || j >= state.slots.length) return;
+      [state.slots[i], state.slots[j]] = [state.slots[j], state.slots[i]];
+      // Keep session references pointing at the slots they were on.
+      state.sessions.forEach(s => {
+        if (s.slotIndex === i) s.slotIndex = j;
+        else if (s.slotIndex === j) s.slotIndex = i;
+      });
+      render();
+    }
     function deleteSlot(i) {
       state.slots.splice(i, 1);
       // Fix up sessions that referenced this or a later slot.
@@ -220,6 +234,7 @@
     function renderSlots() {
       const tbody = document.getElementById('slots');
       tbody.innerHTML = '';
+      if (!state.slots.length) state.slots.push(emptySlot());
       state.slots.forEach((sl, i) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -228,7 +243,10 @@
           <td><input list="users-list" class="booker" value="${escapeHtml(sl.bookerName || '')}" placeholder="— unassigned —" oninput="updBooker(${i}, this.value)" /></td>
           <td class="utils">
             <div class="utilgroup">
-              <button class="iconbtn del" title="Delete role" onclick="deleteSlot(${i})">🗑</button>
+              <button class="iconbtn add" title="Add below" onclick="insertSlot(${i})">＋</button>
+              <button class="iconbtn" title="Move up" onclick="moveSlot(${i},-1)">▲</button>
+              <button class="iconbtn" title="Move down" onclick="moveSlot(${i},1)">▼</button>
+              <button class="iconbtn del" title="Delete role" onclick="deleteSlot(${i})">×</button>
             </div>
           </td>`;
         tbody.appendChild(tr);
@@ -357,10 +375,6 @@
         cursor += Number(s.duration_minutes) || 0;
         if (i < state.sessions.length - 1) cursor += BUFFER_MINUTES;
       });
-      // End time is derived from the sessions (end of the last session).
-      if (state.sessions.length) state.end_time = toHHMM(cursor);
-      const endEl = document.getElementById('end_time');
-      if (endEl) endEl.value = state.end_time || '';
     }
     function roleOptions(selected) {
       let opts = `<option value="">— none —</option>`;
@@ -373,6 +387,7 @@
     function renderSessions() {
       const tbody = document.getElementById('sessions');
       tbody.innerHTML = '';
+      if (!state.sessions.length) state.sessions.push(emptySession());
       state.sessions.forEach((s, i) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -386,7 +401,7 @@
               <button class="iconbtn add" title="Add below" onclick="insertSession(${i})">＋</button>
               <button class="iconbtn" title="Move up" onclick="move(${i},-1)">▲</button>
               <button class="iconbtn" title="Move down" onclick="move(${i},1)">▼</button>
-              <button class="iconbtn del" title="Delete" onclick="deleteSession(${i})">🗑</button>
+              <button class="iconbtn del" title="Delete" onclick="deleteSession(${i})">×</button>
             </div>
           </td>`;
         tbody.appendChild(tr);

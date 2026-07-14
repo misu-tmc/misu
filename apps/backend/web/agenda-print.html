@@ -80,11 +80,11 @@
     .card { border-radius: 2mm; padding: 2.5mm 3.5mm; }
     .meeting-info { background: #e9f2f5; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 5mm; align-items: center; flex: 0 0 auto; }
     .meeting-info .title { grid-column: 1 / -1; font-size: 20px; font-weight: 800; color: #173f53; margin-bottom: .5mm; }
-    .meeting-info .field { font-size: 13px; color: var(--muted); }
+    .meeting-info .field { font-size: 12px; color: var(--muted); }
     .meeting-info .field strong { color: #284f62; }
 
     .agenda-panel { background: transparent; flex: 1; min-height: 0; overflow: hidden; padding: 1mm 0 2mm; }
-    .agenda-grid { width: 100%; border-collapse: separate; border-spacing: 0 var(--rowgap, 1mm); table-layout: fixed; font-size: var(--agfs, 12px); }
+    .agenda-grid { width: 100%; border-collapse: separate; border-spacing: 0 var(--rowgap, 1mm); table-layout: fixed; font-size: var(--print-table-font, 12px); }
     .agenda-grid th { font-size: .92em; text-transform: uppercase; color: #56717e; text-align: left; padding: 1.5mm 2mm .5mm; }
     .agenda-grid th:first-child, .agenda-grid td:first-child { width: 15mm; text-align: center; }
     .agenda-grid th:nth-child(3), .agenda-grid td:nth-child(3) { width: 17mm; text-align: center; }
@@ -98,9 +98,9 @@
 
     .timer { background: #eef5f7; }
     .timer-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #31566a; margin-bottom: 1mm; }
-    .timer-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border-radius: 1.5mm; overflow: hidden; }
-    .timer-table th, .timer-table td { border: 0; background: #fff; padding: 1.6mm; font-size: 10px; vertical-align: middle; }
-    .timer-table th { font-size: 11px; font-weight: 800; text-align: left; }
+    .timer-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border-radius: 1.5mm; overflow: hidden; font-size: var(--print-table-font, 12px); }
+    .timer-table th, .timer-table td { border: 0; background: #fff; padding: 1.25mm 1.6mm; font-size: 1em; vertical-align: middle; }
+    .timer-table th { font-size: .92em; font-weight: 800; text-align: left; }
     .timer-table .green { background: var(--green); }
     .timer-table .yellow { background: var(--yellow); }
     .timer-table .red { background: var(--red); color: #fff; }
@@ -125,7 +125,7 @@
     <main class="body">
       <aside class="sidebar">
         <div class="side-card"><h4>MISU Mission</h4><p>To empower every individual to grow into an inspiring communicator and authentic leader.</p></div>
-        <div class="side-card"><h4>Regular Meeting</h4><p>Every alternate Monday<br />18:45–21:00<br />Venue: B26 1F-1.1B Microsoft Suzhou<br />微软（苏州）研发中心B26幢一楼会议室1.1B</p></div>
+        <div class="side-card"><h4>Regular Meeting</h4><p><b>Time: </b>Every alternate Monday, 18:45–21:00<br /><b>Venue: </b>B26 Room 1.1B, Microsoft Suzhou<br />微软苏州研发中心 B26 幢一楼会议室1.1B</p></div>
         <div class="side-card"><h4>Meeting Team</h4><p>Meeting Manager: <span id="fManager"></span><br />Photographer: <span id="fPhotographer"></span></p></div>
         <div class="side-card"><h4>Officer Team</h4><p>President: Cecily Wang<br />VPE: Chao Chen<br />VPM: Serena Zhan<br />VPPR: Sophia Chen<br />Secretary: Jiajia Bao<br />Treasurer: Johnny Yao<br />SAA: Tao Lu</p></div>
         <div class="side-card"><h4>How to join us?</h4><ul><li>Attend at least three meetings and participate in Table Topic session at least once.</li><li>Submit the new member application form to VPM.</li><li>Interview by President/VPE/VPM.</li></ul></div>
@@ -224,13 +224,13 @@
       const panel = document.querySelector('.agenda-panel');
       const grid = panel.querySelector('.agenda-grid');
       let fs = 12, gap = 1, guard = 0;
-      grid.style.setProperty('--agfs', fs + 'px');
+      document.querySelector('.sheet').style.setProperty('--print-table-font', fs + 'px');
       grid.style.setProperty('--rowgap', gap + 'mm');
       while (panel.scrollHeight > panel.clientHeight + 1 && guard++ < 30) {
         if (fs > 8) fs -= 0.5;
         else if (gap > 0.3) gap = Math.max(0.3, gap - 0.1);
         else break;
-        grid.style.setProperty('--agfs', fs + 'px');
+        document.querySelector('.sheet').style.setProperty('--print-table-font', fs + 'px');
         grid.style.setProperty('--rowgap', gap + 'mm');
       }
     }

@@ -188,9 +188,39 @@ pub struct MeetingDto {
     pub end_time: String,
     pub venue: String,
     pub status: String,
+    /// Derived lifecycle phase: `draft`, `open`, `ongoing`, or `archived`.
+    pub phase: String,
     pub is_template: bool,
     pub sessions: Vec<SessionDto>,
     pub role_slots: Vec<RoleSlotDto>,
+}
+
+/// Derived meeting phase used for labelling and booking rules.
+///
+/// - `draft`: not yet published.
+/// - `open`: published and its date is today (before start) or in the future.
+/// - `ongoing`: published, today, and the start time has passed.
+/// - `archived`: published and its date is in the past.
+pub fn meeting_phase(status: &str, date: &str, start_time: &str) -> &'static str {
+    if status != "published" {
+        return "draft";
+    }
+    let today = chrono::Local::now().date_naive();
+    let mdate = match chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
+        Ok(d) => d,
+        Err(_) => return "open",
+    };
+    if mdate < today {
+        return "archived";
+    }
+    if mdate > today {
+        return "open";
+    }
+    // Same day: ongoing once the start time has passed.
+    match chrono::NaiveTime::parse_from_str(start_time, "%H:%M") {
+        Ok(start) if chrono::Local::now().time() >= start => "ongoing",
+        _ => "open",
+    }
 }
 
 #[derive(FromRow)]
@@ -301,6 +331,7 @@ async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<M
         })
         .collect();
 
+    let phase = meeting_phase(&m.status, &m.date, &m.start_time).to_string();
     Ok(MeetingDto {
         id: m.id,
         number: m.number,
@@ -311,6 +342,7 @@ async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<M
         end_time: m.end_time,
         venue: m.venue,
         status: m.status,
+        phase,
         is_template: m.is_template,
         sessions,
         role_slots,
@@ -392,6 +424,9 @@ pub struct BookReq {
 struct SlotBookRow {
     meeting_id: i64,
     booker_id: Option<i64>,
+    status: String,
+    date: String,
+    start_time: String,
 }
 
 /// Book, release or (for admins) assign a role slot.
@@ -406,8 +441,9 @@ pub async fn book(
 ) -> AppResult<Json<serde_json::Value>> {
     // Slot structure is user-agnostic; the current booker comes from role_assignment.
     let slot = sqlx::query_as::<_, SlotBookRow>(
-        "SELECT rs.meeting_id, ra.booker_id \
+        "SELECT rs.meeting_id, ra.booker_id, m.status, m.date, m.start_time \
          FROM role_slot rs \
+         JOIN meeting m ON m.id = rs.meeting_id \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          WHERE rs.id = ?",
     )
@@ -425,6 +461,14 @@ pub async fn book(
     // May the caller act on behalf of others / override bookings?
     let acting_is_admin = is_meeting_manager(&state.pool, slot.meeting_id, user.id).await?
         || is_site_admin(&state.pool, user.id).await?;
+
+    // Attendees may only book while the meeting is open; once it is ongoing/archived
+    // (or still a draft) booking is closed. Admins/managers can always adjust.
+    if !acting_is_admin && meeting_phase(&slot.status, &slot.date, &slot.start_time) != "open" {
+        return Err(AppError::Conflict(
+            "meeting is not accepting bookings".into(),
+        ));
+    }
 
     // --- Admin assignment on behalf of a specific user ---
     if let Some(target) = req.user_id {

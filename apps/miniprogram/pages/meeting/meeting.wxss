@@ -1,5 +1,11 @@
 .title-card { display: flex; flex-direction: column; }
+.title-head { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
 .title-line { font-size: 32rpx; font-weight: 600; }
+.status-badge { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 999rpx; text-transform: capitalize; white-space: nowrap; }
+.status-badge.status-draft { background: #fff3e0; color: #b26a00; }
+.status-badge.status-open { background: #e8f5e9; color: #2e7d32; }
+.status-badge.status-ongoing { background: #e3f2fd; color: #1565c0; }
+.status-badge.status-archived { background: #eceff1; color: #546e7a; }
 .title-sub { color: #6b6b70; font-size: 26rpx; margin-top: 6rpx; }
 .actions {
   display: flex;

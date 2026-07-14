@@ -5,7 +5,10 @@
   <block wx:elif="{{hasMeeting}}">
     <!-- Title card -->
     <view class="card title-card">
-      <text class="title-line">#{{meeting.number}} · {{meeting.dateLabel}} · {{meeting.timeLabel}}</text>
+      <view class="title-head">
+        <text class="title-line">#{{meeting.number}} · {{meeting.dateLabel}} · {{meeting.timeLabel}}</text>
+        <text class="status-badge status-{{meeting.phase}}">{{meeting.phase}}</text>
+      </view>
       <text class="title-sub">{{meeting.theme}} · {{meeting.venue}}</text>
       <view class="actions">
         <view class="btn btn-outline" bindtap="comingSoon">Check in</view>

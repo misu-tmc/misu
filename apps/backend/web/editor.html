@@ -35,7 +35,9 @@
     .iconbtn.add { background: #e7f5ea; color: #2e7d32; }
     .pill { display: inline-block; font-size: 12px; padding: 5px 12px; border-radius: 999px; align-self: flex-start; }
     .pill.draft { background: #fff3e0; color: #b26a00; }
-    .pill.published { background: #e8f5e9; color: #2e7d32; }
+    .pill.published, .pill.open { background: #e8f5e9; color: #2e7d32; }
+    .pill.ongoing { background: #e3f2fd; color: #1565c0; }
+    .pill.archived { background: #eceff1; color: #546e7a; }
     input[readonly] { background: var(--bg); color: var(--muted); }
     .checks { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; }
     .check { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
@@ -159,7 +161,7 @@
     function bindHeader() {
       for (const f of FIELDS) {
         const el = document.getElementById(f);
-        el.addEventListener('input', () => { state[f] = el.value; if (f === 'start_time') renderStarts(); });
+        el.addEventListener('input', () => { state[f] = el.value; if (f === 'start_time') renderStarts(); if (f === 'date' || f === 'start_time') renderStatus(); });
       }
       document.getElementById('is_template').addEventListener('change', e => { state.is_template = e.target.checked; });
       document.getElementById('is_published').addEventListener('change', e => { state.status = e.target.checked ? 'published' : 'draft'; renderStatus(); });
@@ -172,9 +174,21 @@
     }
     function renderStatus() {
       const pill = document.getElementById('statusPill');
-      const st = state.status === 'published' ? 'published' : 'draft';
-      pill.className = 'pill ' + st;
-      pill.textContent = st;
+      const ph = meetingPhase();
+      pill.className = 'pill ' + ph;
+      pill.textContent = ph;
+    }
+    /// Derived lifecycle phase mirroring the server: draft | open | ongoing | archived.
+    function meetingPhase() {
+      if (state.status !== 'published') return 'draft';
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const d = new Date((state.date || '') + 'T00:00');
+      if (isNaN(d.getTime())) return 'open';
+      if (d < today) return 'archived';
+      if (d > today) return 'open';
+      const [h, m] = (state.start_time || '0:0').split(':').map(Number);
+      const start = new Date(); start.setHours(h || 0, m || 0, 0, 0);
+      return new Date() >= start ? 'ongoing' : 'open';
     }
 
     // --- rendering ---

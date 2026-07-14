@@ -30,7 +30,9 @@
     tr.row:hover { background: #faf8fd; cursor: pointer; }
     .pill { font-size: 12px; padding: 3px 10px; border-radius: 999px; }
     .pill.draft { background: #fff3e0; color: #b26a00; }
-    .pill.published { background: #e8f5e9; color: #2e7d32; }
+    .pill.published, .pill.open { background: #e8f5e9; color: #2e7d32; }
+    .pill.ongoing { background: #e3f2fd; color: #1565c0; }
+    .pill.archived { background: #eceff1; color: #546e7a; }
     .muted { color: var(--muted); }
     .empty { text-align: center; color: var(--muted); padding: 48px; }
   </style>
@@ -93,7 +95,7 @@
           <td>${m.date}</td>
           <td class="muted">${m.start_time}${m.end_time ? '–' + m.end_time : ''}</td>
           <td class="muted">${escapeHtml(m.venue || '')}</td>
-          <td><span class="pill ${m.status}">${m.status}</span></td>`;
+          <td><span class="pill ${m.phase}">${m.phase}</span></td>`;
         tbody.appendChild(tr);
       }
     }

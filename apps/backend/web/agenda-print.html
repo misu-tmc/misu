@@ -62,7 +62,7 @@
 
     /* Sidebar: visible outer card; inner sections are invisible cards sharing one edge. */
     .sidebar { background: #f3f7f9; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: column; gap: 1.5mm; min-height: 0; }
-    .side-card { padding: 1.5mm 2mm; }
+    .side-card { padding: 2.5mm 3mm; }
     .sidebar h4 { margin: 0 0 1mm; font-size: 12px; text-transform: uppercase; color: #31566a; }
     .sidebar p, .sidebar ul { margin: 0; font-size: 11px; }
     .sidebar ul { margin-left: 4mm; padding: 0; }
@@ -81,13 +81,13 @@
     .meeting-info .field { font-size: 13px; color: var(--muted); }
     .meeting-info .field strong { color: #284f62; }
 
-    .agenda-panel { background: #f4f8fa; flex: 1; min-height: 0; overflow: hidden; padding-top: 1mm; padding-bottom: 2mm; }
+    .agenda-panel { background: transparent; flex: 1; min-height: 0; overflow: hidden; padding: 1mm 0 2mm; }
     .agenda-grid { width: 100%; border-collapse: separate; border-spacing: 0 var(--rowgap, 1mm); table-layout: fixed; font-size: var(--agfs, 12px); }
     .agenda-grid th { font-size: .92em; text-transform: uppercase; color: #56717e; text-align: left; padding: 1.5mm 2mm .5mm; }
     .agenda-grid th:first-child, .agenda-grid td:first-child { width: 15mm; text-align: center; }
     .agenda-grid th:nth-child(3), .agenda-grid td:nth-child(3) { width: 17mm; text-align: center; }
     .agenda-grid th:nth-child(4), .agenda-grid td:nth-child(4) { width: 30mm; }
-    .agenda-grid td { background: #fff; padding: 1.8mm 2mm; font-size: 1em; vertical-align: top; }
+    .agenda-grid td { background: #f1f6f9; padding: 1.8mm 2mm; font-size: 1em; vertical-align: top; }
     .agenda-grid td:first-child { border-radius: 1.5mm 0 0 1.5mm; color: #1f5874; font-weight: 700; }
     .agenda-grid td:last-child { border-radius: 0 1.5mm 1.5mm 0; }
     .agenda-grid .section td { background: #dbe9ef; color: #214e63; text-align: center !important; font-weight: 800; border-radius: 1.5mm; padding: 1.2mm; }
@@ -96,8 +96,8 @@
 
     .timer { background: #eef5f7; }
     .timer-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #31566a; margin-bottom: 1mm; }
-    .timer-table { width: calc(100% + 3mm); margin: 0 -1.5mm; border-collapse: separate; border-spacing: 1.5mm 1mm; table-layout: fixed; }
-    .timer-table th, .timer-table td { border: 0; border-radius: 1.5mm; background: #fff; padding: 1.2mm 1.6mm; font-size: 10px; vertical-align: middle; }
+    .timer-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border-radius: 1.5mm; overflow: hidden; }
+    .timer-table th, .timer-table td { border: 0; background: #fff; padding: 1.6mm; font-size: 10px; vertical-align: middle; }
     .timer-table th { font-size: 11px; font-weight: 800; }
     .timer-table .green { background: var(--green); }
     .timer-table .yellow { background: var(--yellow); }
@@ -136,7 +136,7 @@
       <div class="tables">
         <section class="session-area">
           <div class="card meeting-info">
-            <div class="title" id="mTitle">#--- Regular Meeting</div>
+            <div class="title" id="mTitle">Regular Meeting #---</div>
             <div class="field"><strong>Theme:</strong> <span id="fTheme"></span></div>
             <div class="field"><strong>Time:</strong> <span id="fTime"></span></div>
             <div class="field"><strong>Keyword:</strong> <span id="fKeyword"></span></div>
@@ -228,7 +228,7 @@
       const bare = String(meeting.title || '')
         .replace(new RegExp('\\s*#?0*' + num + '\\s*$'), '')
         .trim();
-      return `#${num}${bare ? ' ' + bare : ''}`;
+      return `${bare ? bare + ' ' : ''}#${num}`;
     }
     async function init() {
       const id = meetingIdFromPath();

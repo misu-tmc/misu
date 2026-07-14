@@ -28,7 +28,7 @@
       display: grid;
       grid-template-rows: 26mm 1fr;
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.2;
     }
     @page { size: A4 portrait; margin: 0; }
     @media print {
@@ -85,11 +85,11 @@
 
     .agenda-panel { background: transparent; flex: 1; min-height: 0; overflow: hidden; padding: 1mm 0 2mm; }
     .agenda-grid { width: 100%; border-collapse: separate; border-spacing: 0 var(--rowgap, 1mm); table-layout: fixed; font-size: var(--print-table-font, 12px); }
-    .agenda-grid th { font-size: .92em; text-transform: uppercase; color: #56717e; text-align: left; padding: 1.5mm 2mm .5mm; }
+    .agenda-grid th { text-transform: uppercase; color: #56717e; text-align: left; }
     .agenda-grid th:first-child, .agenda-grid td:first-child { width: 15mm; text-align: center; }
     .agenda-grid th:nth-child(3), .agenda-grid td:nth-child(3) { width: 17mm; text-align: center; }
     .agenda-grid th:nth-child(4), .agenda-grid td:nth-child(4) { width: 30mm; }
-    .agenda-grid td { background: #f1f6f9; padding: 1.8mm 2mm; font-size: 1em; vertical-align: top; }
+    .agenda-grid td { background: #f1f6f9; padding: 1mm 0.4mm; vertical-align: top; }
     .agenda-grid td:first-child { border-radius: 1.5mm 0 0 1.5mm; color: #1f5874; font-weight: 700; }
     .agenda-grid td:last-child { border-radius: 0 1.5mm 1.5mm 0; }
     .agenda-grid .section td { background: #dbe9ef; color: #214e63; text-align: center !important; font-weight: 800; border-radius: 1.5mm; padding: 1.2mm; }

@@ -65,9 +65,11 @@
     .side-card { padding: 2.5mm 3mm; }
     .sidebar h4 { margin: 0 0 1mm; font-size: 12px; text-transform: uppercase; color: #31566a; }
     .sidebar p, .sidebar ul { margin: 0; font-size: 11px; line-height: 1.6; }
-    .sidebar ul { margin-left: 4mm; padding: 0; }
+    .sidebar ul { list-style: none; margin: 0; padding: 0; }
+    .sidebar li { position: relative; padding-left: 5mm; margin-bottom: .5mm; }
+    .sidebar li::before { content: "\2713"; position: absolute; left: 0; color: #2b6c89; font-weight: 700; }
     .side-qr { margin-top: auto; display: grid; grid-template-columns: 1fr; gap: 2mm; text-align: center; font-size: 10px; }
-    .side-qr img { width: 17mm; height: 17mm; object-fit: contain; display: block; margin: 0 auto 1mm; }
+    .side-qr img { width: 28mm; height: 28mm; object-fit: contain; display: block; margin: 0 auto 1mm; }
     .qr-caption { font-size: 10px; }
 
     /* Main column: session area (meeting card + agenda) over the timer card. */
@@ -126,7 +128,7 @@
         <div class="side-card"><h4>Regular Meeting</h4><p>Every alternate Monday<br />18:45–21:00<br />Venue: B26 1F-1.1B Microsoft Suzhou<br />微软（苏州）研发中心B26幢一楼会议室1.1B</p></div>
         <div class="side-card"><h4>Meeting Team</h4><p>Meeting Manager: <span id="fManager"></span><br />Photographer: <span id="fPhotographer"></span></p></div>
         <div class="side-card"><h4>Officer Team</h4><p>President: Cecily Wang<br />VPE: Chao Chen<br />VPM: Serena Zhan<br />VPPR: Sophia Chen<br />Secretary: Jiajia Bao<br />Treasurer: Johnny Yao<br />SAA: Tao Lu</p></div>
-        <div class="side-card"><h4>How to join us?</h4><ul><li>Attend at least three meetings.</li><li>Submit the new member application form to VPM.</li><li>Interview by President/VPE/VPM.</li></ul></div>
+        <div class="side-card"><h4>How to join us?</h4><ul><li>Attend at least three meetings and participate in Table Topic session at least once.</li><li>Submit the new member application form to VPM.</li><li>Interview by President/VPE/VPM.</li></ul></div>
         <div class="side-card side-qr">
           <div><img src="/static/VPM QR code.jpg" alt="VPM QR code" /><div class="qr-caption">VPM: Serena Zhan</div></div>
           <div><img src="/static/Guest Fee QRCode.png" alt="Guest fee QR" /><div class="qr-caption">Guest Fee ¥20</div></div>

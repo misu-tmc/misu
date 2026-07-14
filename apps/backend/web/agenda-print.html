@@ -194,18 +194,28 @@
       let cursor = toMinutes(meeting.start_time);
       let lastGroup = null;
       const sessions = (meeting.sessions || []).slice().sort((a, b) => a.position - b.position);
-      sessions.forEach((session, index) => {
+      // Drop sessions whose role is optional and not yet taken — they are not happening.
+      const visible = sessions.filter(session => {
+        const slot = session.role_slot_id ? slots[session.role_slot_id] : null;
+        if (slot && slot.is_optional) {
+          const taken = !!(slot.taker_id || slot.booker_id);
+          if (!taken) return false;
+        }
+        return true;
+      });
+      visible.forEach((session, index) => {
         const group = session.group_label || '';
         if (group && group !== lastGroup) {
           rows.push(`<tr class="section"><td colspan="4">${escapeHtml(group)}</td></tr>`);
           lastGroup = group;
         }
         const slot = session.role_slot_id ? slots[session.role_slot_id] : null;
-        const taker = slot ? (slot.taker_name || slot.booker_name || '') : '';
+        // A session with no role is a whole-club activity — taken by "All".
+        const taker = slot ? (slot.taker_name || slot.booker_name || '') : 'All';
         const meta = session.speech_title || session.pathways ? `<div class="speech-meta">${escapeHtml([session.speech_title, session.pathways].filter(Boolean).join(' · '))}</div>` : '';
         rows.push(`<tr><td class="time">${toHHMM(cursor)}</td><td><div class="session-title">${escapeHtml(session.name)}</div>${meta}</td><td class="dur">${durationText(session.duration_minutes)}</td><td class="taker">${escapeHtml(taker)}</td></tr>`);
         cursor += Number(session.duration_minutes) || 0;
-        if (index < sessions.length - 1) cursor += BUFFER_MINUTES;
+        if (index < visible.length - 1) cursor += BUFFER_MINUTES;
       });
       document.getElementById('agendaRows').innerHTML = rows.join('');
     }

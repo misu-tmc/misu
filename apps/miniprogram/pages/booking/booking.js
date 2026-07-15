@@ -60,6 +60,7 @@ Page({
         };
       });
       this.setData({ meetings: cards, bookings, loading: false });
+      app.promptNameIfNeeded();
     } catch (e) {
       console.error(e);
       wx.showToast({ title: '加载失败', icon: 'none' });

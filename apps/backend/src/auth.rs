@@ -301,7 +301,9 @@ pub async fn upsert_wechat_user(
         return Ok((user_id, display_name, false));
     }
 
-    let default_name = "微信用户".to_string();
+    // WeChat no longer exposes real nicknames, so a new user starts nameless; the mini
+    // program requires them to set one on first login.
+    let default_name = String::new();
     let user_id: i64 =
         sqlx::query_scalar("INSERT INTO user(display_name) VALUES (?) RETURNING id")
             .bind(&default_name)

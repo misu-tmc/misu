@@ -52,16 +52,20 @@ Page({
       const detail = await api.meeting(meetingId);
       const me = app.globalData.userId;
       const saved = wx.getStorageSync(this.storageKey(meetingId, me));
-      const roles = (detail.role_slots || []).map((slot) => {
-        const mine = slot.booker_id === me;
-        return {
-          id: slot.id,
-          label: slot.label,
-          bookerName: slot.booker_name || '',
-          mine,
-          selected: saved ? (saved.roleSlotIds || []).includes(slot.id) : mine
-        };
-      });
+      const roles = (detail.role_slots || [])
+        .map((slot) => {
+          const mine = slot.booker_id === me;
+          return {
+            id: slot.id,
+            label: slot.label,
+            mine,
+            selected: saved ? (saved.roleSlotIds || []).includes(slot.id) : mine
+          };
+        })
+        .sort((a, b) => {
+          if (a.mine !== b.mine) return a.mine ? -1 : 1;
+          return a.label.localeCompare(b.label);
+        });
       const selectedIds = roles.filter((r) => r.selected).map((r) => r.id);
       this.setData({
         loading: false,

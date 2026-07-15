@@ -64,7 +64,8 @@ Page states:
 
 1. **Loading** — wait for WeChat auth session and load `GET /api/meetings/:meeting_id`.
 2. **Role selection** — show meeting title and chips for all role slots:
-   - User's booked roles (`booker_id = me`) are pre-selected.
+  - User's booked roles (`booker_id = me`) are sorted first and pre-selected.
+  - Role chips are compact and show only the role label, not the current booker name.
    - Taken-by-others roles are still selectable, because check-in is about actual role taking
      and substitutions.
    - Meeting-wide slots (Timer, Grammarian, etc.) appear alongside session-linked slots.

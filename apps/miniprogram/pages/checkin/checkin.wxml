@@ -30,7 +30,6 @@
             bindtap="toggleRole"
           >
             <text>{{item.label}}</text>
-            <text wx:if="{{item.bookerName}}" class="role-booker">{{item.bookerName}}</text>
           </view>
         </view>
         <view class="no-role {{noRole ? 'selected' : ''}}" bindtap="chooseNoRole">No role today</view>

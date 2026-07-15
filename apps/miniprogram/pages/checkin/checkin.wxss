@@ -1,9 +1,1 @@
-.title-card { display: flex; flex-direction: column; }
-.meeting-title { font-size: 34rpx; font-weight: 700; color: #1c1c1e; }
-.meeting-sub { margin-top: 8rpx; font-size: 26rpx; color: #6b6b70; }
-
-.check-card { display: flex; flex-direction: column; align-items: stretch; }
-.welcome-line { color: #1c1c1e; font-size: 32rpx; font-weight: 600; line-height: 1.5; }
-.btn { margin-top: 32rpx; text-align: center; }
-.summary { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 20rpx; }
-.summary-chip { padding: 10rpx 16rpx; border-radius: 999rpx; background: #ede7f6; color: #5b2a86; font-size: 24rpx; }
+/* Uses global app.wxss styles. */

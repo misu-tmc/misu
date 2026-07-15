@@ -7,7 +7,8 @@ Page({
     loading: true,
     hasMeeting: false,
     meeting: null,
-    agenda: []
+    agenda: [],
+    checkedIn: false
   },
 
   onShow() {
@@ -28,16 +29,21 @@ Page({
       return;
     }
     try {
-      // Show the soonest upcoming published meeting (during a meeting this is that meeting).
+      // Show the checked-in meeting if arriving from a QR/deep link; otherwise the soonest
+      // upcoming published meeting (during a meeting this is that meeting).
       const meetings = await api.upcomingMeetings();
       if (!meetings.length) {
         this.setData({ loading: false, hasMeeting: false });
         return;
       }
-      const detail = await api.meeting(meetings[0].id);
+      const preferred = app.globalData.checkinMeetingId;
+      const meetingId = preferred && meetings.some((m) => m.id === preferred) ? preferred : meetings[0].id;
+      const detail = await api.meeting(meetingId);
+      const checkedIn = !!wx.getStorageSync(this.storageKey(detail.id, app.globalData.userId));
       this.setData({
         loading: false,
         hasMeeting: true,
+        checkedIn,
         meeting: {
           id: detail.id,
           number: detail.number,
@@ -56,9 +62,20 @@ Page({
     }
   },
 
+  storageKey(meetingId, userId) {
+    return `checkin:${meetingId}:${userId}`;
+  },
+
   goCheckIn() {
     if (!this.data.meeting || !this.data.meeting.id) return;
-    wx.navigateTo({ url: `/pages/checkin/checkin?meetingId=${this.data.meeting.id}` });
+    const app = getApp();
+    wx.setStorageSync(this.storageKey(this.data.meeting.id, app.globalData.userId), {
+      meetingId: this.data.meeting.id,
+      userId: app.globalData.userId,
+      confirmedAt: new Date().toISOString()
+    });
+    this.setData({ checkedIn: true });
+    wx.showToast({ title: 'Checked in', icon: 'success' });
   },
 
   // Check-in / voting / timer are later-stage flows (see design TODO).

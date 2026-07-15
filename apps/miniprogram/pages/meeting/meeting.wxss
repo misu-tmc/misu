@@ -13,6 +13,10 @@
   gap: 16rpx;
   margin-top: 24rpx;
 }
+.btn-checked {
+  background: #2e7d32;
+  color: #fff;
+}
 
 .agenda-row {
   display: flex;

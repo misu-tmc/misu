@@ -1,20 +1,4 @@
 <view class="container">
-  <view wx:if="{{loading}}" class="empty">Loading…</view>
-
-  <block wx:elif="{{meeting}}">
-    <view class="card title-card">
-      <text class="meeting-title">#{{meeting.number}} · {{meeting.dateLabel}}</text>
-      <text class="meeting-sub">{{meeting.theme}} · {{meeting.venue}}</text>
-    </view>
-
-    <view class="card check-card">
-      <view class="welcome-line">{{welcomeLine}}</view>
-      <view wx:if="{{bookedRoles.length > 0}}" class="summary">
-        <text wx:for="{{bookedRoles}}" wx:key="*this" class="summary-chip">{{item}}</text>
-      </view>
-      <view class="btn" bindtap="backToMeeting">Back to Meeting</view>
-    </view>
-  </block>
-
-  <view wx:else class="empty">No upcoming meeting to check in.</view>
+  <view wx:if="{{loading}}" class="empty">Checking you in…</view>
+  <view wx:else class="empty">Unable to check in. Please try again.</view>
 </view>

@@ -11,56 +11,59 @@ The page is mobile-centric because the main scenario is scanning a meeting QR co
 the WeChat mini program. Detailed WeChat provider behavior is left for the next stage;
 this design only assumes that it resolves to the shared auth contract.
 
-## Interactive question cards
+## Interaction model
 
-Check-in is a small, friendly **card flow** — one question at a time — rather than a
-single dense form. Auth happens before this flow, so the check-in cards never ask for a
-name just to identify the attendee.
+Check-in is not a separate form. It is a one-tap status on the Meeting tab, and QR code
+scan/deep-link entry automatically records the same status before showing the Meeting tab.
+Auth happens before this flow, so check-in never asks for a name just to identify the
+attendee.
 
 ```mermaid
 flowchart TD
     Q[Scan QR or open link] --> A[Auth guard]
-    A -->|signed in| R[Confirm card]
+    A -->|signed in| C[Store local check-in]
     A -->|not signed in| S[Sign in / register]
-    S --> R
-    R --> DONE[Welcome shown]
+    S --> C
+    C --> M[Meeting tab]
+    M --> DONE[Button shows Checked in]
 ```
 
-### Confirm card
+### Meeting tab status
 
 ```
 ┌─────────────────────────────────────┐
 │  MISU · Meeting #142                 │
 │  Sat Jul 12 · Embrace Change         │
 ├─────────────────────────────────────┤
-│  Welcome! You're our                 │
-│  Timer, Grammarian today, thank you! │
+│  [ Checked in ]  [ Vote ] [ Timer ]  │
 └─────────────────────────────────────┘
 ```
 
-### Card details
+### Details
 
-- **Header**: the meeting being checked into (number · date · theme).
-- **Welcome message**: greets the attendee and summarizes the roles they booked for this
-  meeting (if any). If they have no booked role, it says `Welcome to today's meeting!`.
-  No role selection is shown on this page, and there is no separate checkmark/"Checked in"
-  heading.
-- **Automatic confirmation**: opening the page confirms attendance immediately. Until the
-  backend check-in API lands, the mini program stores the confirmation locally and shows a
-  friendly success state; the UI shape is final, the persistence is staged.
+- **Meeting tab button**: starts as **Check in**. Tapping it records local attendance and
+  changes it to green **Checked in**.
+- **QR/deep-link entry**: `/pages/checkin/checkin?meetingId=<id>` records local attendance
+  immediately, remembers the target meeting id, then switches to the Meeting tab. The
+  Meeting tab opens that meeting and shows **Checked in**.
+- **No role selection**: booked roles are not selected or corrected here. Role information
+  may personalize future copy, but the first-stage UI only confirms that the user came.
+- **Persistence**: until the backend check-in API lands, the mini program stores the
+  confirmation locally; the UI shape is final, backend persistence is staged.
 
-## Mini Program Page (`/pages/checkin/checkin`)
+## Mini Program Pages
 
 Entry points:
-- Meeting tab's **Check in** action opens the active/upcoming meeting's check-in page.
-- A future QR code can deep-link to `/pages/checkin/checkin?meetingId=<id>`.
+- Meeting tab's **Check in** action records attendance in place.
+- A future QR code can deep-link to `/pages/checkin/checkin?meetingId=<id>`; that page is
+  a silent redirector to the Meeting tab after recording attendance.
 
 Page states:
 
-1. **Loading** — wait for WeChat auth session and load `GET /api/meetings/:meeting_id`.
-2. **Confirmed** — store attendance locally and show a success state with a welcome line
-  based on the user's booked roles. If the user has no booked role, welcome them as an
-  attendee.
+1. **Meeting tab loading** — wait for WeChat auth session and load the active/upcoming
+   meeting.
+2. **Not checked in** — show **Check in**.
+3. **Checked in** — show green **Checked in**.
 
 First-stage implementation note: use local storage key `checkin:<meeting_id>:<user_id>` to
 remember confirmation on this device. Backend persistence will replace this with
@@ -70,8 +73,8 @@ remember confirmation on this device. Backend persistence will replace this with
 
 - **Identity** → the authenticated `user.id` from `current_identity()`. Check-in does
   not write names or create anonymous users.
-- **Booked roles** → role slots where `booker_id = me`, used only to customize the welcome
-  message. Role selection/actual-taker correction is not part of this simple check-in page.
+- **Booked roles** → not edited by this flow. Role selection/actual-taker correction is not
+  part of this simple check-in status.
 - **Check-in record** → next-stage storage should record attendance separately from
   role booking so no-role attendees are represented.
 - **Admin-editable**: admins can adjust attendance and actual role-taking records

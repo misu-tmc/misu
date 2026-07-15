@@ -1,0 +1,43 @@
+<view class="container">
+  <view wx:if="{{loading}}" class="empty">Loading…</view>
+
+  <block wx:elif="{{meeting}}">
+    <view class="card title-card">
+      <text class="meeting-title">#{{meeting.number}} · {{meeting.dateLabel}}</text>
+      <text class="meeting-sub">{{meeting.theme}} · {{meeting.venue}}</text>
+    </view>
+
+    <view class="card check-card">
+      <block wx:if="{{confirmed}}">
+        <view class="done-mark">✓</view>
+        <view class="question">Checked in</view>
+        <view wx:if="{{noRole}}" class="muted summary">No role today</view>
+        <view wx:else class="summary">
+          <text wx:for="{{roles}}" wx:key="id" wx:if="{{item.selected}}" class="summary-chip">{{item.label}}</text>
+        </view>
+        <view class="btn" bindtap="backToMeeting">Back to Meeting</view>
+      </block>
+
+      <block wx:else>
+        <view class="question">Which roles do you take today?</view>
+        <view class="hint">Your booked roles are pre-selected. Tap any role you actually took.</view>
+        <view class="role-grid">
+          <view
+            wx:for="{{roles}}"
+            wx:key="id"
+            class="role-chip {{item.selected ? 'selected' : ''}} {{item.mine ? 'mine' : ''}}"
+            data-role-id="{{item.id}}"
+            bindtap="toggleRole"
+          >
+            <text>{{item.label}}</text>
+            <text wx:if="{{item.bookerName}}" class="role-booker">{{item.bookerName}}</text>
+          </view>
+        </view>
+        <view class="no-role {{noRole ? 'selected' : ''}}" bindtap="chooseNoRole">No role today</view>
+        <view class="btn" bindtap="confirm">Check In</view>
+      </block>
+    </view>
+  </block>
+
+  <view wx:else class="empty">No upcoming meeting to check in.</view>
+</view>

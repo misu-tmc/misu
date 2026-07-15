@@ -50,8 +50,30 @@ flowchart TD
   booked roles for this meeting are pre-selected; they can tap others they picked up.
 - **No role today**: a quick choice for authenticated attendees who took no role. In the
   first stage this creates no persistent attendance record.
-- **Check In**: commits attendance and any selected actual role-taking records. This is
-  not part of the first-stage schema.
+- **Check In**: confirms attendance and any selected actual role-taking records. Until the
+  backend check-in API lands, the mini program stores the confirmation locally and shows a
+  friendly success state; the UI shape is final, the persistence is staged.
+
+## Mini Program Page (`/pages/checkin/checkin`)
+
+Entry points:
+- Meeting tab's **Check in** action opens the active/upcoming meeting's check-in page.
+- A future QR code can deep-link to `/pages/checkin/checkin?meetingId=<id>`.
+
+Page states:
+
+1. **Loading** — wait for WeChat auth session and load `GET /api/meetings/:meeting_id`.
+2. **Role selection** — show meeting title and chips for all role slots:
+   - User's booked roles (`booker_id = me`) are pre-selected.
+   - Taken-by-others roles are still selectable, because check-in is about actual role taking
+     and substitutions.
+   - Meeting-wide slots (Timer, Grammarian, etc.) appear alongside session-linked slots.
+3. **No role today** — clears selected roles and allows a no-role check-in.
+4. **Confirmed** — show selected roles (or "No role today") and a return-to-meeting action.
+
+First-stage implementation note: use local storage key `checkin:<meeting_id>:<user_id>` to
+remember confirmation on this device. Backend persistence will replace this with
+`POST /api/checkin` later without changing the page's interaction model.
 
 ## Schema mapping
 

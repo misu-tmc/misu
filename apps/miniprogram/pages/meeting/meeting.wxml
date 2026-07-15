@@ -11,7 +11,7 @@
       </view>
       <text class="title-sub">{{meeting.theme}} · {{meeting.venue}}</text>
       <view class="actions">
-        <view class="btn btn-outline" bindtap="comingSoon">Check in</view>
+        <view class="btn btn-outline" bindtap="goCheckIn">Check in</view>
         <view class="btn btn-outline" bindtap="comingSoon">Vote for best</view>
         <view class="btn btn-outline" bindtap="comingSoon">Timer mode</view>
       </view>

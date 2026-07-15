@@ -56,6 +56,11 @@ Page({
     }
   },
 
+  goCheckIn() {
+    if (!this.data.meeting || !this.data.meeting.id) return;
+    wx.navigateTo({ url: `/pages/checkin/checkin?meetingId=${this.data.meeting.id}` });
+  },
+
   // Check-in / voting / timer are later-stage flows (see design TODO).
   comingSoon() {
     wx.showToast({ title: 'Coming soon', icon: 'none' });

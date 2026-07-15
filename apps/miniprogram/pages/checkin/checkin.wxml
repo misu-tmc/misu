@@ -8,24 +8,13 @@
     </view>
 
     <view class="card check-card">
-      <block wx:if="{{confirmed}}">
-        <view class="done-mark">✓</view>
-        <view class="question">Checked in</view>
-        <view class="hint">{{welcomeLine}}</view>
-        <view wx:if="{{bookedRoles.length > 0}}" class="summary">
-          <text wx:for="{{bookedRoles}}" wx:key="*this" class="summary-chip">{{item}}</text>
-        </view>
-        <view class="btn" bindtap="backToMeeting">Back to Meeting</view>
-      </block>
-
-      <block wx:else>
-        <view class="question">Welcome!</view>
-        <view class="hint">{{welcomeLine}}</view>
-        <view wx:if="{{bookedRoles.length > 0}}" class="summary">
-          <text wx:for="{{bookedRoles}}" wx:key="*this" class="summary-chip">{{item}}</text>
-        </view>
-        <view class="btn" bindtap="confirm">Check In</view>
-      </block>
+      <view class="done-mark">✓</view>
+      <view class="question">Checked in</view>
+      <view class="hint">{{welcomeLine}}</view>
+      <view wx:if="{{bookedRoles.length > 0}}" class="summary">
+        <text wx:for="{{bookedRoles}}" wx:key="*this" class="summary-chip">{{item}}</text>
+      </view>
+      <view class="btn" bindtap="backToMeeting">Back to Meeting</view>
     </view>
   </block>
 

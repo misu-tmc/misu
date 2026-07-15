@@ -33,10 +33,8 @@ flowchart TD
 │  MISU · Meeting #142                 │
 │  Sat Jul 12 · Embrace Change         │
 ├─────────────────────────────────────┤
-│  Welcome, <name>!                    │
-│  You are taking: Timer, Grammarian    │
-├─────────────────────────────────────┤
-│  [ Check In ]                        │
+│  ✓ Checked in                        │
+│  Welcome, Timer, Grammarian!         │
 └─────────────────────────────────────┘
 ```
 
@@ -45,9 +43,9 @@ flowchart TD
 - **Header**: the meeting being checked into (number · date · theme).
 - **Welcome message**: greets the attendee and summarizes the roles they booked for this
   meeting (if any). No role selection is shown on this page.
-- **Check In**: confirms attendance. Until the backend check-in API lands, the mini program
-  stores the confirmation locally and shows a friendly success state; the UI shape is
-  final, the persistence is staged.
+- **Automatic confirmation**: opening the page confirms attendance immediately. Until the
+  backend check-in API lands, the mini program stores the confirmation locally and shows a
+  friendly success state; the UI shape is final, the persistence is staged.
 
 ## Mini Program Page (`/pages/checkin/checkin`)
 
@@ -58,9 +56,9 @@ Entry points:
 Page states:
 
 1. **Loading** — wait for WeChat auth session and load `GET /api/meetings/:meeting_id`.
-2. **Confirm attendance** — show meeting title and a welcome line based on the user's booked
-   roles. If the user has no booked role, welcome them as an attendee.
-3. **Confirmed** — show a success state and a return-to-meeting action.
+2. **Confirmed** — store attendance locally and show a success state with a welcome line
+  based on the user's booked roles. If the user has no booked role, welcome them as an
+  attendee.
 
 First-stage implementation note: use local storage key `checkin:<meeting_id>:<user_id>` to
 remember confirmation on this device. Backend persistence will replace this with

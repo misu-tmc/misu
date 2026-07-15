@@ -54,9 +54,17 @@ Page({
       const bookedRoles = (detail.role_slots || [])
         .filter((slot) => slot.booker_id === me)
         .map((slot) => slot.label);
+      const payload = {
+        ...(saved || {}),
+        meetingId,
+        userId: me,
+        bookedRoles,
+        confirmedAt: saved && saved.confirmedAt ? saved.confirmedAt : new Date().toISOString()
+      };
+      wx.setStorageSync(this.storageKey(meetingId, me), payload);
       this.setData({
         loading: false,
-        confirmed: !!saved,
+        confirmed: true,
         meeting: {
           id: detail.id,
           number: detail.number,
@@ -64,29 +72,16 @@ Page({
           dateLabel: shortDate(detail.date),
           venue: detail.venue
         },
-        bookedRoles,
+        bookedRoles: payload.bookedRoles || bookedRoles,
         welcomeLine: bookedRoles.length
-          ? `Welcome! You are taking ${bookedRoles.join('、')} today.`
-          : 'Welcome! Thank you for joining the meeting today.'
+          ? `Welcome, ${bookedRoles.join('、')}!`
+          : 'Welcome to the meeting!'
       });
     } catch (e) {
       console.error(e);
       wx.showToast({ title: '加载失败', icon: 'none' });
       this.setData({ loading: false });
     }
-  },
-
-  confirm() {
-    const app = getApp();
-    const payload = {
-      meetingId: this.data.meeting.id,
-      userId: app.globalData.userId,
-      bookedRoles: this.data.bookedRoles,
-      confirmedAt: new Date().toISOString()
-    };
-    wx.setStorageSync(this.storageKey(payload.meetingId, payload.userId), payload);
-    this.setData({ confirmed: true });
-    wx.showToast({ title: 'Checked in', icon: 'success' });
   },
 
   backToMeeting() {

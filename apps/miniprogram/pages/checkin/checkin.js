@@ -7,9 +7,8 @@ Page({
     loading: true,
     confirmed: false,
     meeting: null,
-    roles: [],
-    selectedIds: [],
-    noRole: false
+    bookedRoles: [],
+    welcomeLine: ''
   },
 
   onLoad(query) {
@@ -45,28 +44,16 @@ Page({
     try {
       const meetingId = await this.resolveMeetingId();
       if (!meetingId) {
-        this.setData({ loading: false, meeting: null, roles: [] });
+        this.setData({ loading: false, meeting: null, bookedRoles: [], welcomeLine: '' });
         return;
       }
       this.meetingId = meetingId;
       const detail = await api.meeting(meetingId);
       const me = app.globalData.userId;
       const saved = wx.getStorageSync(this.storageKey(meetingId, me));
-      const roles = (detail.role_slots || [])
-        .map((slot) => {
-          const mine = slot.booker_id === me;
-          return {
-            id: slot.id,
-            label: slot.label,
-            mine,
-            selected: saved ? (saved.roleSlotIds || []).includes(slot.id) : mine
-          };
-        })
-        .sort((a, b) => {
-          if (a.mine !== b.mine) return a.mine ? -1 : 1;
-          return a.label.localeCompare(b.label);
-        });
-      const selectedIds = roles.filter((r) => r.selected).map((r) => r.id);
+      const bookedRoles = (detail.role_slots || [])
+        .filter((slot) => slot.booker_id === me)
+        .map((slot) => slot.label);
       this.setData({
         loading: false,
         confirmed: !!saved,
@@ -77,9 +64,10 @@ Page({
           dateLabel: shortDate(detail.date),
           venue: detail.venue
         },
-        roles,
-        selectedIds,
-        noRole: saved ? !!saved.noRole : selectedIds.length === 0
+        bookedRoles,
+        welcomeLine: bookedRoles.length
+          ? `Welcome! You are taking ${bookedRoles.join('、')} today.`
+          : 'Welcome! Thank you for joining the meeting today.'
       });
     } catch (e) {
       console.error(e);
@@ -88,32 +76,12 @@ Page({
     }
   },
 
-  toggleRole(e) {
-    const roleId = Number(e.currentTarget.dataset.roleId);
-    const roles = this.data.roles.map((r) => {
-      if (r.id !== roleId) return r;
-      return { ...r, selected: !r.selected };
-    });
-    const selectedIds = roles.filter((r) => r.selected).map((r) => r.id);
-    this.setData({ roles, selectedIds, noRole: selectedIds.length === 0 });
-  },
-
-  chooseNoRole() {
-    const roles = this.data.roles.map((r) => ({ ...r, selected: false }));
-    this.setData({ roles, selectedIds: [], noRole: true });
-  },
-
   confirm() {
     const app = getApp();
-    if (!this.data.noRole && this.data.selectedIds.length === 0) {
-      wx.showToast({ title: '请选择角色或无角色', icon: 'none' });
-      return;
-    }
     const payload = {
       meetingId: this.data.meeting.id,
       userId: app.globalData.userId,
-      roleSlotIds: this.data.selectedIds,
-      noRole: this.data.noRole,
+      bookedRoles: this.data.bookedRoles,
       confirmedAt: new Date().toISOString()
     };
     wx.setStorageSync(this.storageKey(payload.meetingId, payload.userId), payload);

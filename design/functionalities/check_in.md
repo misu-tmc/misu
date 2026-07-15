@@ -1,7 +1,7 @@
 # Check in
 
-This is the next-stage page for authenticated attendees to confirm attendance and the
-roles they actually took in a published meeting.
+This is the next-stage page for authenticated attendees to confirm that they came to a
+published meeting.
 
 Check-in must not create anonymous or dropped-identifier users. The attendee signs in
 first via the active provider: web login/register on web, and WeChat identity in the
@@ -20,13 +20,13 @@ name just to identify the attendee.
 ```mermaid
 flowchart TD
     Q[Scan QR or open link] --> A[Auth guard]
-    A -->|signed in| R[Roles card]
+    A -->|signed in| R[Confirm card]
     A -->|not signed in| S[Sign in / register]
     S --> R
     R --> DONE[Confirmed ✓]
 ```
 
-### Roles card
+### Confirm card
 
 ```
 ┌─────────────────────────────────────┐
@@ -34,11 +34,8 @@ flowchart TD
 │  Sat Jul 12 · Embrace Change         │
 ├─────────────────────────────────────┤
 │  Welcome, <name>!                    │
+│  You are taking: Timer, Grammarian    │
 ├─────────────────────────────────────┤
-│  Which roles do you take today?      │
-│  [ timer ] [ grammarian ] [ TOE ]    │
-│  [ No role today ]                   │
-│  ─────────────────────────────────── │
 │  [ Check In ]                        │
 └─────────────────────────────────────┘
 ```
@@ -46,13 +43,11 @@ flowchart TD
 ### Card details
 
 - **Header**: the meeting being checked into (number · date · theme).
-- **Roles card**: tappable role chips for the roles the attendee took today. A user's own
-  booked roles for this meeting are pre-selected; they can tap others they picked up.
-- **No role today**: a quick choice for authenticated attendees who took no role. In the
-  first stage this creates no persistent attendance record.
-- **Check In**: confirms attendance and any selected actual role-taking records. Until the
-  backend check-in API lands, the mini program stores the confirmation locally and shows a
-  friendly success state; the UI shape is final, the persistence is staged.
+- **Welcome message**: greets the attendee and summarizes the roles they booked for this
+  meeting (if any). No role selection is shown on this page.
+- **Check In**: confirms attendance. Until the backend check-in API lands, the mini program
+  stores the confirmation locally and shows a friendly success state; the UI shape is
+  final, the persistence is staged.
 
 ## Mini Program Page (`/pages/checkin/checkin`)
 
@@ -63,14 +58,9 @@ Entry points:
 Page states:
 
 1. **Loading** — wait for WeChat auth session and load `GET /api/meetings/:meeting_id`.
-2. **Role selection** — show meeting title and chips for all role slots:
-  - User's booked roles (`booker_id = me`) are sorted first and pre-selected.
-  - Role chips are compact and show only the role label, not the current booker name.
-   - Taken-by-others roles are still selectable, because check-in is about actual role taking
-     and substitutions.
-   - Meeting-wide slots (Timer, Grammarian, etc.) appear alongside session-linked slots.
-3. **No role today** — clears selected roles and allows a no-role check-in.
-4. **Confirmed** — show selected roles (or "No role today") and a return-to-meeting action.
+2. **Confirm attendance** — show meeting title and a welcome line based on the user's booked
+   roles. If the user has no booked role, welcome them as an attendee.
+3. **Confirmed** — show a success state and a return-to-meeting action.
 
 First-stage implementation note: use local storage key `checkin:<meeting_id>:<user_id>` to
 remember confirmation on this device. Backend persistence will replace this with
@@ -80,9 +70,8 @@ remember confirmation on this device. Backend persistence will replace this with
 
 - **Identity** → the authenticated `user.id` from `current_identity()`. Check-in does
   not write names or create anonymous users.
-- **Selected roles** → role slots for this meeting. The attendee's own booked roles
-  (`booker_id = me`) are pre-selected; confirming check-in should write actual
-  role-taking records in the next-stage schema without overwriting `booker_id`.
+- **Booked roles** → role slots where `booker_id = me`, used only to customize the welcome
+  message. Role selection/actual-taker correction is not part of this simple check-in page.
 - **Check-in record** → next-stage storage should record attendance separately from
   role booking so no-role attendees are represented.
 - **Admin-editable**: admins can adjust attendance and actual role-taking records

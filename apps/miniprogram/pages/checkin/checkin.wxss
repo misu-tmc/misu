@@ -5,34 +5,6 @@
 .check-card { display: flex; flex-direction: column; align-items: stretch; }
 .question { font-size: 34rpx; font-weight: 700; color: #1c1c1e; }
 .hint { margin-top: 8rpx; color: #8a8a8f; font-size: 24rpx; line-height: 1.5; }
-.role-grid { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 24rpx; }
-.role-chip {
-  min-width: 150rpx;
-  padding: 12rpx 18rpx;
-  border-radius: 999rpx;
-  background: #f5f5f7;
-  border: 2rpx solid #ececee;
-  color: #3a3a3c;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26rpx;
-}
-.role-chip.selected {
-  background: #ede7f6;
-  border-color: #5b2a86;
-  color: #5b2a86;
-  font-weight: 600;
-}
-.no-role {
-  margin-top: 24rpx;
-  padding: 16rpx 22rpx;
-  border-radius: 999rpx;
-  text-align: center;
-  color: #5b2a86;
-  background: #f0ecf6;
-}
-.no-role.selected { background: #5b2a86; color: #fff; }
 .btn { margin-top: 32rpx; text-align: center; }
 .done-mark {
   width: 96rpx;

@@ -11,28 +11,19 @@
       <block wx:if="{{confirmed}}">
         <view class="done-mark">✓</view>
         <view class="question">Checked in</view>
-        <view wx:if="{{noRole}}" class="muted summary">No role today</view>
-        <view wx:else class="summary">
-          <text wx:for="{{roles}}" wx:key="id" wx:if="{{item.selected}}" class="summary-chip">{{item.label}}</text>
+        <view class="hint">{{welcomeLine}}</view>
+        <view wx:if="{{bookedRoles.length > 0}}" class="summary">
+          <text wx:for="{{bookedRoles}}" wx:key="*this" class="summary-chip">{{item}}</text>
         </view>
         <view class="btn" bindtap="backToMeeting">Back to Meeting</view>
       </block>
 
       <block wx:else>
-        <view class="question">Which roles do you take today?</view>
-        <view class="hint">Your booked roles are pre-selected. Tap any role you actually took.</view>
-        <view class="role-grid">
-          <view
-            wx:for="{{roles}}"
-            wx:key="id"
-            class="role-chip {{item.selected ? 'selected' : ''}} {{item.mine ? 'mine' : ''}}"
-            data-role-id="{{item.id}}"
-            bindtap="toggleRole"
-          >
-            <text>{{item.label}}</text>
-          </view>
+        <view class="question">Welcome!</view>
+        <view class="hint">{{welcomeLine}}</view>
+        <view wx:if="{{bookedRoles.length > 0}}" class="summary">
+          <text wx:for="{{bookedRoles}}" wx:key="*this" class="summary-chip">{{item}}</text>
         </view>
-        <view class="no-role {{noRole ? 'selected' : ''}}" bindtap="chooseNoRole">No role today</view>
         <view class="btn" bindtap="confirm">Check In</view>
       </block>
     </view>

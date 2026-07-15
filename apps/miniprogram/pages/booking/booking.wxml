@@ -35,22 +35,31 @@
 
   <view class="card" wx:for="{{meetings}}" wx:for-item="m" wx:key="id">
     <view class="card-header">
-      <text class="card-number">#{{m.number}} · {{m.dateLabel}}</text>
-      <text class="muted card-theme">{{m.theme}}</text>
-    </view>
-    <view class="role-row" wx:for="{{m.slots}}" wx:for-item="s" wx:key="id">
-      <text class="role-label">{{s.label}}</text>
-      <block wx:if="{{s.taken}}">
-        <text class="role-taker {{s.mine ? 'mine' : ''}}">{{s.takerName}}</text>
-      </block>
       <view
-        wx:else
-        class="btn"
+        class="fold-toggle"
         data-meeting-id="{{m.id}}"
-        data-slot-id="{{s.id}}"
-        bindtap="onTake"
-      >Take!</view>
+        bindtap="onToggleMeeting"
+      >{{m.expanded ? '−' : '+'}}</view>
+      <view class="card-title">
+        <text class="card-number">#{{m.number}} · {{m.dateLabel}}</text>
+        <text class="muted card-theme">{{m.theme}}</text>
+      </view>
     </view>
+    <block wx:if="{{m.expanded}}">
+      <view class="role-row" wx:for="{{m.slots}}" wx:for-item="s" wx:key="id">
+        <text class="role-label">{{s.label}}</text>
+        <block wx:if="{{s.taken}}">
+          <text class="role-taker {{s.mine ? 'mine' : ''}}">{{s.takerName}}</text>
+        </block>
+        <view
+          wx:else
+          class="btn"
+          data-meeting-id="{{m.id}}"
+          data-slot-id="{{s.id}}"
+          bindtap="onTake"
+        >Take!</view>
+      </view>
+    </block>
   </view>
 
   <view wx:if="{{!loading && meetings.length === 0}}" class="empty">

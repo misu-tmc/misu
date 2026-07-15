@@ -22,7 +22,21 @@
   font-size: 36rpx;
 }
 
-.card-header { display: flex; flex-direction: column; margin-bottom: 12rpx; }
+.card-header { display: flex; align-items: center; margin-bottom: 12rpx; }
+.fold-toggle {
+  flex: 0 0 auto;
+  width: 52rpx;
+  height: 52rpx;
+  line-height: 48rpx;
+  margin-right: 16rpx;
+  border-radius: 50%;
+  text-align: center;
+  background: #f0ecf6;
+  color: #5b2a86;
+  font-size: 36rpx;
+  font-weight: 600;
+}
+.card-title { display: flex; flex-direction: column; min-width: 0; }
 .card-number { font-size: 32rpx; font-weight: 600; }
 .card-theme { font-size: 26rpx; margin-top: 4rpx; }
 

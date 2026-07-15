@@ -30,7 +30,11 @@ Page({
       const meetings = await api.upcomingMeetings();
       const me = app.globalData.userId;
       const bookings = [];
-      const cards = meetings.map((m) => {
+      const previousExpanded = {};
+      (this.data.meetings || []).forEach((m) => {
+        previousExpanded[m.id] = !!m.expanded;
+      });
+      const cards = meetings.map((m, index) => {
         const dateLabel = shortDate(m.date);
         const slots = (m.role_slots || []).map((s) => {
           const mine = s.booker_id === me;
@@ -56,6 +60,7 @@ Page({
           number: m.number,
           dateLabel,
           theme: m.theme,
+          expanded: previousExpanded[m.id] == null ? index === 0 : previousExpanded[m.id],
           slots
         };
       });
@@ -66,6 +71,14 @@ Page({
       wx.showToast({ title: '加载失败', icon: 'none' });
       this.setData({ loading: false });
     }
+  },
+
+  onToggleMeeting(e) {
+    const meetingId = Number(e.currentTarget.dataset.meetingId);
+    const meetings = this.data.meetings.map((m) =>
+      m.id === meetingId ? { ...m, expanded: !m.expanded } : m
+    );
+    this.setData({ meetings });
   },
 
   onTake(e) {

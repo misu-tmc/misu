@@ -69,23 +69,16 @@ Page({
 
   onTake(e) {
     const { meetingId, slotId } = e.currentTarget.dataset;
-    wx.showModal({
-      title: 'Take this role?',
-      content: 'You will be assigned to this role.',
-      success: (res) => {
-        if (!res.confirm) return;
-        api
-          .book(meetingId, slotId, false)
-          .then(() => {
-            wx.showToast({ title: 'Booked', icon: 'success' });
-            this.load();
-          })
-          .catch((err) => {
-            wx.showToast({ title: (err && err.error) || 'Failed', icon: 'none' });
-            this.load();
-          });
-      }
-    });
+    api
+      .book(meetingId, slotId, false)
+      .then(() => {
+        wx.showToast({ title: 'Booked', icon: 'success' });
+        this.load();
+      })
+      .catch((err) => {
+        wx.showToast({ title: (err && err.error) || 'Failed', icon: 'none' });
+        this.load();
+      });
   },
 
   onCancel(e) {

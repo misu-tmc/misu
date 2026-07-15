@@ -239,15 +239,29 @@ pub async fn delete_session(pool: &SqlitePool, token: &str) -> Result<(), AppErr
 /// Resolve the WeChat `openid` for a login code. Uses jscode2session when credentials
 /// are configured; otherwise (DEV mode) derives a stable fake openid from the code.
 pub async fn resolve_openid(config: &Config, code: &str) -> Result<String, AppError> {
-    if config.dev_mode() {
-        return Ok(format!("dev-{code}"));
-    }
-    let appid = config.wechat_appid.as_ref().ok_or_else(|| {
-        AppError::Internal(anyhow::anyhow!("WECHAT_APPID is not configured"))
-    })?;
-    let secret = config.wechat_secret.as_ref().ok_or_else(|| {
-        AppError::Internal(anyhow::anyhow!("WECHAT_SECRET is not configured"))
-    })?;
+    // Prefer the real jscode2session exchange whenever credentials are configured —
+    // even in DEV — so DevTools yields a stable test openid. Only when appid/secret are
+    // absent does DEV fall back to a single pinned fake identity.
+    let (appid, secret) = match (config.wechat_appid.as_ref(), config.wechat_secret.as_ref()) {
+        (Some(appid), Some(secret)) => (appid, secret),
+        _ if config.dev_mode() => {
+            // wx.login returns a fresh single-use code on every launch, so keying the
+            // openid on the code would mint a new user each time and orphan the previous
+            // session's bookings. Pin DEV to one account.
+            let _ = code;
+            return Ok("dev-user".to_string());
+        }
+        (None, _) => {
+            return Err(AppError::Internal(anyhow::anyhow!(
+                "WECHAT_APPID is not configured"
+            )))
+        }
+        (_, None) => {
+            return Err(AppError::Internal(anyhow::anyhow!(
+                "WECHAT_SECRET is not configured"
+            )))
+        }
+    };
     let url = format!(
         "https://api.weixin.qq.com/sns/jscode2session?appid={appid}&secret={secret}&js_code={code}&grant_type=authorization_code"
     );

@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16rpx 0;
+  padding: 10rpx 0;
   border-bottom: 1rpx solid #f0f0f2;
 }
 .booking-row:last-child { border-bottom: none; }
@@ -30,7 +30,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16rpx 0;
+  padding: 10rpx 0;
   border-top: 1rpx solid #f0f0f2;
 }
 .role-label { color: #3a3a3c; }

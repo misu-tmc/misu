@@ -36,3 +36,6 @@
 .role-label { color: #3a3a3c; }
 .role-taker { color: #6b6b70; }
 .role-taker.mine { color: #5b2a86; font-weight: 600; }
+
+/* Shrink the Take! button so a bookable row matches the height of a taken (text) row. */
+.role-row .btn { padding-top: 4rpx; padding-bottom: 4rpx; }

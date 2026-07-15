@@ -234,14 +234,6 @@
         grid.style.setProperty('--rowgap', gap + 'mm');
       }
     }
-    /// Build the big title as `#<number> <title>` without duplicating the number.
-    function meetingTitle(meeting) {
-      const num = meeting.number;
-      const bare = String(meeting.title || '')
-        .replace(new RegExp('\\s*#?0*' + num + '\\s*$'), '')
-        .trim();
-      return `${bare ? bare + ' ' : ''}#${num}`;
-    }
     async function init() {
       const id = meetingIdFromPath();
       if (!id) return;
@@ -249,11 +241,11 @@
       if (!res.ok) { document.getElementById('agendaRows').innerHTML = '<tr><td colspan="4">Failed to load meeting.</td></tr>'; return; }
       const meeting = await res.json();
       document.title = `MISU · Agenda #${meeting.number}`;
-      document.getElementById('mTitle').textContent = meetingTitle(meeting);
+      document.getElementById('mTitle').textContent = `${meeting.title || ''} #${meeting.number}`.trim();
       document.getElementById('fTheme').textContent = meeting.theme || '';
       const end = meeting.end_time ? '–' + meeting.end_time : '';
       document.getElementById('fTime').textContent = `${shortDate(meeting.date)} · ${meeting.start_time || ''}${end}`;
-      document.getElementById('fKeyword').textContent = 'Glory';
+      document.getElementById('fKeyword').textContent = meeting.keyword || '';
       document.getElementById('fVenue').textContent = meeting.venue || '';
       document.getElementById('fManager').textContent = '';
       const photographer = (meeting.role_slots || [])

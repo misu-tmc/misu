@@ -75,7 +75,8 @@
         <div class="field" style="width:120px"><label>Status</label><span id="statusPill" class="pill draft">draft</span></div>
       </div>
       <div class="row">
-        <div class="field grow"><label>Theme</label><input id="theme" placeholder="Embrace Change" /></div>
+        <div class="field grow"><label>Theme</label><input id="theme" /></div>
+        <div class="field grow"><label>Keyword</label><input id="keyword" /></div>
         <div class="field grow"><label>Venue</label><input id="venue" placeholder="Room A" /></div>
       </div>
       <div class="row">
@@ -133,7 +134,7 @@
     }
     const BUFFER_MINUTES = 1;
     let state = {
-      meetingId: null, number: '', title: '', theme: '', date: '', start_time: '19:00',
+      meetingId: null, number: '', title: '', theme: '', keyword: '', date: '', start_time: '19:00',
       end_time: '21:00', venue: '', status: 'draft', is_template: false, slots: [], sessions: []
     };
 
@@ -157,7 +158,7 @@
     }
 
     // --- header fields <-> state ---
-    const FIELDS = ['number','title','theme','date','start_time','end_time','venue'];
+    const FIELDS = ['number','title','theme','keyword','date','start_time','end_time','venue'];
     function bindHeader() {
       for (const f of FIELDS) {
         const el = document.getElementById(f);
@@ -465,7 +466,7 @@
       state = {
         meetingId: asTemplate ? null : d.id,
         number: asTemplate ? (d.number + 1) : d.number,
-        title: d.title, theme: d.theme || '',
+        title: d.title, theme: d.theme || '', keyword: d.keyword || '',
         date: asTemplate ? addDays(d.date, 14) : d.date,
         start_time: d.start_time || '19:00', end_time: d.end_time || '21:00',
         venue: d.venue || '', status: asTemplate ? 'draft' : (d.status || 'draft'),
@@ -494,7 +495,7 @@
     function onStartFrom() { loadFrom(document.getElementById('startFrom').value); }
     async function loadFrom(choice) {
       if (choice === 'blank') {
-        state = { meetingId: null, number: lastMeeting ? lastMeeting.number + 1 : 1, title: '', theme: '',
+        state = { meetingId: null, number: lastMeeting ? lastMeeting.number + 1 : 1, title: '', theme: '', keyword: '',
           date: '', start_time: '19:00', end_time: '21:00', venue: '', status: 'draft', is_template: false, slots: [], sessions: [emptySession()] };
         fillHeader(); render(); return;
       }
@@ -529,6 +530,7 @@
         meeting_id: state.meetingId,
         number: state.number === '' ? null : Number(state.number),
         title: (state.title || '').trim(), theme: (state.theme || '').trim(),
+        keyword: (state.keyword || '').trim(),
         date: state.date, start_time: state.start_time, end_time: state.end_time,
         venue: (state.venue || '').trim(),
         is_template: !!state.is_template,

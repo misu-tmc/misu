@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS meeting (
     number          INTEGER NOT NULL,
     title           TEXT NOT NULL,
     theme           TEXT NOT NULL DEFAULT '',
+    keyword         TEXT NOT NULL DEFAULT '',
     date            TEXT NOT NULL,
     start_time      TEXT NOT NULL,
     end_time        TEXT NOT NULL DEFAULT '',
@@ -123,6 +124,8 @@ async fn migrate(pool: &SqlitePool) -> anyhow::Result<()> {
     for stmt in [
         "ALTER TABLE role_slot ADD COLUMN label TEXT",
         "ALTER TABLE role_slot ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE meeting ADD COLUMN theme TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE meeting ADD COLUMN keyword TEXT NOT NULL DEFAULT ''",
     ] {
         if let Err(e) = sqlx::query(stmt).execute(pool).await {
             // The column already exists on an up-to-date database; anything else is fatal.

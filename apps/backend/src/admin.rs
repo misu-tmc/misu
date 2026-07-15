@@ -202,6 +202,8 @@ pub struct MeetingIn {
     pub title: String,
     #[serde(default)]
     pub theme: String,
+    #[serde(default)]
+    pub keyword: String,
     pub date: String,
     pub start_time: String,
     #[serde(default)]
@@ -276,12 +278,13 @@ pub async fn upsert_meeting(
                     .ok_or(AppError::NotFound)?,
             };
             let affected = sqlx::query(
-                "UPDATE meeting SET number = ?, title = ?, theme = ?, date = ?, start_time = ?, \
+                "UPDATE meeting SET number = ?, title = ?, theme = ?, keyword = ?, date = ?, start_time = ?, \
                  end_time = ?, venue = ?, status = ?, is_template = ? WHERE id = ?",
             )
             .bind(number)
             .bind(input.title.trim())
             .bind(input.theme.trim())
+            .bind(input.keyword.trim())
             .bind(input.date.trim())
             .bind(input.start_time.trim())
             .bind(input.end_time.trim())
@@ -307,12 +310,13 @@ pub async fn upsert_meeting(
                 }
             };
             sqlx::query_scalar::<_, i64>(
-                "INSERT INTO meeting(number, title, theme, date, start_time, end_time, venue, \
-                 status, is_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                "INSERT INTO meeting(number, title, theme, keyword, date, start_time, end_time, venue, \
+                 status, is_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
             )
             .bind(number)
             .bind(input.title.trim())
             .bind(input.theme.trim())
+            .bind(input.keyword.trim())
             .bind(input.date.trim())
             .bind(input.start_time.trim())
             .bind(input.end_time.trim())

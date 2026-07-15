@@ -74,8 +74,8 @@ Page({
         },
         bookedRoles: payload.bookedRoles || bookedRoles,
         welcomeLine: bookedRoles.length
-          ? `Welcome, ${bookedRoles.join('、')}!`
-          : 'Welcome to the meeting!'
+          ? `Welcome! You're our ${bookedRoles.join('、')} today, thank you!`
+          : "Welcome to today's meeting!"
       });
     } catch (e) {
       console.error(e);

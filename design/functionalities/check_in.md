@@ -23,7 +23,7 @@ flowchart TD
     A -->|signed in| R[Confirm card]
     A -->|not signed in| S[Sign in / register]
     S --> R
-    R --> DONE[Confirmed ✓]
+    R --> DONE[Welcome shown]
 ```
 
 ### Confirm card
@@ -33,8 +33,8 @@ flowchart TD
 │  MISU · Meeting #142                 │
 │  Sat Jul 12 · Embrace Change         │
 ├─────────────────────────────────────┤
-│  ✓ Checked in                        │
-│  Welcome, Timer, Grammarian!         │
+│  Welcome! You're our                 │
+│  Timer, Grammarian today, thank you! │
 └─────────────────────────────────────┘
 ```
 
@@ -42,7 +42,9 @@ flowchart TD
 
 - **Header**: the meeting being checked into (number · date · theme).
 - **Welcome message**: greets the attendee and summarizes the roles they booked for this
-  meeting (if any). No role selection is shown on this page.
+  meeting (if any). If they have no booked role, it says `Welcome to today's meeting!`.
+  No role selection is shown on this page, and there is no separate checkmark/"Checked in"
+  heading.
 - **Automatic confirmation**: opening the page confirms attendance immediately. Until the
   backend check-in API lands, the mini program stores the confirmation locally and shows a
   friendly success state; the UI shape is final, the persistence is staged.

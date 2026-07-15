@@ -8,9 +8,7 @@
     </view>
 
     <view class="card check-card">
-      <view class="done-mark">✓</view>
-      <view class="question">Checked in</view>
-      <view class="hint">{{welcomeLine}}</view>
+      <view class="welcome-line">{{welcomeLine}}</view>
       <view wx:if="{{bookedRoles.length > 0}}" class="summary">
         <text wx:for="{{bookedRoles}}" wx:key="*this" class="summary-chip">{{item}}</text>
       </view>

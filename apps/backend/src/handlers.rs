@@ -362,7 +362,7 @@ pub async fn meetings_upcoming(
     let rows = sqlx::query_as::<_, MeetingRow>(
         "SELECT id, number, title, theme, keyword, date, start_time, end_time, venue, status, is_template \
          FROM meeting \
-         WHERE status = 'published' AND is_template = 0 AND date >= ? \
+            WHERE status = 'published' AND date >= ? \
          ORDER BY date ASC, number ASC",
     )
     .bind(&today)

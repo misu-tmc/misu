@@ -13,18 +13,24 @@
       <view class="actions">
         <view class="btn {{checkedIn ? 'btn-checked' : 'btn-outline'}}" bindtap="goCheckIn">{{checkedIn ? 'Checked in' : 'Check in'}}</view>
         <view class="btn btn-outline" bindtap="comingSoon">Vote for best</view>
-        <view class="btn btn-outline" bindtap="comingSoon">Timer mode</view>
+        <view class="btn {{timerMode ? 'btn-timer-on' : 'btn-outline'}}" bindtap="toggleTimerMode">{{timerMode ? 'Timer on' : 'Timer mode'}}</view>
       </view>
     </view>
 
     <!-- Agenda -->
     <view class="section-title">Agenda</view>
     <view class="card">
-      <view class="agenda-row" wx:for="{{agenda}}" wx:key="id">
+      <view class="agenda-row {{item.isSub ? 'sub-row' : ''}} {{item.running ? 'running' : ''}}" wx:for="{{agenda}}" wx:key="key">
         <text class="agenda-time">{{item.start}}</text>
         <view class="agenda-main">
           <text class="agenda-name">{{item.name}}</text>
           <text class="agenda-meta muted">{{item.duration_minutes}}' · {{item.taker || '—'}}</text>
+          <text wx:if="{{timerMode}}" class="agenda-meta timer-elapsed">Elapsed {{item.elapsedText}}</text>
+        </view>
+        <view wx:if="{{timerMode}}" class="timer-actions">
+          <view class="timer-btn" data-key="{{item.key}}" bindtap="playTimer">{{item.running ? 'Ⅱ' : '▶'}}</view>
+          <view wx:if="{{item.running}}" class="timer-btn stop" data-key="{{item.key}}" bindtap="stopTimer">■</view>
+          <view wx:if="{{!item.isSub}}" class="timer-btn add" data-key="{{item.key}}" bindtap="addSubSession">+</view>
         </view>
       </view>
     </view>

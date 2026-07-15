@@ -17,6 +17,10 @@
   background: #2e7d32;
   color: #fff;
 }
+.btn-timer-on {
+  background: #1565c0;
+  color: #fff;
+}
 
 .agenda-row {
   display: flex;
@@ -25,6 +29,8 @@
   border-top: 1rpx solid #f0f0f2;
 }
 .agenda-row:first-child { border-top: none; }
+.agenda-row.running { background: #f4f9ff; margin: 0 -12rpx; padding-left: 12rpx; padding-right: 12rpx; border-radius: 12rpx; }
+.agenda-row.sub-row { padding-left: 48rpx; }
 .agenda-time {
   width: 110rpx;
   color: #5b2a86;
@@ -34,3 +40,17 @@
 .agenda-main { display: flex; flex-direction: column; flex: 1; }
 .agenda-name { font-size: 30rpx; }
 .agenda-meta { font-size: 24rpx; margin-top: 4rpx; }
+.timer-actions { display: flex; align-items: center; gap: 10rpx; margin-left: 12rpx; }
+.timer-btn {
+  width: 52rpx;
+  height: 52rpx;
+  line-height: 48rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #f0ecf6;
+  color: #5b2a86;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+.timer-btn.stop { background: #fbeaec; color: #b00020; }
+.timer-btn.add { background: #e8f5e9; color: #2e7d32; }

@@ -50,7 +50,7 @@
       align-items: center;
     }
     .tm-logo { display: flex; align-items: center; justify-content: center; }
-    .tm-logo img { height: 20mm; object-fit: contain; }
+    .tm-logo img { height: 30mm; object-fit: contain; }
     .club-wrap { display: grid; grid-template-columns: 1fr 14mm; column-gap: 3mm; align-items: center; }
     .club-brand { min-width: 0; }
     .club-brand .name { font-size: 25px; font-weight: 800; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -61,7 +61,7 @@
     .body { display: grid; grid-template-columns: 48mm 1fr; gap: 3mm; padding: 2.5mm; min-height: 0; }
 
     /* Sidebar: visible outer card; inner sections are invisible cards sharing one edge. */
-    .sidebar { background: #f3f7f9; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: column; gap: 1.5mm; min-height: 0; }
+    .sidebar { background: transparent; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: column; gap: 1.5mm; min-height: 0; }
     .side-card { padding: 2.5mm 3mm; }
     .sidebar h4 { margin: 0 0 1mm; font-size: 12px; text-transform: uppercase; color: #31566a; }
     .sidebar p, .sidebar ul { margin: 0; font-size: 11px; line-height: 1.6; }
@@ -85,18 +85,20 @@
 
     .agenda-panel { background: transparent; flex: 1; min-height: 0; overflow: hidden; padding: 1mm 0 2mm; }
     .agenda-grid { width: 100%; border-collapse: separate; border-spacing: 0 var(--rowgap, 1mm); table-layout: fixed; font-size: var(--print-table-font, 12px); }
-    .agenda-grid th { text-transform: uppercase; color: #56717e; text-align: left; }
+    .agenda-grid th { text-transform: uppercase; color: #56717e; text-align: left; background: #dbe9ef; padding: 1mm 1.5mm; font-weight: 700; }
+    .agenda-grid th:first-child { border-radius: 1.5mm 0 0 1.5mm; }
+    .agenda-grid th:last-child { border-radius: 0 1.5mm 1.5mm 0; }
     .agenda-grid th:first-child, .agenda-grid td:first-child { width: 15mm; text-align: center; }
-    .agenda-grid th:nth-child(3), .agenda-grid td:nth-child(3) { width: 17mm; text-align: center; }
-    .agenda-grid th:nth-child(4), .agenda-grid td:nth-child(4) { width: 30mm; }
-    .agenda-grid td { background: #f1f6f9; padding: 1mm 0.4mm; vertical-align: top; }
+    .agenda-grid th:nth-child(3), .agenda-grid td:nth-child(3) { width: 20mm; }
+    .agenda-grid th:nth-child(4), .agenda-grid td:nth-child(4) { width: 28mm; }
+    .agenda-grid td { background: transparent; padding: 1mm 1.5mm; vertical-align: top; }
     .agenda-grid td:first-child { border-radius: 1.5mm 0 0 1.5mm; color: #1f5874; font-weight: 700; }
     .agenda-grid td:last-child { border-radius: 0 1.5mm 1.5mm 0; }
     .agenda-grid .section td { background: #dbe9ef; color: #214e63; text-align: center !important; font-weight: 800; border-radius: 1.5mm; padding: 1.2mm; }
     .session-title { font-weight: 400; }
     .speech-meta { margin-top: .4mm; font-size: .82em; color: var(--muted); font-style: italic; }
 
-    .timer { background: #eef5f7; }
+    .timer { background: transparent; padding-left: 0; padding-right: 0; }
     .timer-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #31566a; margin-bottom: 1mm; }
     .timer-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border-radius: 1.5mm; overflow: hidden; font-size: var(--print-table-font, 12px); }
     .timer-table th, .timer-table td { border: 0; background: #fff; padding: 1.25mm 1.6mm; font-size: 1em; vertical-align: middle; }
@@ -115,7 +117,7 @@
       <div class="tm-logo"><img src="/static/Toastmasters_2011.png" alt="Toastmasters International" /></div>
       <div class="club-wrap">
         <div class="club-brand">
-          <div class="name">Microsoft Suzhou Toastmasters Club</div>
+          <div class="name"><span style="color:#ed654c">M</span><span style="color:#a4d66f">i</span>crosoft <span style="color:#4da3ff">S</span><span style="color:#fff276">u</span>zhou Toastmasters Club</div>
           <div class="ids">Club #07964606 · District 128 · Region 3</div>
         </div>
         <div class="ms-logo"><img src="/static/Microsoft_logo.svg" alt="Microsoft" /></div>
@@ -128,7 +130,7 @@
         <div class="side-card"><h4>Regular Meeting</h4><p><b>Time: </b>Every alternate Monday, 18:45–21:00<br /><b>Venue: </b>B26 Room 1.1B, Microsoft Suzhou<br />微软苏州研发中心 B26 幢一楼会议室1.1B</p></div>
         <div class="side-card"><h4>Meeting Team</h4><p>Meeting Manager: <span id="fManager"></span><br />Photographer: <span id="fPhotographer"></span></p></div>
         <div class="side-card"><h4>Officer Team</h4><p>President: Cecily Wang<br />VPE: Chao Chen<br />VPM: Serena Zhan<br />VPPR: Sophia Chen<br />Secretary: Jiajia Bao<br />Treasurer: Johnny Yao<br />SAA: Tao Lu</p></div>
-        <div class="side-card"><h4>How to join us?</h4><ul><li>Attend at least three meetings and participate in Table Topic session at least once.</li><li>Submit the new member application form to VPM.</li><li>Interview by President/VPE/VPM.</li></ul></div>
+        <div class="side-card"><h4>How to join us?</h4><ul><li>Attend at least three meetings and participate in Table Topic session at least once.</li><li>Submit the new member application form to VPM.</li><li>Interviewed by President/VPE/VPM.</li></ul></div>
         <div class="side-card side-qr">
           <div><img src="/static/VPM QR code.jpg" alt="VPM QR code" /><div class="qr-caption">VPM: Serena Zhan</div></div>
           <div><img src="/static/Guest Fee QRCode.png" alt="Guest fee QR" /><div class="qr-caption">Guest Fee ¥20</div></div>
@@ -146,7 +148,7 @@
           </div>
           <div class="card agenda-panel">
             <table class="agenda-grid">
-              <thead><tr><th>Time</th><th>Sessions</th><th>Duration</th><th>Role Takers</th></tr></thead>
+              <thead><tr><th>Time</th><th>Sessions</th><th>Duration</th><th>Takers</th></tr></thead>
               <tbody id="agendaRows"></tbody>
             </table>
           </div>

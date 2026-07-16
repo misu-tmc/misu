@@ -40,7 +40,7 @@ frontend.
 Core service boundaries:
 
 - **Auth**: resolves the current `user.id` through the active provider.
-- **Permissions**: checks `site_admin`, `meeting_manager` and attendee actions.
+- **Permissions**: every action only requires an authenticated `user.id`; no scopes yet.
 - **Meeting**: creates drafts, edits sessions/role slots and publishes meetings.
 - **Role booking**: lists upcoming published meetings and books/cancels roles.
 - **Agenda**: renders preview and published agenda output.
@@ -75,14 +75,14 @@ request body.
 
 ### Pages
 
-Server rendered (web management, require `site_admin`):
+Server rendered (web management, require a signed-in web session):
 - /meetings — meeting list
 - /users — user management
 
 Client rendered:
 - /meetings/upcoming — upcoming meetings for role booking.
-- /meetings/new — create a meeting (editor). Require `site_admin`.
-- /meetings/:meeting_id/edit — edit a meeting (editor). Require `site_admin`.
+- /meetings/new — create a meeting (editor). Require a signed-in session.
+- /meetings/:meeting_id/edit — edit a meeting (editor). Require a signed-in session.
 - /meetings/:meeting_id/voting
 - /meetings/:meeting_id/checkin
 - /meetings/:meeting_id/timer
@@ -98,7 +98,7 @@ Meetings:
 - `GET /api/meetings` — meeting list.
 - `GET /api/meetings/upcoming` — future meeting list.
 - `GET /api/meetings/:meeting_id` — meeting detail (sessions, role slots, bookings).
-- `POST /api/meetings` — Require `site_admin`. **Upsert** a meeting from the posted
+- `POST /api/meetings` — Require a signed-in session. **Upsert** a meeting from the posted
   document: `{ meeting_id?, title, theme, date, start_time, end_time, venue, sessions,
   role_slots, is_template, status }`. Absent `meeting_id` creates; present updates
   (overwrite). The upsert replaces session/slot **structure** but the user-agnostic slots
@@ -110,8 +110,8 @@ Role booking (acts as the current user):
 - `POST /api/book` — `{ meeting_id, role_slot_id, user_id?, cancel? }`. Book an open role
   slot; when `cancel` is true, release the current user's booking of that slot. Booking
   writes `role_assignment.booker_id` for the slot. The optional `user_id` assigns a booker
-  on someone else's behalf and is honored **only** when the caller is a site admin or the
-  meeting's manager — this is how the web editor assigns bookers.
+  on someone else's behalf and is honored **only** when the caller is the meeting's
+  manager — this is how the web editor assigns bookers.
 
 Check-in (acts as the current user):
 - `POST /api/checkin` — `{ meeting_id, role_slot_ids: [] }`. Record attendance and the
@@ -125,9 +125,9 @@ Timer (later):
 - `GET /api/meetings/:meeting_id/timer` — timer state.
 
 Users:
-- `GET /api/users` — Require `site_admin`. User management, next-stage if needed.
-- `POST /api/users/:user_id` — Require `site_admin`. Update user info, grant/revoke
-  permissions, next-stage if needed.
+- `GET /api/users` — Require a signed-in session. User management, next-stage if needed.
+- `POST /api/users/:user_id` — Require a signed-in session. Update user info, next-stage
+  if needed.
 
 
 ## First-stage build order

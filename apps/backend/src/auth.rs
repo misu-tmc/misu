@@ -305,15 +305,3 @@ pub async fn create_session(pool: &SqlitePool, user_id: i64) -> Result<String, A
         .await?;
     Ok(token)
 }
-
-/// Whether a user currently holds an active `site_admin` grant.
-pub async fn is_site_admin(pool: &SqlitePool, user_id: i64) -> Result<bool, AppError> {
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM user_permission \
-         WHERE user_id = ? AND permission = 'site_admin' AND revoked_at IS NULL",
-    )
-    .bind(user_id)
-    .fetch_one(pool)
-    .await?;
-    Ok(count > 0)
-}

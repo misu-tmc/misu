@@ -7,9 +7,8 @@ pub struct Config {
     pub db_url: String,
     pub wechat_appid: Option<String>,
     pub wechat_secret: Option<String>,
-    pub seed_admin_openid: Option<String>,
-    /// Bootstrap web admin credentials (username/password). When set, a `site_admin`
-    /// web user is created on startup if the username does not already exist.
+    /// Bootstrap web admin credentials (username/password). When set, a web admin user is
+    /// created on startup if the username does not already exist.
     pub seed_web_admin_user: Option<String>,
     pub seed_web_admin_password: Option<String>,
     /// Directory holding the static web admin pages.
@@ -45,7 +44,6 @@ impl Config {
             db_url: format!("sqlite://{db_file}"),
             wechat_appid: non_empty("WECHAT_APPID"),
             wechat_secret: non_empty("WECHAT_SECRET"),
-            seed_admin_openid: non_empty("MISU_SEED_ADMIN_OPENID"),
             seed_web_admin_user: non_empty("MISU_WEB_ADMIN_USER"),
             seed_web_admin_password: non_empty("MISU_WEB_ADMIN_PASSWORD"),
             web_dir: non_empty("MISU_WEB_DIR").unwrap_or_else(|| "web".to_string()),

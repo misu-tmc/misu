@@ -16,8 +16,8 @@ Outputs:
 - **Printing version**: a single-sided A4 agenda, implemented as HTML/CSS as one printable
 	page.
 
-The agenda is draft by default and can be viewed/edited by admins. It is published when
-ready; after publishing, only admins/meeting managers may edit it.
+The agenda is draft by default and can be viewed/edited by any signed-in user. It is
+published when ready; after publishing, any signed-in user may still edit it.
 
 ## Print Agenda Design
 

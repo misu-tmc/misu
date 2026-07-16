@@ -23,14 +23,11 @@ DEV mode is an explicit opt-in and is **never** inferred — leave it unset (and
 `WECHAT_APPID` / `WECHAT_SECRET`) to call WeChat's `jscode2session` for real logins.
 Never enable it in production.
 
-Set `MISU_SEED_ADMIN_OPENID` to bootstrap the first `site_admin` (in DEV mode this is
-`dev-<code>`, e.g. `dev-tester`).
-
 ### Web admin login
 
 The web surface uses a **username/password** provider (bcrypt-hashed, stored in
 `web_credential`). Set `MISU_WEB_ADMIN_USER` / `MISU_WEB_ADMIN_PASSWORD` to seed a
-`site_admin` web login on startup. In DEV mode it defaults to `admin` / `admin` if
+web login on startup. In DEV mode it defaults to `admin` / `admin` if
 unset. Sign in at `/login`; the session is an HttpOnly cookie.
 
 ## Endpoints
@@ -43,8 +40,8 @@ unset. Sign in at `/login`; the session is an HttpOnly cookie.
 | POST | `/api/auth/logout` | Session | clear the web session + cookie |
 | GET  | `/api/meetings/upcoming` | Session | upcoming published meetings (sessions + role slots + takers) |
 | GET  | `/api/meetings/:id` | Session | one meeting's detail (drafts included; shared with the editor) |
-| POST | `/api/book` | Session | `{ meeting_id, role_slot_id, user_id?, cancel? }` book/release a role; admin `user_id` assigns on behalf (site admin or meeting manager) |
-| POST | `/api/users/:id` | Session | `{ display_name }` update profile (self or site_admin) |
+| POST | `/api/book` | Session | `{ meeting_id, role_slot_id, user_id?, cancel? }` book/release a role; `user_id` assigns on behalf |
+| POST | `/api/users/:id` | Session | `{ display_name }` update profile (self) |
 | GET  | `/api/club-info` | — | static club introduction |
 
 The acting user is always taken from the session (bearer token or `misu_session` cookie),
@@ -54,7 +51,7 @@ never from the request body.
 
 Server-served HTML admin pages (simple HTML/CSS/JS, one self-contained file each under
 `web/`). Pages require a **web session** and redirect to `/login` when absent; their JSON
-APIs share the canonical `/api/*` paths and require a `site_admin` grant. `MISU_WEB_DIR`
+APIs share the canonical `/api/*` paths. `MISU_WEB_DIR`
 (default `web`) sets where the HTML files are read from. `MISU_STATIC_DIR` (default
 `static`) serves logos, QR codes and other print assets under `/static/*`.
 
@@ -65,9 +62,9 @@ APIs share the canonical `/api/*` paths and require a `site_admin` grant. `MISU_
 | `/meetings/new` | meeting editor (start-from template, sessions grid, roles, save/publish) |
 | `/meetings/:id/edit` | edit an existing meeting |
 | `/meetings/:id/agenda/print` | single-sided A4 printable agenda preview |
-| `/users` | user list with promote / revoke `site_admin` |
+| `/users` | user list |
 
-Admin-scoped JSON APIs (require a `site_admin` session):
+Web admin JSON APIs (require a web session):
 
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
@@ -75,7 +72,6 @@ Admin-scoped JSON APIs (require a `site_admin` session):
 | POST | `/api/meetings` | upsert a meeting document (preserves `role_assignment` on matched slots) |
 | GET / POST | `/api/roles` | list / create roles (creatable combobox) |
 | GET / POST | `/api/users` | list users / create a bare (identity-less) user |
-| POST | `/api/users/:id/permissions` | `{ permission, grant }` grant/revoke `site_admin` |
 
 ## Layout
 

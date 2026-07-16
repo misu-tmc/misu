@@ -5,8 +5,8 @@ previewing and management that is easier on a desktop. Pages are server-served, 
 HTML/CSS/JS files under `apps/backend/web/`, each backed by the shared `/api/*` JSON APIs.
 
 Chrome: a purple top bar (`MISU Admin` brand + nav: `Meetings` · `Users`). Unlike the mini
-program, the web surface renders its own header. **Auth**: a `site_admin` guard is planned for
-all admin pages and their APIs; not yet enforced in the first stage.
+program, the web surface renders its own header. **Auth**: a signed-in web session is
+planned for all admin pages and their APIs; not yet enforced in the first stage.
 
 ## Meetings — `/meetings`
 
@@ -151,41 +151,37 @@ The timed agenda, one row per session. Columns, left to right:
 - `GET /api/users`, `POST /api/users` — list users / create a bare (identity-less) user
   for the Booked-by combobox.
 - `POST /api/book` — `{ meeting_id, role_slot_id, user_id?, cancel? }` book/release a
-  slot. The admin `user_id` assigns a booker on someone's behalf; honored only for a site
-  admin or the meeting's manager, so it doubles as the editor's assignment call.
+  slot. The `user_id` assigns a booker on someone's behalf, so it doubles as the editor's
+  assignment call.
 
 ## Users — `/users`
 
-User list with permission management.
+User list.
 
 ```
 ┌───────────────────────────────────────────────────────────┐
 │  MISU Admin        Meetings   Users                        │
 ├───────────────────────────────────────────────────────────┤
 │  Users                                                     │
-├──────┬──────────────────┬───────────────┬─────────────────┤
-│  ID  │ Display name     │ Role          │          Action │
-├──────┼──────────────────┼───────────────┼─────────────────┤
-│  1   │ Alice            │ site_admin    │ [ Revoke admin ]│
-│  2   │ Bob              │ member        │ [ Promote… ]    │
-└──────┴──────────────────┴───────────────┴─────────────────┘
+├──────┬──────────────────┐
+│  ID  │ Display name     │
+├──────┼──────────────────┤
+│  1   │ Alice            │
+│  2   │ Bob              │
+└──────┴──────────────────┘
 ```
 
 ### Contents
 
-- **Rows** — `id`, `display_name`, a role cell (`site_admin` badge or muted `member`), and an
-  action button: **Promote to admin** for members, **Revoke admin** for admins.
+- **Rows** — `id` and `display_name`.
 - **Empty state** — "No users yet — sign in from the mini program first." (users are created
   on first WeChat login).
 
 ### Data
 
-- `GET /api/users` — users plus `is_site_admin`.
-- `POST /api/users/:user_id/permissions` — `{ permission: "site_admin", grant }` to grant or
-  revoke. Only `site_admin` is supported today.
+- `GET /api/users` — the user list.
 
 ### Notes
 
 - Users originate from WeChat login (`POST /api/auth/wechat`); the web page does not create
-  users, only manages their permissions.
-- Bootstrapping the first admin is done via `MISU_SEED_ADMIN_OPENID` (see the backend README).
+  users.

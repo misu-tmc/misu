@@ -9,11 +9,11 @@ use serde_json::json;
 use sqlx::FromRow;
 
 use crate::auth::{
-    create_session, delete_session, is_site_admin, resolve_openid, upsert_wechat_user,
+    create_session, delete_session, resolve_openid, upsert_wechat_user,
     verify_web_login, AuthUser, SessionToken, SESSION_COOKIE,
 };
 use crate::error::{AppError, AppResult};
-use crate::{db, AppState};
+use crate::AppState;
 
 // ---------------------------------------------------------------------------
 // Health
@@ -53,13 +53,6 @@ pub async fn auth_wechat(
     }
     let openid = resolve_openid(&state.config, req.code.trim()).await?;
     let (user_id, display_name, _created) = upsert_wechat_user(&state.pool, &openid).await?;
-
-    // Bootstrap: grant site_admin to the configured openid on login.
-    if state.config.seed_admin_openid.as_deref() == Some(openid.as_str()) {
-        db::grant_site_admin(&state.pool, user_id)
-            .await
-            .map_err(AppError::Internal)?;
-    }
 
     let token = create_session(&state.pool, user_id).await?;
     Ok(Json(LoginResp {
@@ -417,8 +410,8 @@ pub struct BookReq {
     pub role_slot_id: i64,
     #[serde(default)]
     pub cancel: bool,
-    /// Admin-only: book/assign on behalf of this user instead of the session user.
-    /// Ignored (rejected) unless the caller is a site admin or the meeting's manager.
+    /// Book/assign on behalf of this user instead of the session user (used by the web
+    /// editor). Any authenticated caller may set it.
     #[serde(default)]
     pub user_id: Option<i64>,
 }
@@ -427,16 +420,12 @@ pub struct BookReq {
 struct SlotBookRow {
     meeting_id: i64,
     booker_id: Option<i64>,
-    status: String,
-    date: String,
-    start_time: String,
 }
 
-/// Book, release or (for admins) assign a role slot.
+/// Book, release or assign a role slot. Any authenticated user may act.
 ///
 /// - No `user_id`: acts as the session user (self-booking).
-/// - With `user_id`: assigns that user to the slot; allowed only when the caller is a
-///   site admin or the meeting's manager.
+/// - With `user_id`: assigns that user to the slot (used by the web editor).
 pub async fn book(
     State(state): State<AppState>,
     user: AuthUser,
@@ -444,9 +433,8 @@ pub async fn book(
 ) -> AppResult<Json<serde_json::Value>> {
     // Slot structure is user-agnostic; the current booker comes from role_assignment.
     let slot = sqlx::query_as::<_, SlotBookRow>(
-        "SELECT rs.meeting_id, ra.booker_id, m.status, m.date, m.start_time \
+        "SELECT rs.meeting_id, ra.booker_id \
          FROM role_slot rs \
-         JOIN meeting m ON m.id = rs.meeting_id \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          WHERE rs.id = ?",
     )
@@ -461,23 +449,8 @@ pub async fn book(
         ));
     }
 
-    // May the caller act on behalf of others / override bookings?
-    let acting_is_admin = is_meeting_manager(&state.pool, slot.meeting_id, user.id).await?
-        || is_site_admin(&state.pool, user.id).await?;
-
-    // Attendees may only book while the meeting is open; once it is ongoing/archived
-    // (or still a draft) booking is closed. Admins/managers can always adjust.
-    if !acting_is_admin && meeting_phase(&slot.status, &slot.date, &slot.start_time) != "open" {
-        return Err(AppError::Conflict(
-            "meeting is not accepting bookings".into(),
-        ));
-    }
-
-    // --- Admin assignment on behalf of a specific user ---
+    // --- Assignment on behalf of a specific user ---
     if let Some(target) = req.user_id {
-        if !acting_is_admin {
-            return Err(AppError::Forbidden);
-        }
         let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user WHERE id = ?")
             .bind(target)
             .fetch_one(&state.pool)
@@ -499,10 +472,7 @@ pub async fn book(
     if req.cancel {
         match slot.booker_id {
             None => {} // already open — idempotent
-            Some(booker) => {
-                if booker != user.id && !acting_is_admin {
-                    return Err(AppError::Forbidden);
-                }
+            Some(_) => {
                 // Release the booking; keep the row so a taker_id (if any) survives.
                 sqlx::query(
                     "UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?",
@@ -540,19 +510,6 @@ pub async fn book(
     Ok(Json(json!({ "ok": true, "booker_id": me })))
 }
 
-async fn is_meeting_manager(
-    pool: &sqlx::SqlitePool,
-    meeting_id: i64,
-    user_id: i64,
-) -> AppResult<bool> {
-    let manager: Option<Option<i64>> =
-        sqlx::query_scalar("SELECT meeting_manager FROM meeting WHERE id = ?")
-            .bind(meeting_id)
-            .fetch_optional(pool)
-            .await?;
-    Ok(matches!(manager, Some(Some(m)) if m == user_id))
-}
-
 // ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------
@@ -564,14 +521,10 @@ pub struct UpdateUserReq {
 
 pub async fn update_user(
     State(state): State<AppState>,
-    user: AuthUser,
+    _user: AuthUser,
     Path(user_id): Path<i64>,
     Json(req): Json<UpdateUserReq>,
 ) -> AppResult<Json<UserDto>> {
-    // A user may edit self; site admins may edit anyone.
-    if user.id != user_id && !is_site_admin(&state.pool, user.id).await? {
-        return Err(AppError::Forbidden);
-    }
     let name = req.display_name.trim();
     if name.is_empty() {
         return Err(AppError::BadRequest("display_name is required".into()));

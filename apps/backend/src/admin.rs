@@ -471,22 +471,17 @@ pub async fn create_role(
 struct UserRow {
     id: i64,
     display_name: String,
-    is_site_admin: i64,
 }
 
 #[derive(Serialize)]
 pub struct UserRowDto {
     pub id: i64,
     pub display_name: String,
-    pub is_site_admin: bool,
 }
 
 pub async fn list_users(State(state): State<AppState>, _user: AuthUser) -> AppResult<Json<Vec<UserRowDto>>> {
     let rows = sqlx::query_as::<_, UserRow>(
-        "SELECT u.id, u.display_name, \
-         EXISTS(SELECT 1 FROM user_permission p WHERE p.user_id = u.id \
-                AND p.permission = 'site_admin' AND p.revoked_at IS NULL) AS is_site_admin \
-         FROM user u ORDER BY u.id",
+        "SELECT u.id, u.display_name FROM user u ORDER BY u.id",
     )
     .fetch_all(&state.pool)
     .await?;
@@ -496,7 +491,6 @@ pub async fn list_users(State(state): State<AppState>, _user: AuthUser) -> AppRe
             .map(|r| UserRowDto {
                 id: r.id,
                 display_name: r.display_name,
-                is_site_admin: r.is_site_admin != 0,
             })
             .collect(),
     ))
@@ -526,6 +520,5 @@ pub async fn create_user(
     Ok(Json(UserRowDto {
         id,
         display_name: name.to_string(),
-        is_site_admin: false,
     }))
 }

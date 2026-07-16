@@ -110,10 +110,9 @@ shared `auth_session` store:
 
 The `AuthUser` extractor resolves either transport (bearer or cookie) against the one
 `auth_session` table — the rest of the app only sees `user.id`. Web management pages
-redirect to `/login` without a session; management APIs additionally require a `site_admin`
-grant (`AdminUser`). A password credential carries **no special access** on its own;
-`site_admin` is a separate grant.
+redirect to `/login` without a session. At this stage there are **no permission scopes**:
+any authenticated user may perform any action.
 
-**Bootstrap**: the first web `site_admin` is seeded from `MISU_WEB_ADMIN_USER` /
+**Bootstrap**: the first web admin is seeded from `MISU_WEB_ADMIN_USER` /
 `MISU_WEB_ADMIN_PASSWORD` (or `admin`/`admin` in DEV mode). Passwords are stored only as
 bcrypt hashes.

@@ -15,7 +15,6 @@ until those pages are designed.
 ```mermaid
 erDiagram
     USER      ||--o{ MEETING   : manages
-    USER      ||--o{ USER_PERMISSION : has
     USER      ||--o{ WECHAT_IDENTITY : "authenticates via"
     USER      ||--o{ AUTH_SESSION : has
     MEETING   ||--o{ SESSION   : has
@@ -38,14 +37,6 @@ erDiagram
         string   token "PK"
         id       user_id
         datetime created_at
-    }
-    USER_PERMISSION {
-        id       id
-        id       user_id
-        string   permission
-        id       granted_by
-        datetime granted_at
-        datetime revoked_at "nullable"
     }
     MEETING {
         id     id
@@ -133,22 +124,6 @@ Server-side session store. Login mints an opaque token; requests carry it as
 - Tokens are opaque and stored here, so sessions can be revoked by deleting rows.
 - Expiry / cleanup is not enforced yet (first stage); `created_at` is recorded for when
   it is added.
-
-## `user_permission`
-
-Explicit global permission grants. Authentication resolves `user.id`; this table is used
-by authorization checks for management actions.
-
-| Column       | Type              | Notes                                |
-| ------------ | ----------------- | ------------------------------------ |
-| `id`         | id (PK)           |                                      |
-| `user_id`    | id (FK)           | -> `user.id`                         |
-| `permission` | string            | e.g. `site_admin`                    |
-| `granted_by` | id (FK)           | -> `user.id`                         |
-| `granted_at` | datetime          | audit trail                          |
-| `revoked_at` | datetime nullable | null means the grant is still active |
-
-Meeting-scoped management uses `meeting.meeting_manager` rather than this table.
 
 ## `meeting`
 

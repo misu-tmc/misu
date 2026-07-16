@@ -25,14 +25,13 @@ only role booking updates.
 
 ## User management and admin assignment
 
-Add a user management page in the next stage so site admins can promote users and assign
-meeting managers/admin responsibilities through the app. For the first stage, permission
-bootstrap can stay outside the app.
+Add a user management page in the next stage. For the first stage, every authenticated
+user can perform any action, so no roles need to be assigned through the app.
 
 ## Permission granularity
 
-Finer-grained roles may be needed later for management workflows. For now, the
-`site_admin` model plus meeting-scoped `meeting_manager` is enough.
+Finer-grained roles may be needed later for management workflows. For now, every action
+simply requires a signed-in session — there are no permission scopes.
 
 ## Admin tasks in the WeChat mini program
 

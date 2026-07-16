@@ -36,15 +36,6 @@ CREATE TABLE IF NOT EXISTS auth_session (
     created_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS user_permission (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id    INTEGER NOT NULL REFERENCES user(id),
-    permission TEXT NOT NULL,
-    granted_by INTEGER REFERENCES user(id),
-    granted_at TEXT NOT NULL,
-    revoked_at TEXT
-);
-
 CREATE TABLE IF NOT EXISTS meeting (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     number          INTEGER NOT NULL,
@@ -134,6 +125,11 @@ async fn migrate(pool: &SqlitePool) -> anyhow::Result<()> {
             }
         }
     }
+    // Drop the retired global permission table if it lingers on an older database.
+    sqlx::query("DROP TABLE IF EXISTS user_permission")
+        .execute(pool)
+        .await
+        .context("dropping user_permission failed")?;
     Ok(())
 }
 
@@ -157,19 +153,6 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
             .await?;
     }
 
-    // Grant site_admin to the configured bootstrap openid if that user already exists.
-    if let Some(openid) = &config.seed_admin_openid {
-        if let Some(user_id) = sqlx::query_scalar::<_, i64>(
-            "SELECT user_id FROM wechat_identity WHERE openid = ?",
-        )
-        .bind(openid)
-        .fetch_optional(pool)
-        .await?
-        {
-            grant_site_admin(pool, user_id).await?;
-        }
-    }
-
     seed_web_admin(pool, config).await?;
 
     let meeting_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting")
@@ -182,9 +165,9 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Bootstrap a `site_admin` web user (username/password) so the admin surface is
-/// reachable. Uses the configured credentials, or falls back to `admin`/`admin` in DEV
-/// mode. No-op if the username already has a credential.
+/// Bootstrap a web user (username/password) so the admin surface is reachable. Uses the
+/// configured credentials, or falls back to `admin`/`admin` in DEV mode. No-op if the
+/// username already has a credential.
 async fn seed_web_admin(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
     let (username, password, explicit) = match (
         &config.seed_web_admin_user,
@@ -210,31 +193,8 @@ async fn seed_web_admin(pool: &SqlitePool, config: &Config) -> anyhow::Result<()
         }
         return Ok(());
     }
-    let user_id = crate::auth::create_web_user(pool, &username, &password, "Site Admin").await?;
-    grant_site_admin(pool, user_id).await?;
-    tracing::info!("created web admin user '{username}' (site_admin)");
-    Ok(())
-}
-
-pub async fn grant_site_admin(pool: &SqlitePool, user_id: i64) -> anyhow::Result<()> {
-    let already: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM user_permission \
-         WHERE user_id = ? AND permission = 'site_admin' AND revoked_at IS NULL",
-    )
-    .bind(user_id)
-    .fetch_one(pool)
-    .await?;
-    if already == 0 {
-        sqlx::query(
-            "INSERT INTO user_permission(user_id, permission, granted_by, granted_at) \
-             VALUES (?, 'site_admin', ?, ?)",
-        )
-        .bind(user_id)
-        .bind(user_id)
-        .bind(chrono::Utc::now().to_rfc3339())
-        .execute(pool)
-        .await?;
-    }
+    let _user_id = crate::auth::create_web_user(pool, &username, &password, "Site Admin").await?;
+    tracing::info!("created web admin user '{username}'");
     Ok(())
 }
 

@@ -18,7 +18,7 @@ button becomes **Timer on**, and every agenda row gets timer controls on the rig
 │ Agenda                               │
 │ 19:00  Opening / TMOD     6'  Alice  │ [▶] [+]
 │ 19:07  Speech 1           7'  Bob    │ [▶] [+]
-│       Speech 1 - Stage 1  0'         │ [▶]
+│       Speech 1 1          0'         │ [▶]
 │ 19:15  Evaluation 1       3'  Carol  │ [▶] [+]
 └─────────────────────────────────────┘
 ```
@@ -38,8 +38,8 @@ button becomes **Timer on**, and every agenda row gets timer controls on the rig
 ### First-stage behavior
 
 - Timing state is local to the page and not persisted yet.
-- Sub-sessions are local, named from the parent row with a stage number (e.g.
-	`Speech 1 - Stage 1`).
+- Sub-sessions are local, named from the parent row with a compact number suffix (e.g.
+	`Speech 1 1`).
 - The UI displays elapsed time (`mm:ss`) under the session duration/taker line while timer
 	mode is active.
 - Later backend persistence can store elapsed time, timer warnings and sub-session notes.

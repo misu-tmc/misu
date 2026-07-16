@@ -182,7 +182,7 @@ Page({
       parentKey,
       isSub: true,
       start: '',
-      name: `${parent.name} - Stage ${existing + 1}`,
+      name: `${parent.name} ${existing + 1}`,
       group_label: parent.group_label,
       duration_minutes: 0,
       taker: '',

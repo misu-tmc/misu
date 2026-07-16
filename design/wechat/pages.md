@@ -144,6 +144,8 @@ buffer), one row per session: `time · name · duration · taker`.
   ([../functionalities/voting.md](../functionalities/voting.md),
   [../functionalities/timer_tool.md](../functionalities/timer_tool.md)); this page links
   into them.
+- Mobile meeting editing is designed as focused section pages, not a grid; see
+  [../functionalities/meeting_info.md](../functionalities/meeting_info.md#mini-program-meeting-editor).
 - Data: `GET /api/meetings/:meeting_id` for the active meeting; during the meeting it
   benefits from the same refresh approach as Booking (see the data-fetching TODO).
 

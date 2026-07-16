@@ -100,6 +100,186 @@ agenda, so it never goes stale. Blank, last meeting, and saved templates are all
 same kind of thing — a template — so there is no separate template data model; a saved
 template is just a meeting flagged `is_template`.
 
+## Mini Program Meeting Editor
+
+The mini program editor is **not** a shrunken web spreadsheet. It is a mobile-first stack
+of focused pages. Each page edits one slice of the meeting, with large tap targets and
+native pickers. For now, **permissions are explicitly out of scope**: assume the user can
+open and save every editing section. Authorization rules can be added later without
+changing the page structure.
+
+### Entry points
+
+- **Meeting tab** — `Edit meeting` opens the editor for the active/upcoming meeting.
+- **Booking / Prepare** — role takers can enter the relevant speech/role-prep section.
+- **Empty or future state** — `Create meeting` starts a new draft from a source meeting.
+
+### Editor home
+
+The first screen is a section dashboard, not a form with all fields.
+
+```
+┌─────────────────────────────┐
+│ #142 Regular Meeting        │
+│ Graduation · Jul 20 19:00   │
+│ Published                   │
+├─────────────────────────────┤
+│ Basics                  ›   │
+│ Roles                   ›   │
+│ Agenda Sessions         ›   │
+│ Prepared Speeches       ›   │
+│ Table Topics            ›   │
+│ Review & Publish        ›   │
+└─────────────────────────────┘
+```
+
+### Basics
+
+Quick edits to the meeting header, using native date/time pickers.
+
+```
+Title      [ Regular Meeting #142 ]
+Theme      [ Graduation ]
+Keyword    [ Growth ]
+Date       [ 2026-07-20 ]
+Start      [ 19:00 ]
+Venue      [ Room A ]
+
+[ Save ]
+```
+
+### Roles
+
+Role slots are edited as a vertical list, one row per bookable role slot. This mirrors the
+web editor's Roles card but is mobile-friendly.
+
+```
+Roles
+[ + Add role ]
+
+Toastmaster          Alice       ›
+Speaker 1            Bob         ›
+Speaker 2            —           ›
+Timer                Carol       ›
+Grammarian           —           ›
+```
+
+Tap a row to edit:
+
+```
+Role        [ Speaker ▾ ]
+Booker      [ Bob ▾ ]
+
+[ Delete role ]   [ Save ]
+```
+
+### Agenda Sessions
+
+Sessions are vertical cards, not a grid. Start time is computed from the meeting start and
+durations, same as web.
+
+```
+Agenda Sessions
+[ + Add session ]
+
+19:00  Opening / TMOD
+Opening · 6 min · Toastmaster
+[ ↑ ] [ ↓ ] [ Edit ]
+
+19:07  Speech 1
+Prepared Speech · 7 min · Speaker 1
+[ ↑ ] [ ↓ ] [ Edit ]
+```
+
+Edit one session at a time:
+
+```
+Session name [ Speech 1 ]
+Group        [ Prepared Speech ]
+Duration     [ 7 ]
+Role         [ Speaker 1 ▾ ]
+
+[ Save ]
+```
+
+### Prepared Speeches
+
+Bookers can update speech-prep details from phone. The printed agenda uses these fields
+as the secondary line under a prepared speech session.
+
+```
+Prepared Speeches
+
+Speaker 1 · Bob
+Title       [ The Feline Savior of Kishi Station ]
+Pathways    [ Presentation Mastery ]
+Level/Proj  [ L2 · Project 1 ]
+
+Speaker 2 · Alice
+...
+```
+
+### Table Topics
+
+During a meeting, the organizer can quickly record impromptu participants.
+
+```
+Table Topics Participants
+[ + Add participant ]
+
+1. Alice
+2. Bob
+3. Charlie
+```
+
+This can start as a local/editor field and later feed the voting page.
+
+### Review & Publish
+
+Final summary and lifecycle controls. Publishing/unpublishing is explicit; ordinary Save
+does not silently change status.
+
+```
+Review
+Basics: ready
+Roles: 8 slots, 5 booked
+Sessions: 18 rows
+Speeches: 2/2 prepared
+
+[ Save ]
+[ Publish ] / [ Unpublish ]
+```
+
+### Create meeting from phone
+
+Creation starts from a source, then opens the same editor home.
+
+```
+Create meeting
+Start from
+(•) Last meeting
+( ) Blank
+( ) Template
+
+[ Create draft ]
+```
+
+Defaults:
+- number = last + 1
+- date = selected source date + cadence
+- sessions and role slots copied from the source
+- role assignments/bookers cleared by default
+
+### Implementation staging
+
+1. Prepared speech self-edit (highest immediate value for role takers).
+2. Basics editor.
+3. Roles list editor.
+4. Agenda session card editor.
+5. Create-from-source flow.
+6. Table Topics participants.
+7. Review & Publish.
+
 ## Page layout
 
 Single page, top to bottom, kept deliberately sparse:

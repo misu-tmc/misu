@@ -52,5 +52,5 @@
   font-size: 26rpx;
   font-weight: 700;
 }
-.timer-btn.stop { background: #fbeaec; color: #b00020; }
+.timer-btn.restart { background: #fff3e0; color: #b26a00; }
 .timer-btn.add { background: #e8f5e9; color: #2e7d32; }

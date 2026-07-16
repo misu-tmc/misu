@@ -154,13 +154,13 @@ Page({
     this.setData({ activeTimerKey: key, agenda }, () => this.startTicker());
   },
 
-  stopTimer(e) {
+  restartTimer(e) {
     const key = e.currentTarget.dataset.key;
-    this.clearTimer();
     this.setData({
-      activeTimerKey: null,
       agenda: this.data.agenda.map((item) =>
-        item.key === key ? { ...item, running: false } : item
+        item.key === key
+          ? { ...item, elapsedSeconds: 0, elapsedText: '00:00', running: true }
+          : item
       )
     });
   },
@@ -177,7 +177,7 @@ Page({
       parentKey: key,
       isSub: true,
       start: '',
-      name: `${parent.name} extra`,
+      name: `${parent.name} - Stage ${existing + 1}`,
       group_label: parent.group_label,
       duration_minutes: 0,
       taker: '',

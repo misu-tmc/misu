@@ -18,7 +18,7 @@ button becomes **Timer on**, and every agenda row gets timer controls on the rig
 │ Agenda                               │
 │ 19:00  Opening / TMOD     6'  Alice  │ [▶] [+]
 │ 19:07  Speech 1           7'  Bob    │ [▶] [+]
-│       Speech 1 Q&A        0'         │ [▶]
+│       Speech 1 - Stage 1  0'         │ [▶]
 │ 19:15  Evaluation 1       3'  Carol  │ [▶] [+]
 └─────────────────────────────────────┘
 ```
@@ -26,17 +26,19 @@ button becomes **Timer on**, and every agenda row gets timer controls on the rig
 ### Row controls
 
 - **Play** (`▶`) starts timing that row. Only one row can run at a time.
-- While running, the row's button becomes **Pause** (`Ⅱ`) and a **Stop** button appears.
+- While running, the row's button becomes **Pause** (`Ⅱ`) and a **Restart** button (`↺`)
+  appears to its left.
 - **Pause** keeps the elapsed time but stops counting.
-- **Stop** resets the row's active state and keeps the elapsed time visible.
+- **Restart** resets elapsed time for the running row to `00:00` and keeps it running.
 - **Add sub-session** (`+`) appears only on normal agenda rows. It inserts a sub-session
-	immediately below the row and the sub-session has its own Play/Pause/Stop controls.
+	immediately below the row and the sub-session has its own Play/Pause/Restart controls.
 - Sub-sessions do **not** have their own `+` button.
 
 ### First-stage behavior
 
 - Timing state is local to the page and not persisted yet.
-- Sub-sessions are local, named from the parent row (e.g. `Speech 1 extra`).
+- Sub-sessions are local, named from the parent row with a stage number (e.g.
+	`Speech 1 - Stage 1`).
 - The UI displays elapsed time (`mm:ss`) under the session duration/taker line while timer
 	mode is active.
 - Later backend persistence can store elapsed time, timer warnings and sub-session notes.

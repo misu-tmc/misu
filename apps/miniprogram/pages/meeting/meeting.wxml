@@ -28,8 +28,8 @@
           <text wx:if="{{timerMode}}" class="agenda-meta timer-elapsed">Elapsed {{item.elapsedText}}</text>
         </view>
         <view wx:if="{{timerMode}}" class="timer-actions">
+          <view wx:if="{{item.running}}" class="timer-btn restart" data-key="{{item.key}}" bindtap="restartTimer">↺</view>
           <view class="timer-btn" data-key="{{item.key}}" bindtap="playTimer">{{item.running ? 'Ⅱ' : '▶'}}</view>
-          <view wx:if="{{item.running}}" class="timer-btn stop" data-key="{{item.key}}" bindtap="stopTimer">■</view>
           <view wx:if="{{!item.isSub}}" class="timer-btn add" data-key="{{item.key}}" bindtap="addSubSession">+</view>
         </view>
       </view>

@@ -30,9 +30,10 @@ button becomes **Timer on**, and every agenda row gets timer controls on the rig
   appears to its left.
 - **Pause** keeps the elapsed time but stops counting.
 - **Restart** resets elapsed time for the running row to `00:00` and keeps it running.
-- **Add sub-session** (`+`) appears only on normal agenda rows. It inserts a sub-session
-	immediately below the row and the sub-session has its own Play/Pause/Restart controls.
-- Sub-sessions do **not** have their own `+` button.
+- **Add stage** (`+`) appears on normal agenda rows and on existing stages. It appends a
+	new stage under the same parent session, so the user can keep creating stages even when
+	the original parent row's `+` has scrolled off screen.
+- Stages have their own Play/Pause/Restart controls and their own `+` button.
 
 ### First-stage behavior
 

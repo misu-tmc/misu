@@ -169,12 +169,17 @@ Page({
     const key = e.currentTarget.dataset.key;
     const index = this.data.agenda.findIndex((item) => item.key === key);
     if (index < 0) return;
-    const parent = this.data.agenda[index];
-    const existing = this.data.agenda.filter((item) => item.parentKey === key).length;
+    const source = this.data.agenda[index];
+    const parentKey = source.isSub ? source.parentKey : source.key;
+    const parent = this.data.agenda.find((item) => item.key === parentKey) || source;
+    const existing = this.data.agenda.filter((item) => item.parentKey === parentKey).length;
+    const insertAfter = this.data.agenda.reduce((last, item, idx) => {
+      return item.key === parentKey || item.parentKey === parentKey ? idx : last;
+    }, index);
     const sub = {
       id: `${parent.id}-sub-${existing + 1}`,
-      key: `${parent.key}-sub-${Date.now()}`,
-      parentKey: key,
+      key: `${parentKey}-sub-${Date.now()}`,
+      parentKey,
       isSub: true,
       start: '',
       name: `${parent.name} - Stage ${existing + 1}`,
@@ -186,7 +191,7 @@ Page({
       running: false
     };
     const agenda = this.data.agenda.slice();
-    agenda.splice(index + 1 + existing, 0, sub);
+    agenda.splice(insertAfter + 1, 0, sub);
     this.setData({ agenda });
   },
 

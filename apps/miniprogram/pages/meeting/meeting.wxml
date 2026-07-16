@@ -30,7 +30,7 @@
         <view wx:if="{{timerMode}}" class="timer-actions">
           <view wx:if="{{item.running}}" class="timer-btn restart" data-key="{{item.key}}" bindtap="restartTimer">↺</view>
           <view class="timer-btn" data-key="{{item.key}}" bindtap="playTimer">{{item.running ? 'Ⅱ' : '▶'}}</view>
-          <view wx:if="{{!item.isSub}}" class="timer-btn add" data-key="{{item.key}}" bindtap="addSubSession">+</view>
+          <view class="timer-btn add" data-key="{{item.key}}" bindtap="addSubSession">+</view>
         </view>
       </view>
     </view>

@@ -20,7 +20,7 @@
     <!-- Agenda -->
     <view class="section-title">Agenda</view>
     <view class="card">
-      <view class="agenda-row {{item.isSub ? 'sub-row' : ''}} {{item.running ? 'running' : ''}}" wx:for="{{agenda}}" wx:key="key">
+      <view class="agenda-row {{item.running ? 'running' : ''}}" wx:for="{{agenda}}" wx:key="key">
         <text class="agenda-time">{{item.start}}</text>
         <view class="agenda-main">
           <text class="agenda-name">{{item.name}}</text>

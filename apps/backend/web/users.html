@@ -42,7 +42,7 @@
     <h1>Users</h1>
     <table>
       <thead>
-        <tr><th>ID</th><th>Display name</th><th>Role</th><th style="text-align:right">Action</th></tr>
+        <tr><th>ID</th><th>Display name</th></tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
@@ -64,27 +64,11 @@
       empty.style.display = users.length ? 'none' : 'block';
       for (const u of users) {
         const tr = document.createElement('tr');
-        const role = u.is_site_admin ? '<span class="badge">site_admin</span>' : '<span class="muted">member</span>';
-        const action = u.is_site_admin
-          ? `<button class="btn danger" onclick="setAdmin(${u.id}, false)">Revoke admin</button>`
-          : `<button class="btn solid" onclick="setAdmin(${u.id}, true)">Promote to admin</button>`;
         tr.innerHTML = `
           <td>${u.id}</td>
-          <td>${escapeHtml(u.display_name)}</td>
-          <td>${role}</td>
-          <td style="text-align:right">${action}</td>`;
+          <td>${escapeHtml(u.display_name)}</td>`;
         tbody.appendChild(tr);
       }
-    }
-
-    async function setAdmin(userId, grant) {
-      const res = await fetch('/api/users/' + userId + '/permissions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ permission: 'site_admin', grant })
-      });
-      if (!res.ok) { alert('Failed: ' + (await res.text())); return; }
-      load();
     }
 
     function escapeHtml(s) {

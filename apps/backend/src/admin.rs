@@ -3,7 +3,7 @@
 // `/api/*` paths.
 //
 // The pages require a web session and redirect to `/login` when absent; the JSON APIs
-// require a `site_admin` grant (the `AdminUser` extractor).
+// require an authenticated session (the `AuthUser` extractor).
 
 use axum::{
     extract::{Path, Query, State},
@@ -12,11 +12,10 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use sqlx::FromRow;
 use std::collections::HashSet;
 
-use crate::auth::{AdminUser, MaybeAuthUser};
+use crate::auth::{AuthUser, MaybeAuthUser};
 use crate::error::{AppError, AppResult};
 use crate::handlers;
 use crate::AppState;
@@ -121,7 +120,7 @@ const SUMMARY_COLS: &str = "id, number, title, theme, date, start_time, end_time
 /// `scope`: `open` (today onward, default), `archived` (past), `all`, or `templates`.
 pub async fn list_meetings(
     State(state): State<AppState>,
-    _admin: AdminUser,
+    _user: AuthUser,
     Query(q): Query<ListQuery>,
 ) -> AppResult<Json<Vec<MeetingSummary>>> {
     let today = chrono::Local::now().date_naive().to_string();
@@ -224,7 +223,7 @@ pub struct MeetingIn {
 /// so saving/publishing never clobbers bookings.
 pub async fn upsert_meeting(
     State(state): State<AppState>,
-    _admin: AdminUser,
+    _user: AuthUser,
     Json(input): Json<MeetingIn>,
 ) -> AppResult<Json<handlers::MeetingDto>> {
     if input.title.trim().is_empty() {
@@ -429,7 +428,7 @@ pub struct RoleDto {
     pub name: String,
 }
 
-pub async fn list_roles(State(state): State<AppState>, _admin: AdminUser) -> AppResult<Json<Vec<RoleDto>>> {
+pub async fn list_roles(State(state): State<AppState>, _user: AuthUser) -> AppResult<Json<Vec<RoleDto>>> {
     let rows = sqlx::query_as::<_, RoleDto>("SELECT id, name FROM role ORDER BY name")
         .fetch_all(&state.pool)
         .await?;
@@ -443,7 +442,7 @@ pub struct RoleIn {
 
 pub async fn create_role(
     State(state): State<AppState>,
-    _admin: AdminUser,
+    _user: AuthUser,
     Json(input): Json<RoleIn>,
 ) -> AppResult<Json<RoleDto>> {
     let name = input.name.trim();
@@ -482,7 +481,7 @@ pub struct UserRowDto {
     pub is_site_admin: bool,
 }
 
-pub async fn list_users(State(state): State<AppState>, _admin: AdminUser) -> AppResult<Json<Vec<UserRowDto>>> {
+pub async fn list_users(State(state): State<AppState>, _user: AuthUser) -> AppResult<Json<Vec<UserRowDto>>> {
     let rows = sqlx::query_as::<_, UserRow>(
         "SELECT u.id, u.display_name, \
          EXISTS(SELECT 1 FROM user_permission p WHERE p.user_id = u.id \
@@ -504,66 +503,6 @@ pub async fn list_users(State(state): State<AppState>, _admin: AdminUser) -> App
 }
 
 #[derive(Deserialize)]
-pub struct PermissionIn {
-    pub permission: String,
-    pub grant: bool,
-}
-
-/// Grant or revoke a permission for a user. Currently only `site_admin`.
-pub async fn set_permission(
-    State(state): State<AppState>,
-    _admin: AdminUser,
-    Path(user_id): Path<i64>,
-    Json(input): Json<PermissionIn>,
-) -> AppResult<Json<serde_json::Value>> {
-    if input.permission != "site_admin" {
-        return Err(AppError::BadRequest("unsupported permission".into()));
-    }
-    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user WHERE id = ?")
-        .bind(user_id)
-        .fetch_one(&state.pool)
-        .await?;
-    if exists == 0 {
-        return Err(AppError::NotFound);
-    }
-
-    if input.grant {
-        let active: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM user_permission \
-             WHERE user_id = ? AND permission = 'site_admin' AND revoked_at IS NULL",
-        )
-        .bind(user_id)
-        .fetch_one(&state.pool)
-        .await?;
-        if active == 0 {
-            sqlx::query(
-                "INSERT INTO user_permission(user_id, permission, granted_by, granted_at) \
-                 VALUES (?, 'site_admin', NULL, ?)",
-            )
-            .bind(user_id)
-            .bind(chrono::Utc::now().to_rfc3339())
-            .execute(&state.pool)
-            .await?;
-        }
-    } else {
-        sqlx::query(
-            "UPDATE user_permission SET revoked_at = ? \
-             WHERE user_id = ? AND permission = 'site_admin' AND revoked_at IS NULL",
-        )
-        .bind(chrono::Utc::now().to_rfc3339())
-        .bind(user_id)
-        .execute(&state.pool)
-        .await?;
-    }
-
-    Ok(Json(json!({ "ok": true, "user_id": user_id, "is_site_admin": input.grant })))
-}
-
-// ---------------------------------------------------------------------------
-// Create a bare (identity-less) user
-// ---------------------------------------------------------------------------
-
-#[derive(Deserialize)]
 pub struct NewUserIn {
     pub display_name: String,
 }
@@ -573,7 +512,7 @@ pub struct NewUserIn {
 /// design (identity is separate from the user record).
 pub async fn create_user(
     State(state): State<AppState>,
-    _admin: AdminUser,
+    _user: AuthUser,
     Json(input): Json<NewUserIn>,
 ) -> AppResult<Json<UserRowDto>> {
     let name = input.display_name.trim();

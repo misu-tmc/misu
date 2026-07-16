@@ -71,11 +71,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/meetings/:meeting_id/edit", get(admin::page_editor))
         .route("/meetings/:meeting_id/agenda/print", get(admin::page_agenda_print))
         .route("/users", get(admin::page_users))
-        // Admin-scoped JSON APIs (require `site_admin`).
+        // Management JSON APIs (require an authenticated session).
         .route("/api/meetings", get(admin::list_meetings).post(admin::upsert_meeting))
         .route("/api/roles", get(admin::list_roles).post(admin::create_role))
         .route("/api/users", get(admin::list_users).post(admin::create_user))
-        .route("/api/users/:user_id/permissions", post(admin::set_permission))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

@@ -101,29 +101,6 @@ where
     }
 }
 
-/// A `site_admin`-gated caller. Resolves [`AuthUser`], then requires an active
-/// `site_admin` grant — used to guard the web management APIs.
-pub struct AdminUser(#[allow(dead_code)] pub AuthUser);
-
-#[async_trait]
-impl<S> FromRequestParts<S> for AdminUser
-where
-    SqlitePool: FromRef<S>,
-    S: Send + Sync,
-{
-    type Rejection = AppError;
-
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let pool = SqlitePool::from_ref(state);
-        let user = AuthUser::from_request_parts(parts, state).await?;
-        if is_site_admin(&pool, user.id).await? {
-            Ok(AdminUser(user))
-        } else {
-            Err(AppError::Forbidden)
-        }
-    }
-}
-
 /// Extracts the raw session token (bearer or cookie) if present — used by logout.
 pub struct SessionToken(pub Option<String>);
 

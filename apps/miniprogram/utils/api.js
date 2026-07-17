@@ -49,7 +49,19 @@ const api = {
     }),
   updateUser: (userId, displayName) =>
     request('/api/users/' + userId, { method: 'POST', data: { display_name: displayName } }),
-  clubInfo: () => request('/api/club-info', { auth: false })
+  clubInfo: () => request('/api/club-info', { auth: false }),
+
+  // Meeting editor: per-section batch saves. Each returns the full updated meeting.
+  roles: () => request('/api/roles'),
+  users: () => request('/api/users'),
+  saveMeetingInfo: (id, info) =>
+    request('/api/meetings/' + id + '/info', { method: 'PUT', data: info }),
+  saveSlots: (id, slots) =>
+    request('/api/meetings/' + id + '/slots', { method: 'PUT', data: { slots } }),
+  saveSessions: (id, sessions) =>
+    request('/api/meetings/' + id + '/sessions', { method: 'PUT', data: { sessions } }),
+  setMeetingStatus: (id, status) =>
+    request('/api/meetings/' + id + '/status', { method: 'PUT', data: { status } })
 };
 
 module.exports = api;

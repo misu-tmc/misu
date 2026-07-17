@@ -102,40 +102,95 @@ template is just a meeting flagged `is_template`.
 
 ## Mini Program Meeting Editor
 
-The mini program editor is **not** a shrunken web spreadsheet. It is a mobile-first stack
-of focused pages. Each page edits one slice of the meeting, with large tap targets and
-native pickers. For now, **permissions are explicitly out of scope**: assume the user can
-open and save every editing section. Authorization rules can be added later without
-changing the page structure.
+The mini program editor is **not** a shrunken web spreadsheet. It is a single mobile-first
+page of **expand/collapse (accordion) sections** — no page-in/page-out navigation. Each
+section edits one slice of the meeting with large tap targets and native pickers. Tapping a section header expands it inline for editing. Each header carries a circular
+`+` / `−` **fold-toggle** on its left — the same expand/collapse affordance as the Booking
+tab's meeting cards. Opening one section collapses the others (one section open at a time).
+Rows inside a section (a role slot, a session) expand **inline** on tap — there is no
+drill-in navigation anywhere. Row actions are hidden by default and revealed with a
+**left swipe** on the row (see Gestures).
+
+For now, **permissions are explicitly out of scope**: assume the user can open and save
+every editing section. Authorization rules can be added later without changing the page
+structure.
+
+### Independent per-section saves
+
+Each section is backed by its own table(s), so each section has its **own Save** and its
+**own endpoint** — saving one section never rewrites another. Within a section the Save is a
+**batch**: it submits all of that section's entries at once and the endpoint reconciles the
+full list against its table (update existing rows, insert new, delete removed). This
+deliberately narrows the web editor's whole-document upsert down to one table per Save.
+
+| Section         | Table(s)                       | Save (batch) endpoint            |
+| --------------- | ------------------------------ | -------------------------------- |
+| Info            | `meeting`                      | `PUT /api/meetings/:id/info`     |
+| Roles           | `role_slot` (+ `role`, `role_assignment`) | `PUT /api/meetings/:id/slots` |
+| Sessions        | `session`                      | `PUT /api/meetings/:id/sessions` |
+| Publish         | `meeting.status`               | `PUT /api/meetings/:id/status`   |
+
+Saving Info touches only the `meeting` row. Saving Roles replaces the meeting's
+`role_slot` list in one call — existing slots are matched by `role_slot_id` so bookings are
+preserved, new slots are inserted, removed slots deleted; each slot's `booker_id` is
+reconciled into `role_assignment` in the same batch. Saving Sessions replaces the
+`session` rows and recomputes `position` from array order. Sections never interfere with
+each other.
+
+### State model
+
+The page loads the full meeting once (`GET /api/meetings/:id`) into a single in-memory
+`draft`, plus a small `ui` object tracking which section/row is expanded. A section Save
+patches the server, then merges the result back into `draft` so collapsed summaries stay
+fresh without a full reload (`onShow` may refetch as a safety net).
 
 ### Entry points
 
-- **Meeting tab** — `Edit meeting` opens the editor for the active/upcoming meeting.
-- **Booking / Prepare** — role takers can enter the relevant speech/role-prep section.
-- **Empty or future state** — `Create meeting` starts a new draft from a source meeting.
+- **Meeting tab** — `Edit meeting` opens the editor for the active/upcoming meeting. This
+  is the entry point for the current iteration (**edit-only**).
+- **Booking / Prepare** *(later)* — role takers enter the relevant speech/role-prep section.
+- **Empty or future state** *(later)* — `Create meeting` starts a new draft from a source.
 
-### Editor home
+### Editor page
 
-The first screen is a section dashboard, not a form with all fields.
+A single page: an identity/status header with a Publish toggle, then the accordion
+sections. Collapsed sections show a one-line summary; the expanded one edits inline.
 
 ```
 ┌─────────────────────────────┐
 │ #142 Regular Meeting        │
 │ Graduation · Jul 20 19:00   │
-│ Published                   │
+│ Draft            [ Publish ] │
 ├─────────────────────────────┤
-│ Basics                  ›   │
-│ Roles                   ›   │
-│ Agenda Sessions         ›   │
-│ Prepared Speeches       ›   │
-│ Table Topics            ›   │
-│ Review & Publish        ›   │
+│ (+) Information             │  ← collapsed (tap to expand)
+├─────────────────────────────┤
+│ (−) Roles               2  │  ← expanded, edits inline
+│   Toastmaster              │
+│   Assignee: Alice          │  ← swipe left to reveal ＋ ✕
+│   Speaker 1                │
+│   Assignee: Bob            │
+├─────────────────────────────┤
+│ (+) Sessions               │
 └─────────────────────────────┘
 ```
 
-### Basics
+Prepared Speeches, Table Topics, and Review & Publish are additional sections in the same
+accordion, added in later iterations (see staging).
 
-Quick edits to the meeting header, using native date/time pickers.
+### Gestures
+
+Row controls stay out of the way until needed:
+
+- **Left swipe** on a role or session row slides it aside to reveal its action buttons
+  (`＋` add-after and `✕` delete for roles; `＋` `↑` `↓` `✕` for sessions). Swiping right, or
+  tapping/expanding another row, closes it.
+- **Drag to reorder** sessions by touch-and-hold is a planned enhancement; until then the
+  `↑` / `↓` buttons in the revealed action strip reorder rows.
+
+### Information
+
+Quick edits to the meeting header, using native date/time pickers. Expands inline; **Save**
+posts only the header via `PUT /api/meetings/:id/info` and collapses the section.
 
 ```
 Title      [ Regular Meeting #142 ]
@@ -150,57 +205,64 @@ Venue      [ Room A ]
 
 ### Roles
 
-Role slots are edited as a vertical list, one row per bookable role slot. This mirrors the
-web editor's Roles card but is mobile-friendly.
+Role slots are edited as a vertical list, one row per bookable role slot. Each collapsed
+row shows the role name with the **Assignee** underneath; a left swipe reveals `＋` / `✕`
+controls to insert a new slot after it or delete it.
 
 ```
 Roles
-[ + Add role ]
 
-Toastmaster          Alice       ›
-Speaker 1            Bob         ›
-Speaker 2            —           ›
-Timer                Carol       ›
-Grammarian           —           ›
+Toastmaster
+Assignee: Alice            ← swipe left →  ＋  ✕
+Speaker 1
+Assignee: Bob
+Speaker 2
+Assignee: —
 ```
 
-Tap a row to edit:
+Tapping a row expands it inline (no navigation):
 
 ```
-Role        [ Speaker ▾ ]
-Booker      [ Bob ▾ ]
-
-[ Delete role ]   [ Save ]
+Role        [ Speaker ▾ ]   ← pick an existing role, or type a new one to create it
+Assignee    [ Bob ▾ ]       ← member picker (list of users)
 ```
 
-### Agenda Sessions
+Add / edit / delete happen in the in-memory list; the section's single **Save** batches the
+whole list to `PUT /api/meetings/:id/slots`. The endpoint reconciles the `role_slot` list
+(match existing by `role_slot_id` to preserve bookings, insert new, delete removed) and
+reconciles each slot's assignee (`booker_id`) into `role_assignment` in the same call — no
+separate booking request from the editor.
+
+### Sessions
 
 Sessions are vertical cards, not a grid. Start time is computed from the meeting start and
-durations, same as web.
+durations, same as web. Each collapsed card shows the computed start, name and
+duration/role; a left swipe reveals `＋` / `↑` / `↓` / `✕` controls to insert after, reorder,
+or delete.
 
 ```
-Agenda Sessions
-[ + Add session ]
+Sessions
 
 19:00  Opening / TMOD
-Opening · 6 min · Toastmaster
-[ ↑ ] [ ↓ ] [ Edit ]
+       Opening · 6 min · Toastmaster      ← swipe left →  ＋ ↑ ↓ ✕
 
 19:07  Speech 1
-Prepared Speech · 7 min · Speaker 1
-[ ↑ ] [ ↓ ] [ Edit ]
+       Prepared Speech · 7 min · Speaker 1
 ```
 
-Edit one session at a time:
+Tapping the card body expands that session inline:
 
 ```
 Session name [ Speech 1 ]
 Group        [ Prepared Speech ]
 Duration     [ 7 ]
-Role         [ Speaker 1 ▾ ]
-
-[ Save ]
+Role         [ Speaker 1 ▾ ]   ← picks one of the meeting's role slots, or none
 ```
+
+Add / edit / delete / reorder happen in the in-memory list; the section's single **Save**
+batches the whole list to `PUT /api/meetings/:id/sessions`, which replaces the `session`
+rows and recomputes `position` from array order. Sessions carry no bookings, so a full
+replace is safe.
 
 ### Prepared Speeches
 
@@ -241,7 +303,7 @@ does not silently change status.
 
 ```
 Review
-Basics: ready
+Info: ready
 Roles: 8 slots, 5 booked
 Sessions: 18 rows
 Speeches: 2/2 prepared
@@ -272,13 +334,22 @@ Defaults:
 
 ### Implementation staging
 
-1. Prepared speech self-edit (highest immediate value for role takers).
-2. Basics editor.
-3. Roles list editor.
-4. Agenda session card editor.
-5. Create-from-source flow.
-6. Table Topics participants.
-7. Review & Publish.
+**Current iteration** — single accordion page (`pages/edit-meeting/edit-meeting`), edit-only,
+entered from the Meeting tab, with independent per-section saves:
+
+1. Editor page shell: identity/status header + accordion + Publish toggle
+   (`PUT …/status`).
+2. Information section (`PUT …/info`).
+3. Roles section: inline add/edit/delete + booker picker, batch-saved via `PUT …/slots`.
+4. Sessions section: card list with inline edit + reorder, batch-saved via
+   `PUT …/sessions`.
+
+**Later iterations** — added as further accordion sections / flows:
+
+5. Prepared speech self-edit (needs schema fields for title/pathways/level).
+6. Create-from-source flow (blank / last meeting / template).
+7. Table Topics participants.
+8. Review & Publish summary.
 
 ## Page layout
 

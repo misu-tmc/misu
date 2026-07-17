@@ -14,6 +14,7 @@
         <view class="btn {{checkedIn ? 'btn-checked' : 'btn-outline'}}" bindtap="goCheckIn">{{checkedIn ? 'Checked in' : 'Check in'}}</view>
         <view class="btn btn-outline" bindtap="comingSoon">Vote for best</view>
         <view class="btn {{timerMode ? 'btn-timer-on' : 'btn-outline'}}" bindtap="toggleTimerMode">{{timerMode ? 'Timer on' : 'Timer mode'}}</view>
+        <view class="btn btn-outline" bindtap="goEdit">Edit meeting</view>
       </view>
     </view>
 

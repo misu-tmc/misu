@@ -5,6 +5,7 @@
     "pages/misu/misu",
     "pages/me/me",
     "pages/edit-profile/edit-profile",
+    "pages/edit-meeting/edit-meeting",
     "pages/prepare/prepare",
     "pages/checkin/checkin"
   ],

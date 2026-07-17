@@ -1,0 +1,124 @@
+/* Meeting editor — accordion sections with inline row editors. */
+
+.head-card { padding-bottom: 20rpx; }
+.head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.head-title { font-size: 34rpx; font-weight: 600; flex: 1; margin-right: 16rpx; }
+.head-sub { display: block; margin-top: 8rpx; font-size: 26rpx; }
+.status-pill {
+  display: inline-block;
+  margin-top: 16rpx;
+  padding: 4rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  background: #f0ecf6;
+  color: #5b2a86;
+  text-transform: capitalize;
+}
+.status-published { background: #e4f5e9; color: #1f8f4a; }
+.status-draft { background: #f0ecf6; color: #6b6b70; }
+
+/* Sections */
+.section { padding: 0; overflow: hidden; }
+.section-head {
+  display: flex;
+  align-items: center;
+  padding: 28rpx;
+}
+.fold-toggle {
+  flex: 0 0 auto;
+  width: 52rpx;
+  height: 52rpx;
+  line-height: 48rpx;
+  margin-right: 16rpx;
+  border-radius: 50%;
+  text-align: center;
+  background: #f0ecf6;
+  color: #5b2a86;
+  font-size: 36rpx;
+  font-weight: 600;
+}
+.section-name { font-size: 30rpx; font-weight: 600; flex: 1; }
+.section-count { margin-left: 16rpx; font-size: 26rpx; }
+.section-body {
+  padding: 0 28rpx 28rpx;
+  border-top: 1rpx solid #f0f0f2;
+}
+
+/* Fields */
+.field { margin-top: 24rpx; }
+.field-row { display: flex; gap: 24rpx; }
+.field-row .half { flex: 1; }
+.picker-value {
+  margin-top: 8rpx;
+  padding: 14rpx 0;
+  font-size: 32rpx;
+  border-bottom: 1rpx solid #ececee;
+  color: #1c1c1e;
+}
+.sub-input { margin-top: 12rpx; font-size: 28rpx; }
+
+/* Rows (role slot / session) with left-swipe-to-reveal actions */
+.swipe-row {
+  position: relative;
+  margin-top: 20rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+.swipe-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 0 20rpx;
+}
+.swipe-content {
+  position: relative;
+  background: #fafafb;
+  border: 1rpx solid #f0f0f2;
+  border-radius: 16rpx;
+  transition: transform 0.2s ease;
+  transform: translateX(0);
+}
+.swipe-content.open-role { transform: translateX(-180rpx); }
+.swipe-content.open-session { transform: translateX(-320rpx); }
+.row-head {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+}
+.row-main { flex: 1; display: flex; flex-direction: column; }
+.row-name { font-size: 28rpx; font-weight: 500; }
+.row-sub { font-size: 24rpx; margin-top: 4rpx; }
+.ses-time {
+  font-size: 26rpx;
+  color: #5b2a86;
+  font-variant-numeric: tabular-nums;
+  margin-right: 20rpx;
+  min-width: 88rpx;
+}
+.row-body { padding: 8rpx 24rpx 24rpx; }
+
+/* Row action buttons (revealed on swipe) */
+.act-btn {
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  text-align: center;
+  border-radius: 12rpx;
+  background: #f0ecf6;
+  color: #5b2a86;
+  font-size: 30rpx;
+}
+.act-btn.danger { background: #fdecec; color: #c62828; }
+
+/* Buttons */
+.add-btn { display: block; text-align: center; margin-top: 24rpx; padding: 18rpx; }
+.save-btn { display: block; text-align: center; margin-top: 20rpx; padding: 22rpx; }
+.save-btn.disabled { opacity: 0.5; }

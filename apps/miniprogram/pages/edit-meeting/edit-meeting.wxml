@@ -1,0 +1,167 @@
+<view class="container">
+
+  <view wx:if="{{loading}}" class="empty">Loading…</view>
+
+  <block wx:elif="{{header}}">
+    <!-- Header + publish toggle -->
+    <view class="card head-card">
+      <view class="head-top">
+        <text class="head-title">#{{header.number}} {{header.title}}</text>
+        <view class="btn {{header.published ? 'btn-outline' : ''}} {{saving ? 'disabled' : ''}}" bindtap="togglePublish">
+          {{header.published ? 'Unpublish' : 'Publish'}}
+        </view>
+      </view>
+      <text class="head-sub muted">{{header.theme || 'No theme'}} · {{header.dateLabel}} {{header.timeLabel}}</text>
+      <text class="status-pill status-{{header.status}}">{{header.status}}</text>
+    </view>
+
+    <!-- Info -->
+    <view class="card section">
+      <view class="section-head" data-key="info" bindtap="toggleSection">
+        <view class="fold-toggle">{{open === 'info' ? '−' : '+'}}</view>
+        <text class="section-name">Information</text>
+      </view>
+      <view wx:if="{{open === 'info'}}" class="section-body">
+        <view class="field">
+          <text class="field-label muted">Title</text>
+          <input class="field-input" value="{{info.title}}" data-field="title" bindinput="onInfoInput" />
+        </view>
+        <view class="field">
+          <text class="field-label muted">Theme</text>
+          <input class="field-input" value="{{info.theme}}" data-field="theme" bindinput="onInfoInput" />
+        </view>
+        <view class="field">
+          <text class="field-label muted">Keyword</text>
+          <input class="field-input" value="{{info.keyword}}" data-field="keyword" bindinput="onInfoInput" />
+        </view>
+        <view class="field">
+          <text class="field-label muted">Date</text>
+          <picker mode="date" value="{{info.date}}" bindchange="onDateChange">
+            <view class="picker-value">{{info.date || 'Pick date'}}</view>
+          </picker>
+        </view>
+        <view class="field-row">
+          <view class="field half">
+            <text class="field-label muted">Start</text>
+            <picker mode="time" value="{{info.start_time}}" bindchange="onStartChange">
+              <view class="picker-value">{{info.start_time || '--:--'}}</view>
+            </picker>
+          </view>
+          <view class="field half">
+            <text class="field-label muted">End</text>
+            <picker mode="time" value="{{info.end_time}}" bindchange="onEndChange">
+              <view class="picker-value">{{info.end_time || '--:--'}}</view>
+            </picker>
+          </view>
+        </view>
+        <view class="field">
+          <text class="field-label muted">Venue</text>
+          <input class="field-input" value="{{info.venue}}" data-field="venue" bindinput="onInfoInput" />
+        </view>
+        <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveInfo">Save</view>
+      </view>
+    </view>
+
+    <!-- Roles -->
+    <view class="card section">
+      <view class="section-head" data-key="roles" bindtap="toggleSection">
+        <view class="fold-toggle">{{open === 'roles' ? '−' : '+'}}</view>
+        <text class="section-name">Roles</text>
+        <text class="section-count muted">{{slots.length}}</text>
+      </view>
+      <view wx:if="{{open === 'roles'}}" class="section-body">
+        <view class="swipe-row" wx:for="{{slots}}" wx:key="index" wx:for-item="slot">
+          <view class="swipe-actions">
+            <view class="act-btn" data-index="{{index}}" catchtap="addSlot">＋</view>
+            <view class="act-btn danger" data-index="{{index}}" catchtap="deleteSlot">✕</view>
+          </view>
+          <view class="swipe-content {{swipe.type === 'role' && swipe.index === index ? 'open-role' : ''}}"
+                data-type="role" data-index="{{index}}" bindtouchstart="onSwipeStart" bindtouchend="onSwipeEnd">
+            <view class="row-head" data-index="{{index}}" bindtap="toggleSlot">
+              <view class="row-main">
+                <text class="row-name">{{slot.role_name || slot.display || 'New role'}}</text>
+                <text class="row-sub muted">Assignee: {{slot.booker_name || '—'}}</text>
+              </view>
+            </view>
+            <view wx:if="{{slot.open}}" class="row-body">
+              <view class="field">
+                <text class="field-label muted">Role</text>
+                <picker range="{{roleNames}}" data-index="{{index}}" bindchange="onSlotRolePick">
+                  <view class="picker-value">{{slot.role_name || 'Pick role'}}</view>
+                </picker>
+                <input class="field-input sub-input" placeholder="or type a new role" value="{{slot.role_name}}" data-index="{{index}}" bindinput="onSlotRoleInput" />
+              </view>
+              <view class="field">
+                <text class="field-label muted">Custom label (optional)</text>
+                <input class="field-input" value="{{slot.label}}" data-index="{{index}}" bindinput="onSlotLabelInput" />
+              </view>
+              <view class="field">
+                <text class="field-label muted">Assignee</text>
+                <picker range="{{userNames}}" data-index="{{index}}" bindchange="onSlotBookerPick">
+                  <view class="picker-value">{{slot.booker_name || 'Unassigned'}}</view>
+                </picker>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view wx:if="{{slots.length === 0}}" class="btn btn-ghost add-btn" bindtap="addSlot">+ Add role</view>
+        <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSlots">Save roles</view>
+      </view>
+    </view>
+
+    <!-- Sessions -->
+    <view class="card section">
+      <view class="section-head" data-key="sessions" bindtap="toggleSection">
+        <view class="fold-toggle">{{open === 'sessions' ? '−' : '+'}}</view>
+        <text class="section-name">Sessions</text>
+        <text class="section-count muted">{{sessions.length}}</text>
+      </view>
+      <view wx:if="{{open === 'sessions'}}" class="section-body">
+        <view class="swipe-row" wx:for="{{sessions}}" wx:key="index" wx:for-item="ses">
+          <view class="swipe-actions">
+            <view class="act-btn" data-index="{{index}}" catchtap="addSession">＋</view>
+            <view class="act-btn" data-index="{{index}}" data-dir="up" catchtap="moveSession">↑</view>
+            <view class="act-btn" data-index="{{index}}" data-dir="down" catchtap="moveSession">↓</view>
+            <view class="act-btn danger" data-index="{{index}}" catchtap="deleteSession">✕</view>
+          </view>
+          <view class="swipe-content {{swipe.type === 'session' && swipe.index === index ? 'open-session' : ''}}"
+                data-type="session" data-index="{{index}}" bindtouchstart="onSwipeStart" bindtouchend="onSwipeEnd">
+            <view class="row-head" data-index="{{index}}" bindtap="toggleSession">
+              <text class="ses-time">{{ses.start}}</text>
+              <view class="row-main">
+                <text class="row-name">{{ses.name}}</text>
+                <text class="row-sub muted">{{ses.duration_minutes}}' · {{ses.roleLabel || '—'}}</text>
+              </view>
+            </view>
+            <view wx:if="{{ses.open}}" class="row-body">
+              <view class="field">
+                <text class="field-label muted">Session name</text>
+                <input class="field-input" value="{{ses.name}}" data-index="{{index}}" data-field="name" bindinput="onSessionInput" />
+              </view>
+              <view class="field">
+                <text class="field-label muted">Group</text>
+                <input class="field-input" value="{{ses.group_label}}" data-index="{{index}}" data-field="group_label" bindinput="onSessionInput" />
+              </view>
+              <view class="field">
+                <text class="field-label muted">Duration (min)</text>
+                <input class="field-input" type="number" value="{{ses.duration_minutes}}" data-index="{{index}}" data-field="duration_minutes" bindinput="onSessionInput" />
+              </view>
+              <view class="field">
+                <text class="field-label muted">Role</text>
+                <picker range="{{slotPickerLabels}}" data-index="{{index}}" bindchange="onSessionRolePick">
+                  <view class="picker-value">{{ses.roleLabel || 'No role'}}</view>
+                </picker>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view wx:if="{{sessions.length === 0}}" class="btn btn-ghost add-btn" bindtap="addSession">+ Add session</view>
+        <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSessions">Save sessions</view>
+      </view>
+    </view>
+
+  </block>
+
+  <view wx:else class="empty">No meeting to edit.</view>
+
+</view>

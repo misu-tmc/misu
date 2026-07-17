@@ -7,7 +7,7 @@ mod handlers;
 
 use axum::{
     extract::FromRef,
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
 };
 use sqlx::SqlitePool;
@@ -60,6 +60,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/auth/logout", post(handlers::auth_logout))
         .route("/api/meetings/upcoming", get(handlers::meetings_upcoming))
         .route("/api/meetings/:meeting_id", get(handlers::meeting_detail))
+        // Mini program editor: per-section batch saves.
+        .route("/api/meetings/:meeting_id/info", put(admin::update_meeting_info))
+        .route("/api/meetings/:meeting_id/slots", put(admin::put_slots))
+        .route("/api/meetings/:meeting_id/sessions", put(admin::put_sessions))
+        .route("/api/meetings/:meeting_id/status", put(admin::update_status))
         .route("/api/book", post(handlers::book))
         .route("/api/users/:user_id", post(handlers::update_user))
         .route("/api/club-info", get(handlers::club_info))

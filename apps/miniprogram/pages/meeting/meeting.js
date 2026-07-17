@@ -94,6 +94,11 @@ Page({
     }
   },
 
+  goEdit() {
+    if (!this.data.meeting || !this.data.meeting.id) return;
+    wx.navigateTo({ url: `/pages/edit-meeting/edit-meeting?id=${this.data.meeting.id}` });
+  },
+
   goCheckIn() {
     if (!this.data.meeting || !this.data.meeting.id) return;
     const app = getApp();

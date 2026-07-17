@@ -419,6 +419,351 @@ pub async fn upsert_meeting(
 }
 
 // ---------------------------------------------------------------------------
+// Mini program editor: per-section batch saves
+//
+// Each section of the mobile accordion editor persists on its own, touching only its
+// own table(s). This avoids the whole-document `upsert_meeting` rewrite so saving one
+// section never clobbers another. See design/functionalities/meeting_info.md.
+// ---------------------------------------------------------------------------
+
+/// Return the meeting as a DTO after a section save (shared tail of every handler below).
+async fn meeting_dto_response(
+    pool: &sqlx::SqlitePool,
+    meeting_id: i64,
+) -> AppResult<Json<handlers::MeetingDto>> {
+    handlers::meeting_dto_by_id(pool, meeting_id)
+        .await?
+        .map(Json)
+        .ok_or(AppError::NotFound)
+}
+
+// --- Info section: the meeting header row --------------------------------------------
+
+#[derive(Deserialize)]
+pub struct InfoIn {
+    pub title: String,
+    #[serde(default)]
+    pub theme: String,
+    #[serde(default)]
+    pub keyword: String,
+    pub date: String,
+    pub start_time: String,
+    #[serde(default)]
+    pub end_time: String,
+    #[serde(default)]
+    pub venue: String,
+}
+
+/// `PUT /api/meetings/:id/info` — update only the meeting header. Never touches
+/// structure (slots/sessions) or lifecycle status.
+pub async fn update_meeting_info(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+    Json(input): Json<InfoIn>,
+) -> AppResult<Json<handlers::MeetingDto>> {
+    if input.title.trim().is_empty() {
+        return Err(AppError::BadRequest("title is required".into()));
+    }
+    if input.date.trim().is_empty() {
+        return Err(AppError::BadRequest("date is required".into()));
+    }
+
+    let affected = sqlx::query(
+        "UPDATE meeting SET title = ?, theme = ?, keyword = ?, date = ?, start_time = ?, \
+         end_time = ?, venue = ? WHERE id = ?",
+    )
+    .bind(input.title.trim())
+    .bind(input.theme.trim())
+    .bind(input.keyword.trim())
+    .bind(input.date.trim())
+    .bind(input.start_time.trim())
+    .bind(input.end_time.trim())
+    .bind(input.venue.trim())
+    .bind(meeting_id)
+    .execute(&state.pool)
+    .await?
+    .rows_affected();
+    if affected == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    meeting_dto_response(&state.pool, meeting_id).await
+}
+
+// --- Roles section: reconcile the meeting's role_slot list (+ bookers) ---------------
+
+#[derive(Deserialize)]
+pub struct SlotBatchIn {
+    /// Present for an existing slot (preserves its booking); absent for a new one.
+    pub role_slot_id: Option<i64>,
+    pub role_id: Option<i64>,
+    pub role_name: Option<String>,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub is_optional: bool,
+    /// Assigned booker; `null` clears the booking. Reconciled into `role_assignment`.
+    #[serde(default)]
+    pub booker_id: Option<i64>,
+}
+
+#[derive(Deserialize)]
+pub struct SlotsIn {
+    #[serde(default)]
+    pub slots: Vec<SlotBatchIn>,
+}
+
+/// `PUT /api/meetings/:id/slots` — replace the whole role-slot list in one batch.
+/// Existing slots are matched by `role_slot_id` (so bookings survive), new slots are
+/// inserted, removed slots deleted, and each slot's `booker_id` is reconciled into
+/// `role_assignment`.
+pub async fn put_slots(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+    Json(input): Json<SlotsIn>,
+) -> AppResult<Json<handlers::MeetingDto>> {
+    let mut tx = state.pool.begin().await?;
+
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
+        .bind(meeting_id)
+        .fetch_one(&mut *tx)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    // Resolve each slot's role_id, creating the role from a name when needed.
+    let mut role_ids: Vec<i64> = Vec::with_capacity(input.slots.len());
+    for slot in &input.slots {
+        let role_id = match slot.role_id {
+            Some(id) => id,
+            None => {
+                let name = slot
+                    .role_name
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| AppError::BadRequest("each role slot needs a role".into()))?;
+                sqlx::query("INSERT OR IGNORE INTO role(name) VALUES (?)")
+                    .bind(name)
+                    .execute(&mut *tx)
+                    .await?;
+                sqlx::query_scalar::<_, i64>("SELECT id FROM role WHERE name = ?")
+                    .bind(name)
+                    .fetch_one(&mut *tx)
+                    .await?
+            }
+        };
+        role_ids.push(role_id);
+    }
+
+    let existing_slots: Vec<i64> =
+        sqlx::query_scalar("SELECT id FROM role_slot WHERE meeting_id = ?")
+            .bind(meeting_id)
+            .fetch_all(&mut *tx)
+            .await?;
+    let existing_set: HashSet<i64> = existing_slots.iter().copied().collect();
+
+    let mut keep: HashSet<i64> = HashSet::new();
+    for (slot, role_id) in input.slots.iter().zip(role_ids.iter()) {
+        let label = slot
+            .label
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+        let slot_id = match slot.role_slot_id {
+            Some(id) if existing_set.contains(&id) => {
+                sqlx::query(
+                    "UPDATE role_slot SET role_id = ?, label = ?, is_optional = ? WHERE id = ?",
+                )
+                .bind(role_id)
+                .bind(label)
+                .bind(slot.is_optional as i64)
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
+                id
+            }
+            _ => sqlx::query_scalar::<_, i64>(
+                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
+                 VALUES (?, ?, ?, ?) RETURNING id",
+            )
+            .bind(meeting_id)
+            .bind(role_id)
+            .bind(label)
+            .bind(slot.is_optional as i64)
+            .fetch_one(&mut *tx)
+            .await?,
+        };
+        keep.insert(slot_id);
+
+        // Reconcile the booker into role_assignment.
+        match slot.booker_id {
+            Some(booker) => {
+                let user_exists: i64 =
+                    sqlx::query_scalar("SELECT COUNT(*) FROM user WHERE id = ?")
+                        .bind(booker)
+                        .fetch_one(&mut *tx)
+                        .await?;
+                if user_exists == 0 {
+                    return Err(AppError::BadRequest("booker does not exist".into()));
+                }
+                sqlx::query(
+                    "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
+                     ON CONFLICT(role_slot_id) DO UPDATE SET booker_id = excluded.booker_id",
+                )
+                .bind(slot_id)
+                .bind(booker)
+                .execute(&mut *tx)
+                .await?;
+            }
+            None => {
+                // Clear any booking but keep the row so a taker_id (if any) survives.
+                sqlx::query("UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?")
+                    .bind(slot_id)
+                    .execute(&mut *tx)
+                    .await?;
+            }
+        }
+    }
+
+    // Remove slots dropped in the editor: detach sessions, drop assignment, delete slot.
+    for old in existing_slots {
+        if !keep.contains(&old) {
+            sqlx::query("UPDATE session SET role_slot_id = NULL WHERE role_slot_id = ?")
+                .bind(old)
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM role_assignment WHERE role_slot_id = ?")
+                .bind(old)
+                .execute(&mut *tx)
+                .await?;
+            sqlx::query("DELETE FROM role_slot WHERE id = ?")
+                .bind(old)
+                .execute(&mut *tx)
+                .await?;
+        }
+    }
+
+    tx.commit().await?;
+    meeting_dto_response(&state.pool, meeting_id).await
+}
+
+// --- Sessions section: replace the ordered session list ------------------------------
+
+#[derive(Deserialize)]
+pub struct SessionBatchIn {
+    #[serde(default)]
+    pub group_label: String,
+    pub name: String,
+    #[serde(default)]
+    pub duration_minutes: i64,
+    /// The actual `role_slot.id` this session hosts, or null. Must belong to the meeting.
+    pub role_slot_id: Option<i64>,
+}
+
+#[derive(Deserialize)]
+pub struct SessionsIn {
+    #[serde(default)]
+    pub sessions: Vec<SessionBatchIn>,
+}
+
+/// `PUT /api/meetings/:id/sessions` — replace all sessions in one batch. `position` is
+/// recomputed from array order, so this persists add / edit / delete / reorder together.
+pub async fn put_sessions(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+    Json(input): Json<SessionsIn>,
+) -> AppResult<Json<handlers::MeetingDto>> {
+    let mut tx = state.pool.begin().await?;
+
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
+        .bind(meeting_id)
+        .fetch_one(&mut *tx)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    let valid_slots: HashSet<i64> =
+        sqlx::query_scalar::<_, i64>("SELECT id FROM role_slot WHERE meeting_id = ?")
+            .bind(meeting_id)
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .collect();
+
+    sqlx::query("DELETE FROM session WHERE meeting_id = ?")
+        .bind(meeting_id)
+        .execute(&mut *tx)
+        .await?;
+
+    for (idx, s) in input.sessions.iter().enumerate() {
+        if s.name.trim().is_empty() {
+            return Err(AppError::BadRequest("each session needs a name".into()));
+        }
+        if let Some(slot_id) = s.role_slot_id {
+            if !valid_slots.contains(&slot_id) {
+                return Err(AppError::BadRequest(
+                    "session references an unknown role slot".into(),
+                ));
+            }
+        }
+        sqlx::query(
+            "INSERT INTO session(meeting_id, position, group_label, name, duration_minutes, \
+             role_slot_id) VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(meeting_id)
+        .bind(idx as i64)
+        .bind(s.group_label.trim())
+        .bind(s.name.trim())
+        .bind(s.duration_minutes)
+        .bind(s.role_slot_id)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+    meeting_dto_response(&state.pool, meeting_id).await
+}
+
+// --- Publish toggle: the meeting's lifecycle status ----------------------------------
+
+#[derive(Deserialize)]
+pub struct StatusIn {
+    pub status: String,
+}
+
+/// `PUT /api/meetings/:id/status` — flip between `draft` and `published`.
+pub async fn update_status(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+    Json(input): Json<StatusIn>,
+) -> AppResult<Json<handlers::MeetingDto>> {
+    let status = match input.status.as_str() {
+        "published" => "published",
+        "draft" => "draft",
+        _ => return Err(AppError::BadRequest("status must be draft or published".into())),
+    };
+
+    let affected = sqlx::query("UPDATE meeting SET status = ? WHERE id = ?")
+        .bind(status)
+        .bind(meeting_id)
+        .execute(&state.pool)
+        .await?
+        .rows_affected();
+    if affected == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    meeting_dto_response(&state.pool, meeting_id).await
+}
+
+// ---------------------------------------------------------------------------
 // Roles catalog
 // ---------------------------------------------------------------------------
 

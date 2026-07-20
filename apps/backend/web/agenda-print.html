@@ -46,7 +46,7 @@
       display: grid;
       grid-template-columns: 48mm 1fr;
       column-gap: 3mm;
-      padding: 0 2.5mm;
+      padding: 0 6mm 0 2.5mm;
       align-items: center;
     }
     .tm-logo { display: flex; align-items: center; justify-content: center; }
@@ -58,7 +58,7 @@
     .ms-logo { display: flex; align-items: center; justify-content: center; }
     .ms-logo img { width: 13mm; height: 13mm; object-fit: contain; }
 
-    .body { display: grid; grid-template-columns: 48mm 1fr; gap: 3mm; padding: 2.5mm; min-height: 0; }
+    .body { display: grid; grid-template-columns: 48mm 1fr; gap: 3mm; padding: 2.5mm 6mm 2.5mm 2.5mm; min-height: 0; }
 
     /* Sidebar: visible outer card; inner sections are invisible cards sharing one edge. */
     .sidebar { background: transparent; border-radius: 2mm; padding: 2mm; display: flex; flex-direction: column; gap: 1.5mm; min-height: 0; }
@@ -108,6 +108,64 @@
     .timer-table .red { background: var(--red); color: #fff; }
     .timer-table .speech { width: 24%; }
     .timer-table .bell { width: 16%; }
+
+    /* ==================== Back side (page 2: introduction) ==================== */
+    .sheet.back { margin-top: 8mm; grid-template-rows: 26mm 1fr; }
+    .back-top { align-items: center; padding-left: 7mm; }
+    .back-top .tm-logo img { height: 30mm; }
+    .intro-head { min-width: 0; }
+    .intro-head h2 { margin: 0 0 1mm; font-size: 16px; font-weight: 800; text-transform: uppercase; color: #fff; line-height: 1.05; }
+    .intro-head p { margin: 0; font-size: 10px; line-height: 1.3; color: #e7f0f4; }
+    .back-body { display: grid; grid-template-rows: auto 1fr auto auto; gap: 3mm; padding: 3mm 6mm 3mm 8mm; min-height: 0; }
+    /* Section titles — no underline. */
+    .back-body h3 { margin: 0 0 2mm; font-size: 15px; text-transform: uppercase; color: #0f3a52; }
+    .panel { background: transparent; border-radius: 2mm; padding: 3mm 3mm 3mm 0; min-height: 0; overflow: hidden; }
+    /* Hairline separators between the stacked bands (not around each block). */
+    .speaker, .edu, .process { border-top: 1px solid #d3e0e6; border-radius: 0; padding-top: 2.5mm; }
+    .speaker { min-height: 42mm; }
+
+    /* Core values (image strip) beside the taboos, tops aligned */
+    .intro { display: grid; grid-template-columns: 1fr 52mm; gap: 6mm; align-items: start; }
+    .box-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #0f3a52; margin-bottom: 1.5mm; text-align: center; }
+    .value-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2mm 1mm; }
+    .core-values-img { display: block; width: 100%; height: auto; max-height: 18mm; object-fit: contain; }
+    .value { display: flex; align-items: center; gap: 1.5mm; font-size: 12.5px; font-weight: 700; color: #284f62; }
+    .badge { width: 9mm; height: 9mm; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 800; }
+    .taboos { }
+    .taboo-inline { display: flex; align-items: center; justify-content: center; gap: 4mm; }
+    .taboo-list { font-size: 12px; font-weight: 700; color: #8a1f1f; line-height: 1.4; text-align: center; }
+    .no-sign { width: 11mm; height: 11mm; border-radius: 50%; border: 1.6mm solid #c62828; position: relative; margin: 0; flex: 0 0 auto; }
+    .no-sign::after { content: ''; position: absolute; left: 50%; top: 50%; width: 13mm; height: 1.6mm; background: #c62828; transform: translate(-50%, -50%) rotate(45deg); }
+
+    /* Prepared speakers */
+    .speaker .sp-title { font-size: 15px; font-weight: 800; color: #173f53; }
+    .speaker .sp-row { font-size: 12.5px; margin-top: 1.2mm; color: #33525f; line-height: 1.5; }
+    .speaker .sp-row b { color: #284f62; }
+
+    /* Middle: roles | pathways — divided by a vertical hairline. */
+    .edu { display: grid; grid-template-columns: 1fr 1.3fr; gap: 0; min-height: 0; }
+    .roles { display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #d3e0e6; border-radius: 0; padding-right: 6mm; }
+    .pathways { display: flex; flex-direction: column; padding-left: 6mm; }
+    /* Roles: single-column, role name then its description (like the sample page). */
+    .role { margin-bottom: 1mm; }
+    .role:last-child { margin-bottom: 0; }
+    .r-name { font-size: 12.5px; font-weight: 800; color: #284f62; }
+    .r-desc { font-size: 11.5px; color: #33525f; line-height: 1.25; }
+    .path-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin-bottom: 10mm; }
+    .path { display: flex; align-items: center; gap: 2.5mm; font-size: 12.5px; font-weight: 700; color: #284f62; background: transparent; border-radius: 1.5mm; padding: 1.5mm 0; }
+    .path .badge { width: 8.5mm; height: 8.5mm; font-size: 9.5px; }
+    .path-ico { width: 11mm; height: 11mm; object-fit: contain; flex: 0 0 auto; }
+    .levels { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 1.5mm; margin-top: auto; }
+    .level { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 1.5mm; padding: 2mm .5mm; font-size: 10px; font-weight: 700; color: #fff; line-height: 1.2; }
+    .level .l-num { font-size: 17px; display: block; margin-bottom: .5mm; }
+
+    /* Meeting process | QR — compact band */
+    .process { display: grid; grid-template-columns: 1fr 30mm; gap: 5mm; align-items: center; }
+    .process ol { margin: 0; padding-left: 5mm; font-size: 12px; line-height: 1.4; color: #33525f; }
+    .process ol li { margin-bottom: 0.6mm; }
+    .process-qr { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; text-align: center; color: var(--muted); }
+    .process-qr img { width: 26mm; height: 26mm; object-fit: contain; margin-bottom: 1mm; }
+    @media print { .sheet.back { margin-top: 0; } }
   </style>
 </head>
 <body>
@@ -118,7 +176,7 @@
       <div class="club-wrap">
         <div class="club-brand">
           <div class="name"><span style="color:#ed654c">M</span><span style="color:#a4d66f">i</span>crosoft <span style="color:#4da3ff">S</span><span style="color:#fff276">u</span>zhou Toastmasters Club</div>
-          <div class="ids">Club #07964606 · District 128 · Region 3</div>
+          <div class="ids">Club #07964606 · District 128 · Division R Area 3</div>
         </div>
         <div class="ms-logo"><img src="/static/Microsoft_logo.svg" alt="Microsoft" /></div>
       </div>
@@ -167,6 +225,103 @@
           </table>
         </section>
       </div>
+    </main>
+  </section>
+
+  <section class="sheet back">
+    <header class="top back-top">
+      <div class="tm-logo"><img src="/static/Toastmasters_2011.png" alt="Toastmasters International" /></div>
+      <div class="intro-head">
+        <h2>Introduction of Toastmasters</h2>
+        <p>Toastmasters International is a non-profit educational organization that teaches
+        public speaking &amp; leadership skills through a worldwide network of clubs. Founded in
+        1924 and headquartered in Englewood, Colorado, it now reaches 300,000+ members in
+        15,800+ clubs across 149 countries, helping people from diverse backgrounds become more
+        confident speakers, communicators, and leaders.</p>
+      </div>
+    </header>
+
+    <main class="back-body">
+      <!-- Core values + taboos -->
+      <section class="intro">
+        <div class="panel values">
+          <div class="box-title">Four Core Values</div>
+          <div class="value-tiles">
+            <div class="value"><span class="badge" style="background:#0f3a52">I</span>Integrity</div>
+            <div class="value"><span class="badge" style="background:#ed654c">R</span>Respect</div>
+            <div class="value"><span class="badge" style="background:#6f9a4d">S</span>Service</div>
+            <div class="value"><span class="badge" style="background:#2b6c89">E</span>Excellence</div>
+          </div>
+        </div>
+        <div class="panel taboos">
+          <div class="box-title">Four Taboos</div>
+          <div class="taboo-inline">
+            <div class="taboo-list">Politics · Religion · Race · Sex</div>
+            <div class="no-sign"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Prepared speakers -->
+      <section class="panel speaker">
+        <h3>Today's Prepared Speeches</h3>
+        <div class="sp-title">The Unscripted Project</div>
+        <div class="sp-row"><b>Speaker:</b> Chao Chen</div>
+        <div class="sp-row"><b>Pathway:</b> Engaging Humor · Level 2</div>
+        <div class="sp-row"><b>Speech Purpose:</b> The purpose of this project is for the member
+        to clearly define how Toastmasters envisions mentoring; to share some aspect of a
+        previous experience as a protégé.</div>
+      </section>
+
+      <!-- Roles + Pathways -->
+      <section class="edu">
+        <div class="panel roles">
+          <h3>Regular Meeting Roles</h3>
+          <div class="role"><div class="r-name">Timer</div><div class="r-desc">Monitors the time of meeting segments &amp; speakers.</div></div>
+          <div class="role"><div class="r-name">Ah-Counter</div><div class="r-desc">Notes any overused words or filler sounds.</div></div>
+          <div class="role"><div class="r-name">Grammarian</div><div class="r-desc">Helps members improve their grammar and vocabulary.</div></div>
+          <div class="role"><div class="r-name">Toastmaster of the Evening (TOE)</div><div class="r-desc">The meeting's director and host.</div></div>
+          <div class="role"><div class="r-name">Prepared Speaker</div><div class="r-desc">Delivers prepared speeches following the Pathways guidance.</div></div>
+          <div class="role"><div class="r-name">Table Topics Master (TTM)</div><div class="r-desc">Runs the Table Topics session of the meeting.</div></div>
+          <div class="role"><div class="r-name">Individual Evaluator (IE)</div><div class="r-desc">Provides verbal &amp; written feedback to speakers.</div></div>
+          <div class="role"><div class="r-name">Table Topics Evaluator (TTE)</div><div class="r-desc">Evaluates everyone who delivers a table topic.</div></div>
+          <div class="role"><div class="r-name">General Evaluator (GE)</div><div class="r-desc">Evaluates everything that takes place during the meeting.</div></div>
+        </div>
+        <div class="panel pathways">
+          <h3>Education System: Pathways — 6 Paths</h3>
+          <div class="path-grid">
+            <div class="path"><img class="path-ico" src="/static/tm-badges/dynamic-leadership.png" alt="" />Dynamic Leadership</div>
+            <div class="path"><img class="path-ico" src="/static/tm-badges/visionary-communication.png" alt="" />Visionary Communication</div>
+            <div class="path"><img class="path-ico" src="/static/tm-badges/engaging-humor.png" alt="" />Engaging Humor</div>
+            <div class="path"><img class="path-ico" src="/static/tm-badges/presentation-mastery.png" alt="" />Presentation Mastery</div>
+            <div class="path"><img class="path-ico" src="/static/tm-badges/persuasive-influence.png" alt="" />Persuasive Influence</div>
+            <div class="path"><img class="path-ico" src="/static/tm-badges/motivational-strategies.png" alt="" />Motivational Strategies</div>
+          </div>
+          <div class="levels">
+            <div class="level" style="background:#0f3a52"><span class="l-num">1</span>Public Speaking</div>
+            <div class="level" style="background:#2b6c89"><span class="l-num">2</span>Interpersonal Communication</div>
+            <div class="level" style="background:#ed654c"><span class="l-num">3</span>Strategic Leadership</div>
+            <div class="level" style="background:#6f9a4d"><span class="l-num">4</span>Management</div>
+            <div class="level" style="background:#7d9bb0"><span class="l-num">5</span>Confidence</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Meeting process + QR -->
+      <section class="process">
+        <div class="panel">
+          <h3>Regular Meeting Process</h3>
+          <ol>
+            <li><b>Prepared Speech Session:</b> members deliver prepared speeches per their manual requirements.</li>
+            <li><b>Table Topic Session:</b> members and guests give 1–2 minute impromptu speeches, following A (Answer), R (Reason), E (Explanation), M (Message).</li>
+            <li><b>Evaluation Session:</b> individual evaluators and the General Evaluator evaluate prepared speeches and meeting role takers separately.</li>
+          </ol>
+        </div>
+        <div class="process-qr">
+          <img src="/static/Guest Fee QRCode.png" alt="Guest fee QR" />
+          <div>Guest Fee ¥20</div>
+        </div>
+      </section>
     </main>
   </section>
 

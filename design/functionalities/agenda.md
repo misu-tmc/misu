@@ -103,6 +103,50 @@ Design notes:
 - Prepared speech metadata should stay compact: one secondary line in the Session cell,
 	not a separate back-side speaker section.
 
+### Printed Page — Back Side (Introduction)
+
+Purpose: the second A4 page — a club/Toastmasters introduction that faces outward for
+guests. It follows the **same pattern** as the front cover: the same club-brand header,
+fixed-size areas, and tables/grids to align areas and their elements. It is rendered as a
+second `<section class="sheet back">` in the same `agenda-print.html`, so one print job
+produces front + back.
+
+Major layout (fixed-height rows, top to bottom):
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ HEADER (same club brand as front)                            │
+├───────────────────────────┬──────────────────┬──────────────┤
+│ Introduction of           │ Four Core Values │ Four Taboos  │
+│ Toastmasters (description) │ Integrity Respect│ Politics …   │
+│                           │ Service Excellence│  (no-sign)   │
+├───────────────────────────┴──────────────────┴──────────────┤
+│ Today's Prepared Speakers  (title · pathway · purpose)       │
+├───────────────────────────┬──────────────────────────────────┤
+│ Regular Meeting Roles      │ Education System: Pathways        │
+│ (Timer, Ah-Counter, …)     │ 6 path tiles + 5 competency tiles │
+├───────────────────────────┴──────────────────┬──────────────┤
+│ Regular Meeting Process (1·2·3)               │ Guest-fee QR │
+└───────────────────────────────────────────────┴──────────────┘
+```
+
+Sections:
+
+- **Header** — identical to the front page (Toastmasters logo · club name · Microsoft mark).
+- **Intro band** — a short Toastmasters description, the **Four Core Values** and the
+	**Four Taboos** (with a drawn prohibition sign).
+- **Prepared speakers** — for now the speech is **hard-coded** (title, Pathways path/level,
+	speech purpose); it will later come from prepared-speaker fields on the meeting DTO.
+- **Regular Meeting Roles** — a two-column table of role names and one-line descriptions.
+- **Pathways** — the six paths as labelled tiles plus the five competency levels.
+- **Meeting process** — the three-step meeting flow, with the guest-fee QR beside it.
+
+Icons/symbols: the six **Pathways** use the club's official Toastmasters badge images in
+`/static/tm-badges/` (the club is a certified Toastmasters club, licensed to use them).
+The **Core Values** and the **prohibition sign** are currently drawn as CSS tiles/shapes;
+official Core-Values icons can be dropped into `/static` and swapped into the same slots
+later. The header Toastmasters logo and guest-fee QR reuse the existing `/static` assets.
+
 ## Data Mapping
 
 Print render should use the same meeting DTO shape as the editor/mini program where

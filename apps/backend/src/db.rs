@@ -89,7 +89,9 @@ CREATE TABLE IF NOT EXISTS role_assignment (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     role_slot_id INTEGER NOT NULL UNIQUE REFERENCES role_slot(id) ON DELETE CASCADE,
     booker_id    INTEGER REFERENCES user(id),
-    taker_id     INTEGER REFERENCES user(id)
+    taker_id     INTEGER REFERENCES user(id),
+    prep_data    TEXT NOT NULL DEFAULT '{}',
+    prep_updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_role_slot_meeting ON role_slot(meeting_id);
@@ -126,6 +128,8 @@ async fn migrate(pool: &SqlitePool) -> anyhow::Result<()> {
         "ALTER TABLE meeting ADD COLUMN theme TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE meeting ADD COLUMN keyword TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE meeting ADD COLUMN venue_id INTEGER REFERENCES venue(id)",
+        "ALTER TABLE role_assignment ADD COLUMN prep_data TEXT NOT NULL DEFAULT '{}'",
+        "ALTER TABLE role_assignment ADD COLUMN prep_updated_at TEXT",
     ] {
         if let Err(e) = sqlx::query(stmt).execute(pool).await {
             // The column already exists on an up-to-date database; anything else is fatal.
@@ -203,20 +207,38 @@ async fn drop_column_if_exists(pool: &SqlitePool, table: &str, column: &str) -> 
 /// the mini program has something to show on first run.
 async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
     let roles = [
-        "TMOD",
-        "Speaker",
-        "Evaluator",
-        "Table Topics Master",
-        "Timer",
-        "Ah-Counter",
-        "Grammarian",
-        "General Evaluator",
+        ("TOE", None),
+        (
+            "Speaker",
+            Some(
+                r#"[{"key":"title","type":"string"},{"key":"pathway","type":"string"},{"key":"level","type":"integer"},{"key":"purpose","type":"string"},{"key":"description","type":"string"}]"#,
+            ),
+        ),
+        ("Individual Evaluator", None),
+        (
+            "Table Topics Master",
+            Some(r#"[{"key":"theme","type":"string"},{"key":"count","type":"integer"}]"#),
+        ),
+        ("Timer", None),
+        ("Ah-Counter", None),
+        ("Grammarian", Some(r#"[{"key":"keyword","type":"string"}]"#)),
+        ("General Evaluator", None),
     ];
-    for name in roles {
-        sqlx::query("INSERT OR IGNORE INTO role(name) VALUES (?)")
+    for (name, properties) in roles {
+        sqlx::query("INSERT OR IGNORE INTO role(name, properties) VALUES (?, ?)")
+            .bind(name)
+            .bind(properties)
+            .execute(pool)
+            .await?;
+        if let Some(properties) = properties {
+            sqlx::query(
+                "UPDATE role SET properties = ? WHERE name = ? AND TRIM(COALESCE(properties, '')) = ''",
+            )
+            .bind(properties)
             .bind(name)
             .execute(pool)
             .await?;
+        }
     }
 
     seed_web_admin(pool, config).await?;

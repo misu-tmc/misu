@@ -4,10 +4,12 @@ Generate a meeting agenda from the meeting document, role slots, role assignment
 role-specific preparation information.
 
 Inputs:
-- Meeting header: number, theme, date, start/end, venue.
+- Meeting header: number, date, start/end, venue, plus derived meeting info such as theme
+	and keyword.
 - Sessions: ordered agenda rows, durations and associated role slots.
 - Role slots + assignments: booked/taken users for each slot.
-- Prepared-speaker information: speech title and Pathways path/level/project.
+- Role prep data: prepared-speaker title/pathway/level/purpose, Grammarian keyword and
+	Table Topics theme/count.
 - Static club resources: Toastmasters/MISU logos, QR codes, venue/join info and timing
 	table.
 
@@ -81,8 +83,8 @@ Major layout:
 
 Sections:
 
-- **Header** — club identity, meeting number, date/time, theme, club/area identifiers and
-	brand mark(s).
+- **Header** — club identity, meeting number, date/time, derived theme, club/area
+	identifiers and brand mark(s).
 - **Sidebar** — static club information and QR codes: mission, key word, regular meeting
 	time, venue, officer team, how to join, guest fee / donation QR.
 - **Agenda table** — generated from sessions:
@@ -155,8 +157,8 @@ possible:
 - `meeting.number`, `theme`, `date`, `start_time`, `end_time`, `venue` → header.
 - `sessions[]` + `BUFFER_MINUTES` → agenda start times.
 - `role_slots[]` + assignments → role taker labels and booking state.
-- Prepared-speaker properties (if there are) → secondary metadata line in prepared-speech
-	session rows (speech title + Pathways path/level/project).
+- `role_assignment.prep_data` interpreted by `role.properties` → secondary metadata line
+	in prepared-speech session rows, and derived meeting header values such as theme/keyword.
 - Static resources → configured print asset bundle.
 
 ## Asset Checklist

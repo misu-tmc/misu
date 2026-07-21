@@ -71,8 +71,8 @@ Layout (native top bar + content + native bottom tabBar):
 
 - **Take!** → `POST /api/book { meeting_id, role_slot_id }` (actor from the WeChat
   session) → confirm → the row shows your name and it appears under Your bookings.
-- **Prepare** → pushes a prepare page for that booking (speech title/level, evaluatee —
-  the role's `properties`).
+- **Prepare** → pushes a prepare page for that booking. The form is generated from the
+  role's `properties` field list and saved to `role_assignment.prep_data`.
 
 ### Data
 
@@ -121,7 +121,7 @@ The **ongoing / current meeting**: a title card with info and actions, then the 
 
 ### Title card
 
-Meeting info (number · date · time · theme · venue) plus the action buttons:
+Meeting info (number · date · time · derived theme · venue) plus the action buttons:
 
 - **Check in** — opens the check-in card flow ([../functionalities/check_in.md](../functionalities/check_in.md)); the QR deep-links into the same flow.
 - **Vote for the best** — appears once the voting page is opened; pushes the voting page.

@@ -71,7 +71,7 @@ erDiagram
     ROLE {
         id     id
         string name
-        string properties "JSON (later)"
+      string properties "JSON prep field list"
     }
     ROLE_SLOT {
         id     id
@@ -83,6 +83,8 @@ erDiagram
         id     role_slot_id "UNIQUE"
         id     booker_id "-> user.id, nullable; booked/assigned in advance"
         id     taker_id  "-> user.id, nullable; actually took the role"
+      string prep_data "JSON values entered by the role taker"
+      datetime prep_updated_at
     }
 ```
 
@@ -206,7 +208,50 @@ is a **single** catalog entry; the meeting gets one `role_slot` row per concrete
 | ------------ | ------- | ----------------------------------------------------------------- |
 | `id`         | id (PK) |                                                                   |
 | `name`       | string  |                                                                   |
-| `properties` | string  | JSON for role-specific config (deferred): member-only, needs speech title/level, evaluatee, etc. |
+| `properties` | string  | JSON ordered list of prep fields expected from this role taker; empty/NULL means no prep fields |
+
+`properties` deliberately stays small: it describes only what data this role expects from
+its taker. The submitted values live on `role_assignment.prep_data`.
+
+Format:
+
+```json
+[
+  { "key": "title", "type": "string" },
+  { "key": "level", "type": "integer" }
+]
+```
+
+Supported first-stage field types: `string` and `integer`. Field order is render order.
+Field keys are stable snake_case names and become keys in `role_assignment.prep_data`.
+
+Examples:
+
+```json
+// Prepared Speaker
+[
+  { "key": "title", "type": "string" },
+  { "key": "pathway", "type": "string" },
+  { "key": "level", "type": "integer" },
+  { "key": "purpose", "type": "string" },
+  { "key": "description", "type": "string" }
+]
+```
+
+```json
+// Grammarian
+[
+  { "key": "keyword", "type": "string" }
+]
+```
+
+```json
+// Table Topics Master
+[
+  { "key": "theme", "type": "string" },
+  { "key": "count", "type": "integer" }
+]
+```
 
 ## `role_slot`
 
@@ -241,13 +286,61 @@ next-stage check-in flow).
 | `role_slot_id` | id (FK) | -> `role_slot.id`; **UNIQUE** (one assignment per slot)      |
 | `booker_id`    | id (FK) | -> `user.id`; **nullable** (null = not booked); set by role booking / admin assignment |
 | `taker_id`     | id (FK) | -> `user.id`; **nullable** (null = not yet taken); set by check-in |
+| `prep_data`    | string  | JSON object containing values entered by the role taker; defaults to `{}` |
+| `prep_updated_at` | datetime | nullable timestamp for the last prep-data update          |
 
 - **Which one downstream reads**: first-stage artifacts (agenda, printed pager, role
   booking cards) use `booker_id`; check-in and post-meeting artifacts prefer `taker_id`
   and fall back to `booker_id`.
 - **Open slot**: no `role_assignment` row, or a row with `booker_id` NULL.
+- **Prep data**: interpreted according to the assigned role's `role.properties` field
+  list. Example for a prepared speaker:
+
+```json
+{
+  "title": "The Unscripted Project",
+  "pathway": "Engaging Humor",
+  "level": 2,
+  "purpose": "Practice using humor in a prepared speech.",
+  "description": "5-7 minute prepared speech"
+}
+```
+
+- **Assignment changes**: when a slot's `booker_id` changes to another user or is cleared,
+  clear `prep_data` back to `{}`. If check-in later records a different `taker_id`, admin
+  review can decide whether to keep or clear the prepared values.
 - **Next stage**: check-in fills `taker_id` (and attendance for no-role attendees) to
   handle no-shows, substitutions and walk-ins.
+
+## Derived meeting information view
+
+Meeting-facing values such as `theme` and `keyword` can be projected from role prep data
+instead of stored as direct meeting columns:
+
+- `theme` comes from the Table Topics Master's `prep_data.theme`.
+- `keyword` comes from the Grammarian's `prep_data.keyword`.
+
+A SQLite view can group these values into a meeting info document for agenda rendering and
+meeting cards while writes continue to target the relevant `role_assignment.prep_data`:
+
+```sql
+CREATE VIEW meeting_info AS
+SELECT
+  m.id AS meeting_id,
+  MAX(CASE WHEN lower(r.name) = 'table topics master'
+      THEN json_extract(ra.prep_data, '$.theme') END) AS theme,
+  MAX(CASE WHEN lower(r.name) = 'grammarian'
+      THEN json_extract(ra.prep_data, '$.keyword') END) AS keyword
+FROM meeting m
+LEFT JOIN role_slot rs ON rs.meeting_id = m.id
+LEFT JOIN role r ON r.id = rs.role_id
+LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id
+GROUP BY m.id;
+```
+
+The current implementation may keep direct `meeting.theme` / `meeting.keyword` columns as
+a compatibility cache during migration; the normalized source of truth is the role prep
+data above.
 
 ## Serving a meeting as JSON (optional)
 

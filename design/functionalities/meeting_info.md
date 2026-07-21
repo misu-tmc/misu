@@ -77,13 +77,15 @@ The "Role slot" cell is a **creatable combobox** backed by a managed `Roles` cat
 - **Pick** — type to filter and select an existing role. Single click, the common path.
 - **Create** — typing a new name offers "Create '…'", which adds it to the catalog.
 
-For now the combobox only handles selecting and creating role *names*. Role properties
-are deferred as next improvements:
+For now the combobox handles selecting and creating role *names*. A role may also carry a
+small JSON `properties` value: an ordered list of prep fields expected from the role taker,
+for example `[{"key":"title","type":"string"}]` for a prepared speaker. The submitted
+values live on `role_assignment.prep_data`.
+
+Later role-catalog improvements:
 - **Member only** — guests cannot be assigned or self-register for this role.
-- **Needs extra info** — whether the role prompts for extra fields such as speech
-  title/level or evaluatee.
-- A **create dialog** to capture these attributes, and a **Manage-roles view** to edit /
-  rename / deactivate roles later.
+- A **Manage-roles view** to edit / rename / deactivate roles and adjust their prep-field
+  definitions.
 
 ## Lifecycle
 
@@ -127,14 +129,15 @@ deliberately narrows the web editor's whole-document upsert down to one table pe
 | Info            | `meeting`                      | `PUT /api/meetings/:id/info`     |
 | Roles           | `role_slot` (+ `role`, `role_assignment`) | `PUT /api/meetings/:id/slots` |
 | Sessions        | `session`                      | `PUT /api/meetings/:id/sessions` |
+| Prep fields     | `role_assignment.prep_data`    | `PUT /api/meetings/:id/prep`     |
 | Publish         | `meeting.status`               | `PUT /api/meetings/:id/status`   |
 
-Saving Info touches only the `meeting` row. Saving Roles replaces the meeting's
+Saving Info touches only the structural `meeting` row. Saving Roles replaces the meeting's
 `role_slot` list in one call — existing slots are matched by `role_slot_id` so bookings are
 preserved, new slots are inserted, removed slots deleted; each slot's `booker_id` is
 reconciled into `role_assignment` in the same batch. Saving Sessions replaces the
-`session` rows and recomputes `position` from array order. Sections never interfere with
-each other.
+`session` rows and recomputes `position` from array order. Saving Prep fields updates the
+JSON value for the relevant role assignment. Sections never interfere with each other.
 
 ### State model
 
@@ -182,16 +185,17 @@ dragging it reorders the list (the data model keeps an explicit `position`/order
 
 ### Deep-links (Prepare)
 
-Booking's **Prepare** opens the editor at a specific tab and can highlight a field:
-`edit-meeting?id=…&tab=…&field=…`. Tabs are id-keyed; a missing target falls back to the
-nearest static tab. Example: a Grammarian's Prepare lands on **Information** with
-**Keyword** highlighted.
+Booking's **Prepare** opens the editor at the relevant role-prep form:
+`edit-meeting?id=…&tab=prep:<role_slot_id>`. Tabs are id-keyed; a missing target falls back
+to the nearest static tab. Example: a Grammarian's Prepare lands on that assignment's prep
+form and edits `prep_data.keyword`.
 
 ### Shared fields
 
-Some values surface in more than one tab (e.g. **Theme** in Information and Table Topics).
-They bind to a single draft key, so editing either place updates the other and both save to
-the same column.
+Some values surface as meeting info but are owned by role prep. **Theme** comes from the
+Table Topics Master's `prep_data.theme`; **Keyword** comes from the Grammarian's
+`prep_data.keyword`. A meeting-info view can group those values for cards and agendas,
+while writes still go through the role-prep form.
 
 ### Dynamic tabs (advanced, later)
 
@@ -205,14 +209,14 @@ Information / Roles / Sessions / Publish use the existing
 `PUT …/info | slots | sessions | status` endpoints. The remaining tabs need new storage +
 APIs:
 
-- **Speeches** — prepared-speech fields (title, Pathways path/level/project, purpose) are
-  not in the schema. Add columns/table keyed by `role_slot`/`session` plus a
-  `PUT /api/meetings/:id/speeches` batch endpoint.
+- **Prep fields** — role-specific values are stored in `role_assignment.prep_data` and
+  interpreted with the assigned role's `role.properties` field list. Prepared speeches,
+  Grammarian keyword and Table Topics theme/count all use the same mechanism.
 - **Table Topics** — the participant list has no storage. Add a `table_topic_participant`
   table (`meeting_id`, `position`, `name`/`user_id`) plus `PUT /api/meetings/:id/table-topics`.
 - **Deep-link source** — Booking's Prepare must pass `tab`/`field` params to the editor.
-- **Shared field writes** — Table Topics' Theme is a *view* of `meeting.theme`, saved via
-  Information's endpoint — not a new column.
+- **Derived meeting info** — Table Topics' Theme and Grammarian Keyword are projected via a
+  meeting-info view, not stored as independent editable columns.
 
 ### Information
 
@@ -221,8 +225,6 @@ posts only the header via `PUT /api/meetings/:id/info` and collapses the section
 
 ```
 Title      [ Regular Meeting #142 ]
-Theme      [ Graduation ]
-Keyword    [ Growth ]
 Date       [ 2026-07-20 ]
 Start      [ 19:00 ]
 Venue      [ Room A ]
@@ -293,8 +295,10 @@ replace is safe.
 
 ### Prepared Speeches
 
-Bookers can update speech-prep details from phone. The printed agenda uses these fields
-as the secondary line under a prepared speech session.
+Bookers can update speech-prep details from phone. The form is generated from the
+prepared-speaker role's `properties` field list, and values are saved into that slot's
+`role_assignment.prep_data`. The printed agenda uses these values as the secondary line
+under a prepared speech session.
 
 ```
 Prepared Speeches
@@ -322,6 +326,18 @@ Table Topics Participants
 ```
 
 This can start as a local/editor field and later feed the voting page.
+
+### Role prep fields
+
+Any role with non-empty `role.properties` gets a prep form. First-stage examples:
+
+- Prepared Speaker: `title`, `pathway`, `level`, `purpose`, `description`.
+- Grammarian: `keyword`.
+- Table Topics Master: `theme`, `count`.
+
+The meeting summary reads `theme` and `keyword` from the role prep data through a derived
+view, so those fields are edited by the responsible role takers rather than duplicated in
+the meeting header.
 
 ### Review & Publish
 
@@ -373,7 +389,7 @@ entered from the Meeting tab, with independent per-section saves:
 
 **Later iterations** — added as further accordion sections / flows:
 
-5. Prepared speech self-edit (needs schema fields for title/pathways/level).
+5. Role prep self-edit backed by `role_assignment.prep_data`.
 6. Create-from-source flow (blank / last meeting / template).
 7. Table Topics participants.
 8. Review & Publish summary.

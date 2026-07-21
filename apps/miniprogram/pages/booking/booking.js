@@ -2,6 +2,16 @@
 const api = require('../../utils/api.js');
 const { shortDate } = require('../../utils/format.js');
 
+// Map a role to the editor tab (and optional field to highlight) that Prepare should open.
+// Client-side only — no backend involvement. Tune this table as roles/tabs evolve.
+function prepTarget(roleName) {
+  const r = (roleName || '').toLowerCase();
+  if (r.indexOf('grammarian') >= 0) return { tab: 'info', field: 'keyword' };
+  if (r.indexOf('speaker') >= 0) return { tab: 'speeches', field: '' };
+  if (r.indexOf('toastmaster') >= 0) return { tab: 'sessions', field: '' };
+  return { tab: 'roles', field: '' };
+}
+
 Page({
   data: {
     loading: true,
@@ -44,7 +54,8 @@ Page({
               slotId: s.id,
               number: m.number,
               dateLabel,
-              roleLabel: s.label
+              roleLabel: s.label,
+              roleName: s.role_name
             });
           }
           return {
@@ -116,11 +127,10 @@ Page({
   },
 
   onPrepare(e) {
-    const { meetingId, slotId, roleLabel } = e.currentTarget.dataset;
-    wx.navigateTo({
-      url: `/pages/prepare/prepare?meetingId=${meetingId}&slotId=${slotId}&role=${encodeURIComponent(
-        roleLabel
-      )}`
-    });
+    const { meetingId, roleName } = e.currentTarget.dataset;
+    const t = prepTarget(roleName);
+    let url = `/pages/edit-meeting/edit-meeting?id=${meetingId}&tab=${t.tab}`;
+    if (t.field) url += `&field=${t.field}`;
+    wx.navigateTo({ url });
   }
 });

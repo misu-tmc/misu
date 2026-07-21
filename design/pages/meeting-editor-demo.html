@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meeting Editor — mini program demo</title>
+  <style>
+    :root {
+      --purple: #5b2a86;
+      --purple-soft: #f0ecf6;
+      --ink: #1c1c1e;
+      --muted: #8a8a8f;
+      --line: #ececee;
+      --bg: #f5f5f7;
+      --ok: #1f8f4a;
+      --ok-soft: #e4f5e9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: #dfe0e4; min-height: 100vh;
+      display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+      padding: 40px 20px;
+      font-family: -apple-system, "Segoe UI", "PingFang SC", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+    }
+    .caption { width: 100%; text-align: center; color: #4a4a4f; margin-bottom: 6px; }
+    .caption h1 { margin: 0 0 4px; font-size: 20px; }
+    .caption p { margin: 0; color: #70707a; font-size: 13px; }
+
+    /* Phone frame */
+    .phone {
+      width: 375px; height: 780px; background: var(--bg);
+      border-radius: 40px; box-shadow: 0 18px 50px rgba(0,0,0,.25);
+      border: 10px solid #111; overflow: hidden; position: relative; display: flex; flex-direction: column;
+    }
+    .statusbar {
+      height: 26px; background: var(--purple); color: #fff; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 16px; font-size: 12px; font-weight: 600;
+    }
+    /* Native nav bar */
+    .navbar {
+      background: var(--purple); color: #fff; padding: 6px 14px 12px; 
+    }
+    .navbar .title { font-size: 17px; font-weight: 700; text-align: center; }
+
+    /* Meeting header card */
+    .head {
+      background: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    .head .h-main { flex: 1; min-width: 0; }
+    .head .h-title { font-size: 16px; font-weight: 700; }
+    .head .h-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .pill { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 999px; font-weight: 600; }
+    .pill.draft { background: var(--purple-soft); color: var(--purple); }
+    .btn {
+      border: none; border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 600;
+      background: var(--purple); color: #fff; cursor: pointer;
+    }
+    .btn.ghost { background: #fff; color: var(--purple); border: 1.5px solid var(--purple); }
+
+    /* Tab strip */
+    .tabs {
+      display: flex; gap: 4px; overflow-x: auto; background: #fff; padding: 0 8px;
+      border-bottom: 1px solid var(--line); scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      flex: 0 0 auto; padding: 12px 12px 10px; font-size: 14px; color: var(--muted);
+      border-bottom: 2.5px solid transparent; cursor: pointer; white-space: nowrap; font-weight: 600;
+    }
+    .tab.active { color: var(--purple); border-bottom-color: var(--purple); }
+    .tab .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 5px; vertical-align: middle; }
+    .tab .dot.ok { background: var(--ok); }
+    .tab .dot.todo { background: #d9a400; }
+
+    /* Body */
+    .body { flex: 1; overflow-y: auto; padding: 14px 16px 90px; }
+    .card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 5px; }
+    .input {
+      width: 100%; font-size: 15px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+    }
+    .row2 { display: flex; gap: 10px; }
+    .row2 .field { flex: 1; }
+    .picker {
+      font-size: 15px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+      display: flex; align-items: center; justify-content: space-between; color: var(--ink);
+    }
+    .picker .chev { color: var(--muted); }
+
+    .list-row {
+      display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px solid var(--line);
+    }
+    .list-row:last-child { border-bottom: none; }
+    .list-row .lr-main { flex: 1; min-width: 0; }
+    .lr-name { font-size: 15px; font-weight: 600; }
+    .lr-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .lr-assignee { font-size: 13px; color: var(--purple); font-weight: 600; }
+    .lr-open { background: var(--purple-soft); color: var(--purple); border-radius: 999px; font-size: 12px; padding: 4px 10px; font-weight: 600; }
+    .chev { color: #c4c4c9; }
+
+    .ses {
+      display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--line);
+      border-radius: 12px; margin-bottom: 10px; background: #fff;
+    }
+    .ses .time { color: var(--purple); font-weight: 700; font-variant-numeric: tabular-nums; min-width: 44px; }
+    .ses .s-main { flex: 1; min-width: 0; }
+    .ses .s-name { font-weight: 600; font-size: 15px; }
+    .ses .s-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .ses .handle { color: #c4c4c9; font-size: 18px; }
+
+    .add {
+      display: block; text-align: center; padding: 11px; border: 1.5px dashed #c9bfe0; color: var(--purple);
+      border-radius: 12px; font-weight: 600; font-size: 14px; background: #faf8fd; margin-top: 4px;
+    }
+    .subtle { color: var(--muted); font-size: 12px; margin: 2px 0 12px; }
+
+    .rev-row { display: flex; justify-content: space-between; padding: 11px 2px; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .rev-row:last-child { border-bottom: none; }
+    .rev-row .ok { color: var(--ok); font-weight: 600; }
+    .rev-row .todo { color: #b8860b; font-weight: 600; }
+
+    /* Sticky save bar */
+    .savebar {
+      position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line);
+      padding: 12px 16px; display: flex; gap: 10px; align-items: center;
+    }
+    .savebar .hint { flex: 1; font-size: 12px; color: var(--muted); }
+    .savebar .btn { flex: 0 0 auto; padding: 11px 22px; }
+
+    /* Tab edge indicators */
+    .tabwrap { position: relative; background: #fff; border-bottom: 1px solid var(--line); }
+    .edge { position: absolute; top: 0; bottom: 0; width: 26px; display: flex; align-items: center; justify-content: center; color: var(--purple); font-weight: 800; font-size: 18px; pointer-events: none; z-index: 2; }
+    .edge.left { left: 0; background: linear-gradient(90deg, #fff 55%, rgba(255,255,255,0)); }
+    .edge.right { right: 0; background: linear-gradient(270deg, #fff 55%, rgba(255,255,255,0)); }
+    .edge.hidden { display: none; }
+    .tabwrap .tabs { border-bottom: none; }
+
+    /* Unified draggable row (Roles & Sessions, same style) */
+    .drow { position: relative; display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; overflow: hidden; }
+    .drow .handle { color: #b9b9c0; font-size: 18px; flex: 0 0 auto; letter-spacing: -3px; cursor: grab; }
+    .drow-main { flex: 1; min-width: 0; transition: opacity .18s; }
+    .drow-main .time { color: var(--purple); font-weight: 700; font-variant-numeric: tabular-nums; margin-right: 6px; }
+    .drow .del { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: #fdecec; color: #c62828; font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity .18s; }
+    .drow.swiped .drow-main { opacity: .3; }
+    .drow.swiped .del { opacity: 1; pointer-events: auto; }
+
+    /* Highlighted field (deep-link target from Prepare) */
+    .field.hl .input, .field.hl .picker { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+    .field.hl .label { color: var(--purple); }
+    .rolehint { font-size: 10px; color: var(--purple); background: var(--purple-soft); border-radius: 6px; padding: 2px 7px; margin-left: 8px; font-weight: 700; }
+    .shared-tag { font-size: 10px; color: var(--muted); font-weight: 700; margin-left: 6px; text-transform: none; letter-spacing: 0; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="caption">
+    <h1>Meeting Editor — settled mini program design</h1>
+    <p>Tabs (‹ › = more), drag ⋮⋮ to reorder, tap a row body to reveal Delete (content fades, stays put). Keyword is highlighted like a Prepare deep-link. Demo mockup — not wired to data.</p>
+  </div>
+
+  <!-- Phone 1: Info tab -->
+  <div class="phone">
+    <div class="statusbar"><span>9:41</span><span>MISU</span></div>
+    <div class="navbar"><div class="title">Edit meeting</div></div>
+
+    <div class="head">
+      <div class="h-main">
+        <div class="h-title">#142 Regular Meeting</div>
+        <div class="h-sub">Embrace Change · Sat Jul 20 · 19:00</div>
+      </div>
+      <span class="pill draft">Draft</span>
+      <button class="btn ghost">Publish</button>
+    </div>
+
+    <div class="tabwrap">
+      <div class="edge left hidden" id="edgeL">‹</div>
+      <div class="tabs" id="tabs">
+        <div class="tab active" data-tab="info">Info <span class="dot ok"></span></div>
+        <div class="tab" data-tab="roles">Roles <span class="dot ok"></span></div>
+        <div class="tab" data-tab="sessions">Sessions <span class="dot ok"></span></div>
+        <div class="tab" data-tab="speeches">Speeches <span class="dot todo"></span></div>
+        <div class="tab" data-tab="topics">Table Topics</div>
+        <div class="tab" data-tab="review">Review</div>
+      </div>
+      <div class="edge right" id="edgeR">›</div>
+    </div>
+
+    <div class="body" id="body">
+      <!-- Info -->
+      <div class="panel active" data-panel="info">
+        <div class="card">
+          <div class="field"><div class="label">Title</div><input class="input" value="Regular Meeting #142" /></div>
+          <div class="field"><div class="label">Theme</div><input class="input" value="Embrace Change" /></div>
+          <div class="field hl"><div class="label">Keyword <span class="rolehint">Your role: Grammarian</span></div><input class="input" value="Growth" /></div>
+          <div class="field"><div class="label">Date</div><div class="picker">Sat, Jul 20 2026 <span class="chev">▾</span></div></div>
+          <div class="row2">
+            <div class="field"><div class="label">Start</div><div class="picker">19:00 <span class="chev">▾</span></div></div>
+            <div class="field"><div class="label">End</div><div class="picker">21:00 <span class="chev">▾</span></div></div>
+          </div>
+          <div class="field"><div class="label">Venue</div><input class="input" value="B26 Room 1.1B" /></div>
+        </div>
+      </div>
+
+      <!-- Roles -->
+      <div class="panel" data-panel="roles">
+        <div class="subtle">8 role slots · 5 assigned · drag ⋮⋮ to reorder · swipe a row for Delete</div>
+        <div class="drow"><span class="handle">⋮⋮</span><div class="drow-main"><div class="lr-name">Toastmaster</div><div class="lr-assignee">Alice</div></div><div class="del">Delete</div></div>
+        <div class="drow"><span class="handle">⋮⋮</span><div class="drow-main"><div class="lr-name">Speaker 1</div><div class="lr-assignee">Bob</div></div><div class="del">Delete</div></div>
+        <div class="drow swiped"><span class="handle">⋮⋮</span><div class="drow-main"><div class="lr-name">Speaker 2</div><div class="lr-sub">Unassigned</div></div><div class="del">Delete</div></div>
+        <div class="drow"><span class="handle">⋮⋮</span><div class="drow-main"><div class="lr-name">Timer</div><div class="lr-assignee">Carol</div></div><div class="del">Delete</div></div>
+        <div class="add">+ Add role</div>
+      </div>
+
+      <!-- Sessions (same row style as Roles) -->
+      <div class="panel" data-panel="sessions">
+        <div class="subtle">Start times auto-computed · drag ⋮⋮ to reorder · swipe a row for Delete</div>
+        <div class="drow"><span class="handle">⋮⋮</span><div class="drow-main"><div class="lr-name"><span class="time">19:00</span>Opening / TMOD</div><div class="lr-sub">6 min · Toastmaster</div></div><div class="del">Delete</div></div>
+        <div class="drow"><span class="handle">⋮⋮</span><div class="drow-main"><div class="lr-name"><span class="time">19:07</span>Speech 1</div><div class="lr-sub">7 min · Speaker 1</div></div><div class="del">Delete</div></div>
+        <div class="drow"><span class="handle">⋮⋮</span><div class="drow-main"><div class="lr-name"><span class="time">19:15</span>Evaluation 1</div><div class="lr-sub">3 min · Evaluator 1</div></div><div class="del">Delete</div></div>
+        <div class="drow"><span class="handle">⋮⋮</span><div class="drow-main"><div class="lr-name"><span class="time">19:19</span>Table Topics</div><div class="lr-sub">20 min · TT Master</div></div><div class="del">Delete</div></div>
+        <div class="add">+ Add session</div>
+      </div>
+
+      <!-- Speeches -->
+      <div class="panel" data-panel="speeches">
+        <div class="card">
+          <div class="lr-name" style="margin-bottom:8px">Speaker 1 · Bob</div>
+          <div class="field"><div class="label">Title</div><input class="input" value="The Unscripted Project" /></div>
+          <div class="field"><div class="label">Pathway</div><div class="picker">Engaging Humor · L2 <span class="chev">▾</span></div></div>
+          <div class="field"><div class="label">Speech purpose</div><input class="input" placeholder="Project purpose…" /></div>
+        </div>
+        <div class="card">
+          <div class="lr-name" style="margin-bottom:8px">Speaker 2 · Alice</div>
+          <div class="field"><div class="label">Title</div><input class="input" placeholder="Speech title…" /></div>
+          <div class="field"><div class="label">Pathway</div><div class="picker">Choose pathway <span class="chev">▾</span></div></div>
+        </div>
+      </div>
+
+      <!-- Table Topics -->
+      <div class="panel" data-panel="topics">
+        <div class="card">
+          <div class="field"><div class="label">Theme <span class="shared-tag">shared with Info</span></div><input class="input" value="Embrace Change" /></div>
+        </div>
+        <div class="subtle">Impromptu participants (recorded during the meeting)</div>
+        <div class="card">
+          <div class="list-row"><div class="lr-main"><div class="lr-name">1. Alice</div></div><span class="chev">✕</span></div>
+          <div class="list-row"><div class="lr-main"><div class="lr-name">2. Bob</div></div><span class="chev">✕</span></div>
+          <div class="list-row"><div class="lr-main"><div class="lr-name">3. Charlie</div></div><span class="chev">✕</span></div>
+        </div>
+        <div class="add">+ Add participant</div>
+      </div>
+
+      <!-- Review -->
+      <div class="panel" data-panel="review">
+        <div class="card">
+          <div class="rev-row"><span>Info</span><span class="ok">Ready</span></div>
+          <div class="rev-row"><span>Roles</span><span>8 slots · 5 assigned</span></div>
+          <div class="rev-row"><span>Sessions</span><span>18 rows</span></div>
+          <div class="rev-row"><span>Speeches</span><span class="todo">1 / 2 prepared</span></div>
+          <div class="rev-row"><span>Table Topics</span><span>3 participants</span></div>
+        </div>
+        <button class="btn" style="width:100%;padding:13px;font-size:15px">Publish meeting</button>
+      </div>
+    </div>
+
+    <div class="savebar" id="savebar">
+      <div class="hint">Saving <b id="saveWhat">Info</b> only</div>
+      <button class="btn">Save</button>
+    </div>
+  </div>
+
+  <script>
+    const tabs = document.getElementById('tabs');
+    const body = document.getElementById('body');
+    const savebar = document.getElementById('savebar');
+    const saveWhat = document.getElementById('saveWhat');
+    const names = { info:'Info', roles:'Roles', sessions:'Sessions', speeches:'Speeches', topics:'Table Topics', review:'Review' };
+    tabs.addEventListener('click', (e) => {
+      const t = e.target.closest('.tab'); if (!t) return;
+      const key = t.dataset.tab;
+      tabs.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+      body.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === key));
+      body.scrollTop = 0;
+      if (key === 'review') { savebar.style.display = 'none'; }
+      else { savebar.style.display = 'flex'; saveWhat.textContent = names[key]; }
+    });
+
+    // Tab edge chevrons: show when there are more tabs off-screen.
+    const edgeL = document.getElementById('edgeL');
+    const edgeR = document.getElementById('edgeR');
+    function updateEdges() {
+      edgeL.classList.toggle('hidden', tabs.scrollLeft <= 4);
+      edgeR.classList.toggle('hidden', tabs.scrollLeft >= tabs.scrollWidth - tabs.clientWidth - 4);
+    }
+    tabs.addEventListener('scroll', updateEdges);
+    setTimeout(updateEdges, 60);
+
+    // Demo stand-in for left-swipe: tap a row body to reveal Delete (content fades, stays put).
+    body.addEventListener('click', (e) => {
+      const del = e.target.closest('.del');
+      if (del) { del.parentElement.remove(); return; }
+      const main = e.target.closest('.drow-main');
+      if (main) { main.parentElement.classList.toggle('swiped'); }
+    });
+  </script>
+</body>
+</html>

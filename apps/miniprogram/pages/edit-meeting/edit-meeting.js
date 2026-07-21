@@ -1,7 +1,9 @@
 // pages/edit-meeting/edit-meeting.js
-// Single-page accordion editor for a meeting. Each section (Info / Roles / Sessions)
-// saves independently as a batch to its own backend endpoint; a Publish toggle flips
-// the meeting status. See design/functionalities/meeting_info.md.
+// Tabbed meeting editor. A scrollable tab strip switches sections (Info / Roles / Sessions
+// / Speeches / Table Topics / Review); each section saves independently as a batch to its
+// own backend endpoint; a Publish toggle flips the meeting status. Roles and Sessions share
+// one draggable row; left-swipe reveals Delete (content fades). See
+// design/functionalities/meeting_info.md.
 const api = require('../../utils/api.js');
 const { shortDate } = require('../../utils/format.js');
 
@@ -25,7 +27,19 @@ Page({
     saving: false,
     meetingId: null,
     header: null,
-    open: '', // '', 'info', 'roles', 'sessions'
+    activeTab: 'info',
+    tabs: [
+      { id: 'info', label: 'Information' },
+      { id: 'roles', label: 'Roles' },
+      { id: 'sessions', label: 'Sessions' },
+      { id: 'speeches', label: 'Speeches' },
+      { id: 'topics', label: 'Table Topics' },
+      { id: 'review', label: 'Review' }
+    ],
+    edgeLeft: false,
+    edgeRight: true,
+    highlightField: '',
+    drag: { type: '', index: -1, offset: 0 },
     info: { title: '', theme: '', keyword: '', date: '', start_time: '', end_time: '', venue: '' },
     slots: [],
     sessions: [],
@@ -39,8 +53,24 @@ Page({
   },
 
   onLoad(query) {
-    this.meetingId = query && query.id ? parseInt(query.id, 10) : null;
+    query = query || {};
+    this.meetingId = query.id ? parseInt(query.id, 10) : null;
+    const valid = ['info', 'roles', 'sessions', 'speeches', 'topics', 'review'];
+    const patch = {};
+    if (query.tab && valid.indexOf(query.tab) >= 0) patch.activeTab = query.tab;
+    if (query.field) patch.highlightField = query.field;
+    if (Object.keys(patch).length) this.setData(patch);
     this.load();
+  },
+
+  onReady() {
+    // Measure the tab strip width so scroll can decide when to show the ‹ / › chevrons.
+    wx.createSelectorQuery()
+      .select('.tabs')
+      .boundingClientRect((r) => {
+        if (r) this._tabsView = r.width;
+      })
+      .exec();
   },
 
   async load() {
@@ -163,23 +193,65 @@ Page({
   },
 
   // Run a section-save promise (returns the updated meeting), re-hydrate, and toast.
-  persist(promise, closeSection) {
+  persist(promise) {
     this.setData({ saving: true });
     return promise
       .then((detail) => {
-        const open = closeSection ? '' : this.data.open;
         this.applyMeeting(detail, this.data.roleCatalog, this.data.userCatalog);
-        this.setData({ open });
         wx.showToast({ title: 'Saved', icon: 'success' });
       })
       .catch((err) => wx.showToast({ title: (err && err.error) || 'Save failed', icon: 'none' }))
       .finally(() => this.setData({ saving: false }));
   },
 
-  // --- Accordion --------------------------------------------------------------
-  toggleSection(e) {
-    const key = e.currentTarget.dataset.key;
-    this.setData({ open: this.data.open === key ? '' : key, swipe: { type: '', index: -1 } });
+  // --- Tabs -------------------------------------------------------------------
+  switchTab(e) {
+    this.setData({ activeTab: e.currentTarget.dataset.tab, swipe: { type: '', index: -1 } });
+  },
+  onTabsScroll(e) {
+    const { scrollLeft, scrollWidth } = e.detail;
+    const view = this._tabsView || 0;
+    this.setData({
+      edgeLeft: scrollLeft > 4,
+      edgeRight: scrollLeft < scrollWidth - view - 4
+    });
+  },
+  noop() {},
+
+  // --- Drag handle to reorder (roles & sessions share one behavior) -----------
+  onDragStart(e) {
+    const type = e.currentTarget.dataset.type;
+    const index = e.currentTarget.dataset.index;
+    this._drag = { type, index, startY: e.touches[0].clientY };
+    this.setData({ drag: { type, index, offset: 0 }, swipe: { type: '', index: -1 } });
+  },
+  onDragMove(e) {
+    if (!this._drag) return;
+    this.setData({ 'drag.offset': e.touches[0].clientY - this._drag.startY });
+  },
+  onDragEnd() {
+    if (!this._drag) return;
+    const { type, index } = this._drag;
+    const ROW = 72; // approx row height in px; tune on device
+    const steps = Math.round((this.data.drag.offset || 0) / ROW);
+    this._drag = null;
+    if (!steps) {
+      this.setData({ drag: { type: '', index: -1, offset: 0 } });
+      return;
+    }
+    const key = type === 'role' ? 'slots' : 'sessions';
+    const list = this.data[key].slice();
+    const target = Math.max(0, Math.min(list.length - 1, index + steps));
+    const [item] = list.splice(index, 1);
+    list.splice(target, 0, item);
+    const patch = { drag: { type: '', index: -1, offset: 0 } };
+    if (type === 'session') {
+      patch.sessions = this.withStarts(list, this.data.info.start_time, this.data.slots);
+    } else {
+      patch.slots = list;
+      patch.slotPickerLabels = [NONE_LABEL].concat(list.map((s) => s.display));
+    }
+    this.setData(patch);
   },
 
   // --- Swipe-to-reveal row actions --------------------------------------------
@@ -228,7 +300,7 @@ Page({
       wx.showToast({ title: 'Date is required', icon: 'none' });
       return;
     }
-    this.persist(api.saveMeetingInfo(this.meetingId, info), true);
+    this.persist(api.saveMeetingInfo(this.meetingId, info));
   },
 
   // --- Roles ------------------------------------------------------------------
@@ -305,7 +377,7 @@ Page({
         booker_id: s.booker_id || null
       });
     }
-    this.persist(api.saveSlots(this.meetingId, payload), false);
+    this.persist(api.saveSlots(this.meetingId, payload));
   },
 
   // --- Sessions ---------------------------------------------------------------
@@ -376,12 +448,12 @@ Page({
         return;
       }
     }
-    this.persist(api.saveSessions(this.meetingId, payload), false);
+    this.persist(api.saveSessions(this.meetingId, payload));
   },
 
   // --- Publish ----------------------------------------------------------------
   togglePublish() {
     const next = this.data.header.published ? 'draft' : 'published';
-    this.persist(api.setMeetingStatus(this.meetingId, next), false);
+    this.persist(api.setMeetingStatus(this.meetingId, next));
   }
 });

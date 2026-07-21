@@ -4,91 +4,63 @@
 
   <block wx:elif="{{header}}">
     <!-- Header + publish toggle -->
-    <view class="card head-card">
+    <view class="head-card">
       <view class="head-top">
-        <text class="head-title">#{{header.number}} {{header.title}}</text>
+        <view class="head-main">
+          <text class="head-title">#{{header.number}} {{header.title}}</text>
+          <text class="head-sub muted">{{header.theme || 'No theme'}} · {{header.dateLabel}} {{header.timeLabel}}</text>
+        </view>
+        <text class="status-pill status-{{header.status}}">{{header.status}}</text>
         <view class="btn {{header.published ? 'btn-outline' : ''}} {{saving ? 'disabled' : ''}}" bindtap="togglePublish">
           {{header.published ? 'Unpublish' : 'Publish'}}
         </view>
       </view>
-      <text class="head-sub muted">{{header.theme || 'No theme'}} · {{header.dateLabel}} {{header.timeLabel}}</text>
-      <text class="status-pill status-{{header.status}}">{{header.status}}</text>
     </view>
 
-    <!-- Info -->
-    <view class="card section">
-      <view class="section-head" data-key="info" bindtap="toggleSection">
-        <view class="fold-toggle">{{open === 'info' ? '−' : '+'}}</view>
-        <text class="section-name">Information</text>
-      </view>
-      <view wx:if="{{open === 'info'}}" class="section-body">
-        <view class="field">
-          <text class="field-label muted">Title</text>
-          <input class="field-input" value="{{info.title}}" data-field="title" bindinput="onInfoInput" />
-        </view>
-        <view class="field">
-          <text class="field-label muted">Theme</text>
-          <input class="field-input" value="{{info.theme}}" data-field="theme" bindinput="onInfoInput" />
-        </view>
-        <view class="field">
-          <text class="field-label muted">Keyword</text>
-          <input class="field-input" value="{{info.keyword}}" data-field="keyword" bindinput="onInfoInput" />
-        </view>
-        <view class="field">
-          <text class="field-label muted">Date</text>
-          <picker mode="date" value="{{info.date}}" bindchange="onDateChange">
-            <view class="picker-value">{{info.date || 'Pick date'}}</view>
-          </picker>
-        </view>
-        <view class="field-row">
-          <view class="field half">
-            <text class="field-label muted">Start</text>
-            <picker mode="time" value="{{info.start_time}}" bindchange="onStartChange">
-              <view class="picker-value">{{info.start_time || '--:--'}}</view>
-            </picker>
-          </view>
-          <view class="field half">
-            <text class="field-label muted">End</text>
-            <picker mode="time" value="{{info.end_time}}" bindchange="onEndChange">
-              <view class="picker-value">{{info.end_time || '--:--'}}</view>
-            </picker>
-          </view>
-        </view>
-        <view class="field">
-          <text class="field-label muted">Venue</text>
-          <input class="field-input" value="{{info.venue}}" data-field="venue" bindinput="onInfoInput" />
-        </view>
-        <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveInfo">Save</view>
-      </view>
+    <!-- Tab strip -->
+    <view class="tabwrap">
+      <view class="edge left {{edgeLeft ? '' : 'hidden'}}">‹</view>
+      <scroll-view class="tabs" scroll-x="true" bindscroll="onTabsScroll" enhanced="true" show-scrollbar="{{false}}">
+        <view class="tab {{activeTab === item.id ? 'active' : ''}}" wx:for="{{tabs}}" wx:key="id" data-tab="{{item.id}}" bindtap="switchTab">{{item.label}}</view>
+      </scroll-view>
+      <view class="edge right {{edgeRight ? '' : 'hidden'}}">›</view>
     </view>
 
-    <!-- Roles -->
-    <view class="card section">
-      <view class="section-head" data-key="roles" bindtap="toggleSection">
-        <view class="fold-toggle">{{open === 'roles' ? '−' : '+'}}</view>
-        <text class="section-name">Roles</text>
-        <text class="section-count muted">{{slots.length}}</text>
-      </view>
-      <view wx:if="{{open === 'roles'}}" class="section-body">
-        <view class="swipe-row" wx:for="{{slots}}" wx:key="index" wx:for-item="slot">
-          <view class="swipe-actions">
-            <view class="act-btn" data-index="{{index}}" catchtap="addSlot">＋</view>
-            <view class="act-btn danger" data-index="{{index}}" catchtap="deleteSlot">✕</view>
+    <!-- Body -->
+    <view class="body">
+
+      <!-- Information -->
+      <block wx:if="{{activeTab === 'info'}}">
+        <view class="card">
+          <view class="field {{highlightField === 'title' ? 'hl' : ''}}"><text class="field-label muted">Title</text><input class="field-input" value="{{info.title}}" data-field="title" bindinput="onInfoInput" /></view>
+          <view class="field {{highlightField === 'theme' ? 'hl' : ''}}"><text class="field-label muted">Theme</text><input class="field-input" value="{{info.theme}}" data-field="theme" bindinput="onInfoInput" /></view>
+          <view class="field {{highlightField === 'keyword' ? 'hl' : ''}}"><text class="field-label muted">Keyword</text><input class="field-input" value="{{info.keyword}}" data-field="keyword" bindinput="onInfoInput" /></view>
+          <view class="field"><text class="field-label muted">Date</text><picker mode="date" value="{{info.date}}" bindchange="onDateChange"><view class="picker-value">{{info.date || 'Pick date'}}</view></picker></view>
+          <view class="field-row">
+            <view class="field half"><text class="field-label muted">Start</text><picker mode="time" value="{{info.start_time}}" bindchange="onStartChange"><view class="picker-value">{{info.start_time || '--:--'}}</view></picker></view>
+            <view class="field half"><text class="field-label muted">End</text><picker mode="time" value="{{info.end_time}}" bindchange="onEndChange"><view class="picker-value">{{info.end_time || '--:--'}}</view></picker></view>
           </view>
-          <view class="swipe-content {{swipe.type === 'role' && swipe.index === index ? 'open-role' : ''}}"
-                data-type="role" data-index="{{index}}" bindtouchstart="onSwipeStart" bindtouchend="onSwipeEnd">
+          <view class="field {{highlightField === 'venue' ? 'hl' : ''}}"><text class="field-label muted">Venue</text><input class="field-input" value="{{info.venue}}" data-field="venue" bindinput="onInfoInput" /></view>
+        </view>
+        <view class="savebar"><text class="save-hint muted">Saving Information</text><view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveInfo">Save</view></view>
+      </block>
+
+      <!-- Roles -->
+      <block wx:elif="{{activeTab === 'roles'}}">
+        <text class="subtle muted">{{slots.length}} role slots · drag ⋮⋮ to reorder · swipe a row for Delete</text>
+        <view class="drow {{swipe.type === 'role' && swipe.index === index ? 'swiped' : ''}} {{drag.type === 'role' && drag.index === index ? 'dragging' : ''}}"
+              wx:for="{{slots}}" wx:key="index" wx:for-item="slot"
+              style="{{drag.type === 'role' && drag.index === index ? 'transform:translateY(' + drag.offset + 'px);' : ''}}">
+          <view class="handle" data-type="role" data-index="{{index}}" catchtouchstart="onDragStart" catchtouchmove="onDragMove" catchtouchend="onDragEnd">⋮⋮</view>
+          <view class="drow-main" data-type="role" data-index="{{index}}" bindtouchstart="onSwipeStart" bindtouchend="onSwipeEnd">
             <view class="row-head" data-index="{{index}}" bindtap="toggleSlot">
-              <view class="row-main">
-                <text class="row-name">{{slot.role_name || slot.display || 'New role'}}</text>
-                <text class="row-sub muted">Assignee: {{slot.booker_name || '—'}}</text>
-              </view>
+              <text class="row-name">{{slot.role_name || slot.display || 'New role'}}</text>
+              <text class="row-sub muted">Assignee: {{slot.booker_name || '—'}}</text>
             </view>
-            <view wx:if="{{slot.open}}" class="row-body">
+            <view wx:if="{{slot.open}}" class="row-body" catchtap="noop">
               <view class="field">
                 <text class="field-label muted">Role</text>
-                <picker range="{{roleNames}}" data-index="{{index}}" bindchange="onSlotRolePick">
-                  <view class="picker-value">{{slot.role_name || 'Pick role'}}</view>
-                </picker>
+                <picker range="{{roleNames}}" data-index="{{index}}" bindchange="onSlotRolePick"><view class="picker-value">{{slot.role_name || 'Pick role'}}</view></picker>
                 <input class="field-input sub-input" placeholder="or type a new role" value="{{slot.role_name}}" data-index="{{index}}" bindinput="onSlotRoleInput" />
               </view>
               <view class="field">
@@ -97,43 +69,29 @@
               </view>
               <view class="field">
                 <text class="field-label muted">Assignee</text>
-                <picker range="{{userNames}}" data-index="{{index}}" bindchange="onSlotBookerPick">
-                  <view class="picker-value">{{slot.booker_name || 'Unassigned'}}</view>
-                </picker>
+                <picker range="{{userNames}}" data-index="{{index}}" bindchange="onSlotBookerPick"><view class="picker-value">{{slot.booker_name || 'Unassigned'}}</view></picker>
               </view>
             </view>
           </view>
+          <view class="del" data-index="{{index}}" catchtap="deleteSlot">Delete</view>
         </view>
-        <view wx:if="{{slots.length === 0}}" class="btn btn-ghost add-btn" bindtap="addSlot">+ Add role</view>
-        <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSlots">Save roles</view>
-      </view>
-    </view>
+        <view class="btn btn-ghost add-btn" bindtap="addSlot">+ Add role</view>
+        <view class="savebar"><text class="save-hint muted">Saving Roles</text><view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSlots">Save</view></view>
+      </block>
 
-    <!-- Sessions -->
-    <view class="card section">
-      <view class="section-head" data-key="sessions" bindtap="toggleSection">
-        <view class="fold-toggle">{{open === 'sessions' ? '−' : '+'}}</view>
-        <text class="section-name">Sessions</text>
-        <text class="section-count muted">{{sessions.length}}</text>
-      </view>
-      <view wx:if="{{open === 'sessions'}}" class="section-body">
-        <view class="swipe-row" wx:for="{{sessions}}" wx:key="index" wx:for-item="ses">
-          <view class="swipe-actions">
-            <view class="act-btn" data-index="{{index}}" catchtap="addSession">＋</view>
-            <view class="act-btn" data-index="{{index}}" data-dir="up" catchtap="moveSession">↑</view>
-            <view class="act-btn" data-index="{{index}}" data-dir="down" catchtap="moveSession">↓</view>
-            <view class="act-btn danger" data-index="{{index}}" catchtap="deleteSession">✕</view>
-          </view>
-          <view class="swipe-content {{swipe.type === 'session' && swipe.index === index ? 'open-session' : ''}}"
-                data-type="session" data-index="{{index}}" bindtouchstart="onSwipeStart" bindtouchend="onSwipeEnd">
+      <!-- Sessions -->
+      <block wx:elif="{{activeTab === 'sessions'}}">
+        <text class="subtle muted">Start times auto-computed · drag ⋮⋮ to reorder · swipe a row for Delete</text>
+        <view class="drow {{swipe.type === 'session' && swipe.index === index ? 'swiped' : ''}} {{drag.type === 'session' && drag.index === index ? 'dragging' : ''}}"
+              wx:for="{{sessions}}" wx:key="index" wx:for-item="ses"
+              style="{{drag.type === 'session' && drag.index === index ? 'transform:translateY(' + drag.offset + 'px);' : ''}}">
+          <view class="handle" data-type="session" data-index="{{index}}" catchtouchstart="onDragStart" catchtouchmove="onDragMove" catchtouchend="onDragEnd">⋮⋮</view>
+          <view class="drow-main" data-type="session" data-index="{{index}}" bindtouchstart="onSwipeStart" bindtouchend="onSwipeEnd">
             <view class="row-head" data-index="{{index}}" bindtap="toggleSession">
-              <text class="ses-time">{{ses.start}}</text>
-              <view class="row-main">
-                <text class="row-name">{{ses.name}}</text>
-                <text class="row-sub muted">{{ses.duration_minutes}}' · {{ses.roleLabel || '—'}}</text>
-              </view>
+              <text class="row-name"><text class="ses-time">{{ses.start}}</text> {{ses.name}}</text>
+              <text class="row-sub muted">{{ses.duration_minutes}}' · {{ses.roleLabel || '—'}}</text>
             </view>
-            <view wx:if="{{ses.open}}" class="row-body">
+            <view wx:if="{{ses.open}}" class="row-body" catchtap="noop">
               <view class="field">
                 <text class="field-label muted">Session name</text>
                 <input class="field-input" value="{{ses.name}}" data-index="{{index}}" data-field="name" bindinput="onSessionInput" />
@@ -148,18 +106,44 @@
               </view>
               <view class="field">
                 <text class="field-label muted">Role</text>
-                <picker range="{{slotPickerLabels}}" data-index="{{index}}" bindchange="onSessionRolePick">
-                  <view class="picker-value">{{ses.roleLabel || 'No role'}}</view>
-                </picker>
+                <picker range="{{slotPickerLabels}}" data-index="{{index}}" bindchange="onSessionRolePick"><view class="picker-value">{{ses.roleLabel || 'No role'}}</view></picker>
               </view>
             </view>
           </view>
+          <view class="del" data-index="{{index}}" catchtap="deleteSession">Delete</view>
         </view>
-        <view wx:if="{{sessions.length === 0}}" class="btn btn-ghost add-btn" bindtap="addSession">+ Add session</view>
-        <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSessions">Save sessions</view>
-      </view>
-    </view>
+        <view class="btn btn-ghost add-btn" bindtap="addSession">+ Add session</view>
+        <view class="savebar"><text class="save-hint muted">Saving Sessions</text><view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSessions">Save</view></view>
+      </block>
 
+      <!-- Speeches (stub — needs backend) -->
+      <block wx:elif="{{activeTab === 'speeches'}}">
+        <view class="card empty-tab">
+          <text class="et-title">Prepared Speeches</text>
+          <text class="muted">Speech title, Pathways path/level and purpose per speaker. Coming soon — needs a backend field + endpoint.</text>
+        </view>
+      </block>
+
+      <!-- Table Topics (stub — needs backend) -->
+      <block wx:elif="{{activeTab === 'topics'}}">
+        <view class="card empty-tab">
+          <text class="et-title">Table Topics</text>
+          <text class="muted">Impromptu participants list. Coming soon — needs a participants table + endpoint.</text>
+        </view>
+      </block>
+
+      <!-- Review -->
+      <block wx:elif="{{activeTab === 'review'}}">
+        <view class="card">
+          <view class="rev-row"><text>Info</text><text class="muted">{{header.title || '—'}}</text></view>
+          <view class="rev-row"><text>Roles</text><text class="muted">{{slots.length}} slots</text></view>
+          <view class="rev-row"><text>Sessions</text><text class="muted">{{sessions.length}} rows</text></view>
+          <view class="rev-row"><text>Status</text><text class="muted">{{header.status}}</text></view>
+        </view>
+        <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="togglePublish">{{header.published ? 'Unpublish meeting' : 'Publish meeting'}}</view>
+      </block>
+
+    </view>
   </block>
 
   <view wx:else class="empty">No meeting to edit.</view>

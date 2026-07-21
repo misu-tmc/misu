@@ -102,18 +102,18 @@ template is just a meeting flagged `is_template`.
 
 ## Mini Program Meeting Editor
 
-The mini program editor is **not** a shrunken web spreadsheet. It is a single mobile-first
-page of **expand/collapse (accordion) sections** — no page-in/page-out navigation. Each
-section edits one slice of the meeting with large tap targets and native pickers. Tapping a section header expands it inline for editing. Each header carries a circular
-`+` / `−` **fold-toggle** on its left — the same expand/collapse affordance as the Booking
-tab's meeting cards. Opening one section collapses the others (one section open at a time).
-Rows inside a section (a role slot, a session) expand **inline** on tap — there is no
-drill-in navigation anywhere. Row actions are hidden by default and revealed with a
-**left swipe** on the row (see Gestures).
+The mini program editor is a single mobile-first page organized as **tabs** — not an
+accordion and not a page stack. A header shows the meeting identity, status and a Publish
+toggle; a horizontally scrollable **tab strip** switches sections; the body shows one
+focused section at a time; a fixed **Save bar** saves the current section only.
+
+Tabs (current): **Information · Roles · Sessions · Speeches · Table Topics · Review**. The
+strip shows `‹` / `›` edge chevrons when more tabs sit off-screen. Tabs are addressed by
+**stable ids** (`info`, `roles`, `sessions`, and later `role:123` / `speech:456`) so
+deep-links and dynamic tabs stay valid across reorders.
 
 For now, **permissions are explicitly out of scope**: assume the user can open and save
-every editing section. Authorization rules can be added later without changing the page
-structure.
+every section. Authorization rules can be added later without changing the page structure.
 
 ### Independent per-section saves
 
@@ -153,39 +153,67 @@ fresh without a full reload (`onShow` may refetch as a safety net).
 
 ### Editor page
 
-A single page: an identity/status header with a Publish toggle, then the accordion
-sections. Collapsed sections show a one-line summary; the expanded one edits inline.
+A header (identity/status/Publish), a scrollable tab strip, one section body, and a fixed
+Save bar for the current section.
 
 ```
 ┌─────────────────────────────┐
 │ #142 Regular Meeting        │
-│ Graduation · Jul 20 19:00   │
-│ Draft            [ Publish ] │
+│ Graduation · Jul 20 19:00   │  Draft   [ Publish ]
 ├─────────────────────────────┤
-│ (+) Information             │  ← collapsed (tap to expand)
+│ ‹ Info  Roles  Sessions  …› │  ← scrollable tab strip
 ├─────────────────────────────┤
-│ (−) Roles               2  │  ← expanded, edits inline
-│   Toastmaster              │
-│   Assignee: Alice          │  ← swipe left to reveal ＋ ✕
-│   Speaker 1                │
-│   Assignee: Bob            │
+│ Roles                       │
+│ ⋮⋮  Toastmaster      [Del]  │  ← drag ⋮⋮ to reorder;
+│     Assignee: Alice         │     swipe left → fades + Delete
+│ ⋮⋮  Speaker 1               │
+│     Assignee: Bob           │
+│ [ + Add role ]              │
 ├─────────────────────────────┤
-│ (+) Sessions               │
+│           [ Save Roles ]    │  ← fixed save bar
 └─────────────────────────────┘
 ```
 
-Prepared Speeches, Table Topics, and Review & Publish are additional sections in the same
-accordion, added in later iterations (see staging).
+### Rows, drag & swipe
 
-### Gestures
+**Roles and Sessions share one row style.** Every row carries a `⋮⋮` **drag handle** —
+dragging it reorders the list (the data model keeps an explicit `position`/order field). A
+**left swipe** on a row reveals a **Delete** action; the row content stays fixed and
+**fades** (it does not translate). Tapping a row expands its inline editor.
 
-Row controls stay out of the way until needed:
+### Deep-links (Prepare)
 
-- **Left swipe** on a role or session row slides it aside to reveal its action buttons
-  (`＋` add-after and `✕` delete for roles; `＋` `↑` `↓` `✕` for sessions). Swiping right, or
-  tapping/expanding another row, closes it.
-- **Drag to reorder** sessions by touch-and-hold is a planned enhancement; until then the
-  `↑` / `↓` buttons in the revealed action strip reorder rows.
+Booking's **Prepare** opens the editor at a specific tab and can highlight a field:
+`edit-meeting?id=…&tab=…&field=…`. Tabs are id-keyed; a missing target falls back to the
+nearest static tab. Example: a Grammarian's Prepare lands on **Information** with
+**Keyword** highlighted.
+
+### Shared fields
+
+Some values surface in more than one tab (e.g. **Theme** in Information and Table Topics).
+They bind to a single draft key, so editing either place updates the other and both save to
+the same column.
+
+### Dynamic tabs (advanced, later)
+
+Tabs may be generated per session/role (e.g. a tab per prepared speech). Because tabs are
+id-keyed, Prepare deep-links target them directly. Deferred until the static tab shell is
+proven on-device.
+
+### Backend & schema needs (build later)
+
+Information / Roles / Sessions / Publish use the existing
+`PUT …/info | slots | sessions | status` endpoints. The remaining tabs need new storage +
+APIs:
+
+- **Speeches** — prepared-speech fields (title, Pathways path/level/project, purpose) are
+  not in the schema. Add columns/table keyed by `role_slot`/`session` plus a
+  `PUT /api/meetings/:id/speeches` batch endpoint.
+- **Table Topics** — the participant list has no storage. Add a `table_topic_participant`
+  table (`meeting_id`, `position`, `name`/`user_id`) plus `PUT /api/meetings/:id/table-topics`.
+- **Deep-link source** — Booking's Prepare must pass `tab`/`field` params to the editor.
+- **Shared field writes** — Table Topics' Theme is a *view* of `meeting.theme`, saved via
+  Information's endpoint — not a new column.
 
 ### Information
 

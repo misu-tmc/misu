@@ -9,8 +9,8 @@ use serde_json::json;
 use sqlx::FromRow;
 
 use crate::auth::{
-    create_session, delete_session, resolve_openid, upsert_wechat_user,
-    verify_web_login, AuthUser, SessionToken, SESSION_COOKIE,
+    create_session, delete_session, resolve_openid, upsert_wechat_user, verify_web_login, AuthUser,
+    SessionToken, SESSION_COOKIE,
 };
 use crate::error::{AppError, AppResult};
 use crate::AppState;
@@ -106,7 +106,9 @@ pub async fn auth_login(
 ) -> AppResult<Response> {
     let username = req.username.trim();
     if username.is_empty() || req.password.is_empty() {
-        return Err(AppError::BadRequest("username and password are required".into()));
+        return Err(AppError::BadRequest(
+            "username and password are required".into(),
+        ));
     }
     let (user_id, display_name) = verify_web_login(&state.pool, username, &req.password)
         .await?
@@ -119,7 +121,9 @@ pub async fn auth_login(
     .into_response();
     resp.headers_mut().insert(
         SET_COOKIE,
-        session_cookie(&token, state.config.dev_mode()).parse().unwrap(),
+        session_cookie(&token, state.config.dev_mode())
+            .parse()
+            .unwrap(),
     );
     Ok(resp)
 }
@@ -353,10 +357,14 @@ pub async fn meetings_upcoming(
 ) -> AppResult<Json<Vec<MeetingDto>>> {
     let today = chrono::Local::now().date_naive().to_string();
     let rows = sqlx::query_as::<_, MeetingRow>(
-        "SELECT id, number, title, theme, keyword, date, start_time, end_time, venue, status, is_template \
-         FROM meeting \
-            WHERE status = 'published' AND date >= ? \
-         ORDER BY date ASC, number ASC",
+        "SELECT m.id, m.number, m.title, m.theme, m.keyword, m.date, m.start_time, m.end_time, \
+            COALESCE(v.name, '') AS venue, m.status, \
+            CASE WHEN t.meeting_id IS NULL THEN 0 ELSE 1 END AS is_template \
+         FROM meeting m \
+         LEFT JOIN venue v ON v.id = m.venue_id \
+         LEFT JOIN template t ON t.meeting_id = m.id \
+         WHERE m.status = 'published' AND m.date >= ? \
+         ORDER BY m.date ASC, m.number ASC",
     )
     .bind(&today)
     .fetch_all(&state.pool)
@@ -387,8 +395,13 @@ pub(crate) async fn meeting_dto_by_id(
     meeting_id: i64,
 ) -> AppResult<Option<MeetingDto>> {
     let m = sqlx::query_as::<_, MeetingRow>(
-        "SELECT id, number, title, theme, keyword, date, start_time, end_time, venue, status, is_template \
-         FROM meeting WHERE id = ?",
+        "SELECT m.id, m.number, m.title, m.theme, m.keyword, m.date, m.start_time, m.end_time, \
+            COALESCE(v.name, '') AS venue, m.status, \
+            CASE WHEN t.meeting_id IS NULL THEN 0 ELSE 1 END AS is_template \
+         FROM meeting m \
+         LEFT JOIN venue v ON v.id = m.venue_id \
+         LEFT JOIN template t ON t.meeting_id = m.id \
+         WHERE m.id = ?",
     )
     .bind(meeting_id)
     .fetch_optional(pool)
@@ -474,12 +487,10 @@ pub async fn book(
             None => {} // already open — idempotent
             Some(_) => {
                 // Release the booking; keep the row so a taker_id (if any) survives.
-                sqlx::query(
-                    "UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?",
-                )
-                .bind(req.role_slot_id)
-                .execute(&state.pool)
-                .await?;
+                sqlx::query("UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?")
+                    .bind(req.role_slot_id)
+                    .execute(&state.pool)
+                    .await?;
             }
         }
         return Ok(Json(json!({ "ok": true, "booker_id": null })));

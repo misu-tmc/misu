@@ -12,7 +12,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, SqliteConnection};
 use std::collections::HashSet;
 
 use crate::auth::{AuthUser, MaybeAuthUser};
@@ -115,7 +115,12 @@ pub struct MeetingSummary {
     pub meeting_manager: Option<i64>,
 }
 
-const SUMMARY_COLS: &str = "id, number, title, theme, date, start_time, end_time, venue, status, is_template, meeting_manager";
+const SUMMARY_COLS: &str = "m.id, m.number, m.title, m.theme, m.date, m.start_time, m.end_time, \
+    COALESCE(v.name, '') AS venue, m.status, \
+    CASE WHEN t.meeting_id IS NULL THEN 0 ELSE 1 END AS is_template, m.meeting_manager";
+const SUMMARY_FROM: &str = "meeting m \
+    LEFT JOIN venue v ON v.id = m.venue_id \
+    LEFT JOIN template t ON t.meeting_id = m.id";
 
 /// `scope`: `open` (today onward, default), `archived` (past), `all`, or `templates`.
 pub async fn list_meetings(
@@ -129,22 +134,23 @@ pub async fn list_meetings(
     let mut rows = match scope {
         "templates" => {
             sqlx::query_as::<_, MeetingSummary>(&format!(
-                "SELECT {SUMMARY_COLS} FROM meeting WHERE is_template = 1 ORDER BY number DESC"
+                "SELECT {SUMMARY_COLS} FROM {SUMMARY_FROM} \
+                 WHERE t.meeting_id IS NOT NULL ORDER BY m.number DESC"
             ))
             .fetch_all(&state.pool)
             .await?
         }
         "all" => {
             sqlx::query_as::<_, MeetingSummary>(&format!(
-                "SELECT {SUMMARY_COLS} FROM meeting ORDER BY date DESC, number DESC"
+                "SELECT {SUMMARY_COLS} FROM {SUMMARY_FROM} ORDER BY m.date DESC, m.number DESC"
             ))
             .fetch_all(&state.pool)
             .await?
         }
         "archived" => {
             sqlx::query_as::<_, MeetingSummary>(&format!(
-                "SELECT {SUMMARY_COLS} FROM meeting WHERE date < ? \
-                 ORDER BY date DESC, number DESC"
+                "SELECT {SUMMARY_COLS} FROM {SUMMARY_FROM} WHERE m.date < ? \
+                 ORDER BY m.date DESC, m.number DESC"
             ))
             .bind(&today)
             .fetch_all(&state.pool)
@@ -153,8 +159,8 @@ pub async fn list_meetings(
         _ => {
             // open
             sqlx::query_as::<_, MeetingSummary>(&format!(
-                "SELECT {SUMMARY_COLS} FROM meeting WHERE date >= ? \
-                 ORDER BY date ASC, number ASC"
+                "SELECT {SUMMARY_COLS} FROM {SUMMARY_FROM} WHERE m.date >= ? \
+                 ORDER BY m.date ASC, m.number ASC"
             ))
             .bind(&today)
             .fetch_all(&state.pool)
@@ -239,6 +245,7 @@ pub async fn upsert_meeting(
     };
 
     let mut tx = state.pool.begin().await?;
+    let venue_id = resolve_venue_id(&mut *tx, &input.venue).await?;
 
     // Resolve every slot's role_id (create role from name for the creatable combobox).
     let mut slot_role_ids: Vec<i64> = Vec::with_capacity(input.role_slots.len());
@@ -278,7 +285,7 @@ pub async fn upsert_meeting(
             };
             let affected = sqlx::query(
                 "UPDATE meeting SET number = ?, title = ?, theme = ?, keyword = ?, date = ?, start_time = ?, \
-                 end_time = ?, venue = ?, status = ?, is_template = ? WHERE id = ?",
+                  end_time = ?, venue_id = ?, status = ? WHERE id = ?",
             )
             .bind(number)
             .bind(input.title.trim())
@@ -287,9 +294,8 @@ pub async fn upsert_meeting(
             .bind(input.date.trim())
             .bind(input.start_time.trim())
             .bind(input.end_time.trim())
-            .bind(input.venue.trim())
+            .bind(venue_id)
             .bind(status)
-            .bind(input.is_template as i64)
             .bind(id)
             .execute(&mut *tx)
             .await?
@@ -309,8 +315,8 @@ pub async fn upsert_meeting(
                 }
             };
             sqlx::query_scalar::<_, i64>(
-                "INSERT INTO meeting(number, title, theme, keyword, date, start_time, end_time, venue, \
-                 status, is_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                 "INSERT INTO meeting(number, title, theme, keyword, date, start_time, end_time, venue_id, \
+                  status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
             )
             .bind(number)
             .bind(input.title.trim())
@@ -319,13 +325,24 @@ pub async fn upsert_meeting(
             .bind(input.date.trim())
             .bind(input.start_time.trim())
             .bind(input.end_time.trim())
-            .bind(input.venue.trim())
+            .bind(venue_id)
             .bind(status)
-            .bind(input.is_template as i64)
             .fetch_one(&mut *tx)
             .await?
         }
     };
+
+    if input.is_template {
+        sqlx::query("INSERT OR IGNORE INTO template(meeting_id) VALUES (?)")
+            .bind(meeting_id)
+            .execute(&mut *tx)
+            .await?;
+    } else {
+        sqlx::query("DELETE FROM template WHERE meeting_id = ?")
+            .bind(meeting_id)
+            .execute(&mut *tx)
+            .await?;
+    }
 
     // Existing slots for this meeting (to preserve bookings and drop removed ones).
     let existing_slots: Vec<i64> =
@@ -363,16 +380,18 @@ pub async fn upsert_meeting(
                 .await?;
                 id
             }
-            _ => sqlx::query_scalar::<_, i64>(
-                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
+            _ => {
+                sqlx::query_scalar::<_, i64>(
+                    "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
                  VALUES (?, ?, ?, ?) RETURNING id",
-            )
-            .bind(meeting_id)
-            .bind(role_id)
-            .bind(label)
-            .bind(slot.is_optional as i64)
-            .fetch_one(&mut *tx)
-            .await?,
+                )
+                .bind(meeting_id)
+                .bind(role_id)
+                .bind(label)
+                .bind(slot.is_optional as i64)
+                .fetch_one(&mut *tx)
+                .await?
+            }
         };
         keep.insert(id);
         index_to_id.push(id);
@@ -437,6 +456,23 @@ async fn meeting_dto_response(
         .ok_or(AppError::NotFound)
 }
 
+async fn resolve_venue_id(conn: &mut SqliteConnection, venue: &str) -> AppResult<Option<i64>> {
+    let venue = venue.trim();
+    if venue.is_empty() {
+        return Ok(None);
+    }
+    sqlx::query("INSERT OR IGNORE INTO venue(name) VALUES (?)")
+        .bind(venue)
+        .execute(&mut *conn)
+        .await?;
+    Ok(Some(
+        sqlx::query_scalar::<_, i64>("SELECT id FROM venue WHERE name = ?")
+            .bind(venue)
+            .fetch_one(&mut *conn)
+            .await?,
+    ))
+}
+
 // --- Info section: the meeting header row --------------------------------------------
 
 #[derive(Deserialize)]
@@ -469,9 +505,12 @@ pub async fn update_meeting_info(
         return Err(AppError::BadRequest("date is required".into()));
     }
 
+    let mut tx = state.pool.begin().await?;
+    let venue_id = resolve_venue_id(&mut *tx, &input.venue).await?;
+
     let affected = sqlx::query(
         "UPDATE meeting SET title = ?, theme = ?, keyword = ?, date = ?, start_time = ?, \
-         end_time = ?, venue = ? WHERE id = ?",
+         end_time = ?, venue_id = ? WHERE id = ?",
     )
     .bind(input.title.trim())
     .bind(input.theme.trim())
@@ -479,14 +518,16 @@ pub async fn update_meeting_info(
     .bind(input.date.trim())
     .bind(input.start_time.trim())
     .bind(input.end_time.trim())
-    .bind(input.venue.trim())
+    .bind(venue_id)
     .bind(meeting_id)
-    .execute(&state.pool)
+    .execute(&mut *tx)
     .await?
     .rows_affected();
     if affected == 0 {
         return Err(AppError::NotFound);
     }
+
+    tx.commit().await?;
 
     meeting_dto_response(&state.pool, meeting_id).await
 }
@@ -586,27 +627,28 @@ pub async fn put_slots(
                 .await?;
                 id
             }
-            _ => sqlx::query_scalar::<_, i64>(
-                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
+            _ => {
+                sqlx::query_scalar::<_, i64>(
+                    "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
                  VALUES (?, ?, ?, ?) RETURNING id",
-            )
-            .bind(meeting_id)
-            .bind(role_id)
-            .bind(label)
-            .bind(slot.is_optional as i64)
-            .fetch_one(&mut *tx)
-            .await?,
+                )
+                .bind(meeting_id)
+                .bind(role_id)
+                .bind(label)
+                .bind(slot.is_optional as i64)
+                .fetch_one(&mut *tx)
+                .await?
+            }
         };
         keep.insert(slot_id);
 
         // Reconcile the booker into role_assignment.
         match slot.booker_id {
             Some(booker) => {
-                let user_exists: i64 =
-                    sqlx::query_scalar("SELECT COUNT(*) FROM user WHERE id = ?")
-                        .bind(booker)
-                        .fetch_one(&mut *tx)
-                        .await?;
+                let user_exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user WHERE id = ?")
+                    .bind(booker)
+                    .fetch_one(&mut *tx)
+                    .await?;
                 if user_exists == 0 {
                     return Err(AppError::BadRequest("booker does not exist".into()));
                 }
@@ -747,7 +789,11 @@ pub async fn update_status(
     let status = match input.status.as_str() {
         "published" => "published",
         "draft" => "draft",
-        _ => return Err(AppError::BadRequest("status must be draft or published".into())),
+        _ => {
+            return Err(AppError::BadRequest(
+                "status must be draft or published".into(),
+            ))
+        }
     };
 
     let affected = sqlx::query("UPDATE meeting SET status = ? WHERE id = ?")
@@ -773,7 +819,10 @@ pub struct RoleDto {
     pub name: String,
 }
 
-pub async fn list_roles(State(state): State<AppState>, _user: AuthUser) -> AppResult<Json<Vec<RoleDto>>> {
+pub async fn list_roles(
+    State(state): State<AppState>,
+    _user: AuthUser,
+) -> AppResult<Json<Vec<RoleDto>>> {
     let rows = sqlx::query_as::<_, RoleDto>("SELECT id, name FROM role ORDER BY name")
         .fetch_all(&state.pool)
         .await?;
@@ -824,12 +873,14 @@ pub struct UserRowDto {
     pub display_name: String,
 }
 
-pub async fn list_users(State(state): State<AppState>, _user: AuthUser) -> AppResult<Json<Vec<UserRowDto>>> {
-    let rows = sqlx::query_as::<_, UserRow>(
-        "SELECT u.id, u.display_name FROM user u ORDER BY u.id",
-    )
-    .fetch_all(&state.pool)
-    .await?;
+pub async fn list_users(
+    State(state): State<AppState>,
+    _user: AuthUser,
+) -> AppResult<Json<Vec<UserRowDto>>> {
+    let rows =
+        sqlx::query_as::<_, UserRow>("SELECT u.id, u.display_name FROM user u ORDER BY u.id")
+            .fetch_all(&state.pool)
+            .await?;
 
     Ok(Json(
         rows.into_iter()

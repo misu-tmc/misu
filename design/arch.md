@@ -100,7 +100,8 @@ Meetings:
 - `GET /api/meetings/:meeting_id` — meeting detail (sessions, role slots, bookings).
 - `POST /api/meetings` — Require a signed-in session. **Upsert** a meeting from the posted
   document: `{ meeting_id?, title, theme, date, start_time, end_time, venue, sessions,
-  role_slots, is_template, status }`. Absent `meeting_id` creates; present updates
+  role_slots, is_template, status }`. `is_template` is an API boolean backed by the
+  `template` marker table. Absent `meeting_id` creates; present updates
   (overwrite). The upsert replaces session/slot **structure** but the user-agnostic slots
   carry no bookings; existing `role_assignment` rows survive on slots matched by
   `role_slot_id` (removed slots cascade-delete their assignment), so saving/publishing

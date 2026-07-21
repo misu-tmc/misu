@@ -90,8 +90,8 @@ checkbox.
 - **END is calculated from the sessions**, not entered: it is the start time plus each
   session's duration (with a 1-minute buffer between sessions). The field is read-only and
   updates live as durations change.
-- **Template** — checkbox controlling `is_template`; Save preserves this value unless the
-  admin changes it.
+- **Template** — checkbox controlling the `template` marker; Save preserves this value
+  unless the admin changes it.
 - **Published** — checkbox controlling `status`; Save preserves the current status unless
   this checkbox is changed. A normal Save never implicitly unpublishes a meeting.
 
@@ -134,8 +134,8 @@ The timed agenda, one row per session. Columns, left to right:
 
 ### Actions
 
-- **Save** — persists the current meeting document, preserving `is_template` and `status`
-  as shown by the Template / Published checkboxes.
+- **Save** — persists the current meeting document, preserving the template marker and
+  `status` as shown by the Template / Published checkboxes.
 - **Start from** (new only) — seed a fresh draft from `Blank`, the `Last meeting`, or a
   `Template`; ids are cleared so it saves as a new meeting.
 

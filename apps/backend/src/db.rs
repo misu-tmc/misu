@@ -36,6 +36,11 @@ CREATE TABLE IF NOT EXISTS auth_session (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS venue (
+    id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
 CREATE TABLE IF NOT EXISTS meeting (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     number          INTEGER NOT NULL,
@@ -45,10 +50,13 @@ CREATE TABLE IF NOT EXISTS meeting (
     date            TEXT NOT NULL,
     start_time      TEXT NOT NULL,
     end_time        TEXT NOT NULL DEFAULT '',
-    venue           TEXT NOT NULL DEFAULT '',
+    venue_id        INTEGER REFERENCES venue(id),
     status          TEXT NOT NULL DEFAULT 'draft',
-    is_template     INTEGER NOT NULL DEFAULT 0,
     meeting_manager INTEGER REFERENCES user(id)
+);
+
+CREATE TABLE IF NOT EXISTS template (
+    meeting_id INTEGER PRIMARY KEY REFERENCES meeting(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS role (
@@ -110,13 +118,14 @@ pub async fn connect(config: &Config) -> anyhow::Result<SqlitePool> {
     Ok(pool)
 }
 
-/// Idempotent column additions for databases created before these columns existed.
+/// Idempotent changes for databases created before these columns/tables existed.
 async fn migrate(pool: &SqlitePool) -> anyhow::Result<()> {
     for stmt in [
         "ALTER TABLE role_slot ADD COLUMN label TEXT",
         "ALTER TABLE role_slot ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE meeting ADD COLUMN theme TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE meeting ADD COLUMN keyword TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE meeting ADD COLUMN venue_id INTEGER REFERENCES venue(id)",
     ] {
         if let Err(e) = sqlx::query(stmt).execute(pool).await {
             // The column already exists on an up-to-date database; anything else is fatal.
@@ -125,11 +134,68 @@ async fn migrate(pool: &SqlitePool) -> anyhow::Result<()> {
             }
         }
     }
+
+    if table_has_column(pool, "meeting", "venue").await? {
+        sqlx::query(
+            "INSERT OR IGNORE INTO venue(name) \
+             SELECT DISTINCT TRIM(venue) FROM meeting \
+             WHERE TRIM(COALESCE(venue, '')) <> ''",
+        )
+        .execute(pool)
+        .await
+        .context("migrating meeting venues failed")?;
+        sqlx::query(
+            "UPDATE meeting \
+             SET venue_id = (SELECT id FROM venue WHERE venue.name = TRIM(meeting.venue)) \
+             WHERE venue_id IS NULL AND TRIM(COALESCE(venue, '')) <> ''",
+        )
+        .execute(pool)
+        .await
+        .context("linking migrated venues failed")?;
+        drop_column_if_exists(pool, "meeting", "venue").await?;
+    }
+
+    if table_has_column(pool, "meeting", "is_template").await? {
+        sqlx::query(
+            "INSERT OR IGNORE INTO template(meeting_id) \
+             SELECT id FROM meeting WHERE is_template != 0",
+        )
+        .execute(pool)
+        .await
+        .context("migrating meeting templates failed")?;
+        drop_column_if_exists(pool, "meeting", "is_template").await?;
+    }
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_meeting_venue ON meeting(venue_id)")
+        .execute(pool)
+        .await
+        .context("creating idx_meeting_venue failed")?;
+
     // Drop the retired global permission table if it lingers on an older database.
     sqlx::query("DROP TABLE IF EXISTS user_permission")
         .execute(pool)
         .await
         .context("dropping user_permission failed")?;
+    Ok(())
+}
+
+async fn table_has_column(pool: &SqlitePool, table: &str, column: &str) -> anyhow::Result<bool> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?")
+        .bind(table)
+        .bind(column)
+        .fetch_one(pool)
+        .await?;
+    Ok(count > 0)
+}
+
+async fn drop_column_if_exists(pool: &SqlitePool, table: &str, column: &str) -> anyhow::Result<()> {
+    if !table_has_column(pool, table, column).await? {
+        return Ok(());
+    }
+    sqlx::query(&format!("ALTER TABLE {table} DROP COLUMN {column}"))
+        .execute(pool)
+        .await
+        .with_context(|| format!("dropping {table}.{column} failed"))?;
     Ok(())
 }
 
@@ -169,19 +235,17 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
 /// configured credentials, or falls back to `admin`/`admin` in DEV mode. No-op if the
 /// username already has a credential.
 async fn seed_web_admin(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
-    let (username, password, explicit) = match (
-        &config.seed_web_admin_user,
-        &config.seed_web_admin_password,
-    ) {
-        (Some(u), Some(p)) => (u.clone(), p.clone(), true),
-        _ if config.dev_mode() => {
-            tracing::warn!(
+    let (username, password, explicit) =
+        match (&config.seed_web_admin_user, &config.seed_web_admin_password) {
+            (Some(u), Some(p)) => (u.clone(), p.clone(), true),
+            _ if config.dev_mode() => {
+                tracing::warn!(
                 "seeding DEV web admin admin/admin (set MISU_WEB_ADMIN_USER/PASSWORD to override)"
             );
-            ("admin".to_string(), "admin".to_string(), false)
-        }
-        _ => return Ok(()),
-    };
+                ("admin".to_string(), "admin".to_string(), false)
+            }
+            _ => return Ok(()),
+        };
 
     if crate::auth::web_username_exists(pool, &username).await? {
         // When credentials are explicitly configured (production), keep the stored
@@ -199,10 +263,12 @@ async fn seed_web_admin(pool: &SqlitePool, config: &Config) -> anyhow::Result<()
 }
 
 async fn role_id(pool: &SqlitePool, name: &str) -> anyhow::Result<i64> {
-    Ok(sqlx::query_scalar::<_, i64>("SELECT id FROM role WHERE name = ?")
-        .bind(name)
-        .fetch_one(pool)
-        .await?)
+    Ok(
+        sqlx::query_scalar::<_, i64>("SELECT id FROM role WHERE name = ?")
+            .bind(name)
+            .fetch_one(pool)
+            .await?,
+    )
 }
 
 async fn seed_sample_meetings(pool: &SqlitePool) -> anyhow::Result<()> {
@@ -211,7 +277,14 @@ async fn seed_sample_meetings(pool: &SqlitePool) -> anyhow::Result<()> {
     let m1_date = (today + chrono::Duration::days(3)).to_string();
     let m2_date = (today + chrono::Duration::days(17)).to_string();
 
-    seed_one_meeting(pool, 142, "Regular Meeting #142", "Embrace Change", &m1_date).await?;
+    seed_one_meeting(
+        pool,
+        142,
+        "Regular Meeting #142",
+        "Embrace Change",
+        &m1_date,
+    )
+    .await?;
     seed_one_meeting(pool, 143, "Regular Meeting #143", "New Horizons", &m2_date).await?;
     Ok(())
 }
@@ -223,14 +296,16 @@ async fn seed_one_meeting(
     theme: &str,
     date: &str,
 ) -> anyhow::Result<()> {
+    let venue_id = ensure_venue(pool, "Room A").await?;
     let meeting_id: i64 = sqlx::query_scalar(
-        "INSERT INTO meeting(number, title, theme, date, start_time, end_time, venue, status, is_template) \
-         VALUES (?, ?, ?, ?, '19:00', '21:00', 'Room A', 'published', 0) RETURNING id",
+        "INSERT INTO meeting(number, title, theme, date, start_time, end_time, venue_id, status) \
+         VALUES (?, ?, ?, ?, '19:00', '21:00', ?, 'published') RETURNING id",
     )
     .bind(number)
     .bind(title)
     .bind(theme)
     .bind(date)
+    .bind(venue_id)
     .fetch_one(pool)
     .await?;
 
@@ -266,11 +341,20 @@ async fn seed_one_meeting(
     Ok(())
 }
 
-async fn insert_slot(
-    pool: &SqlitePool,
-    meeting_id: i64,
-    role_name: &str,
-) -> anyhow::Result<i64> {
+async fn ensure_venue(pool: &SqlitePool, name: &str) -> anyhow::Result<i64> {
+    sqlx::query("INSERT OR IGNORE INTO venue(name) VALUES (?)")
+        .bind(name)
+        .execute(pool)
+        .await?;
+    Ok(
+        sqlx::query_scalar::<_, i64>("SELECT id FROM venue WHERE name = ?")
+            .bind(name)
+            .fetch_one(pool)
+            .await?,
+    )
+}
+
+async fn insert_slot(pool: &SqlitePool, meeting_id: i64, role_name: &str) -> anyhow::Result<i64> {
     let rid = role_id(pool, role_name).await?;
     Ok(sqlx::query_scalar::<_, i64>(
         "INSERT INTO role_slot(meeting_id, role_id) VALUES (?, ?) RETURNING id",

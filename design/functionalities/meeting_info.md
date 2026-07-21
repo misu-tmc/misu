@@ -90,15 +90,14 @@ are deferred as next improvements:
 - **Draft** by default; visible to admins only.
 - **Preview** the generated agenda.
 - **Publish** — makes the agenda / timer / check-in go live.
-- **Save as template** (⭐) — flags this meeting as a reusable template
-  (`is_template`); no separate template entity.
+- **Save as template** (⭐) — marks this meeting as reusable by inserting its id into the
+  `template` marker table.
 
 ## Reuse model
 
 Starting from the last meeting is the default and always reflects the most recent real
-agenda, so it never goes stale. Blank, last meeting, and saved templates are all the
-same kind of thing — a template — so there is no separate template data model; a saved
-template is just a meeting flagged `is_template`.
+agenda, so it never goes stale. Blank, last meeting, and saved templates are all based on
+meeting structure; a saved template is just a meeting with a row in `template`.
 
 ## Mini Program Meeting Editor
 

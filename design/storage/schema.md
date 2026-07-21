@@ -17,6 +17,8 @@ erDiagram
     USER      ||--o{ MEETING   : manages
     USER      ||--o{ WECHAT_IDENTITY : "authenticates via"
     USER      ||--o{ AUTH_SESSION : has
+    VENUE     ||--o{ MEETING   : hosts
+    MEETING   ||--o| TEMPLATE  : "may be marked as"
     MEETING   ||--o{ SESSION   : has
     MEETING   ||--o{ ROLE_SLOT : has
     ROLE      ||--o{ ROLE_SLOT : "instances of"
@@ -38,6 +40,10 @@ erDiagram
         id       user_id
         datetime created_at
     }
+    VENUE {
+      id     id
+      string name
+    }
     MEETING {
         id     id
         int    number
@@ -46,11 +52,13 @@ erDiagram
         date   date
         time   start_time
         time   end_time
-        string venue
+        id     venue_id "-> venue.id, nullable"
         string status "draft | published"
-        bool   is_template
         id     meeting_manager "-> user.id, nullable"
     }
+      TEMPLATE {
+        id     meeting_id "PK, -> meeting.id"
+      }
     SESSION {
         id     id
         id     meeting_id
@@ -125,6 +133,16 @@ Server-side session store. Login mints an opaque token; requests carry it as
 - Expiry / cleanup is not enforced yet (first stage); `created_at` is recorded for when
   it is added.
 
+## `venue`
+
+The managed list of meeting locations. A meeting points to a venue row instead of storing
+free text directly, so admins can build a reusable venue list over time.
+
+| Column | Type    | Notes       |
+| ------ | ------- | ----------- |
+| `id`   | id (PK) |             |
+| `name` | string  | **UNIQUE**  |
+
 ## `meeting`
 
 The core entity. Sessions, role slots, assignments, agenda, timer, voting and check-in all hang off it.
@@ -138,9 +156,8 @@ The core entity. Sessions, role slots, assignments, agenda, timer, voting and ch
 | `date`            | date    |                                                                 |
 | `start_time`      | time    | meeting start; session start times derive from it               |
 | `end_time`        | time    |                                                                 |
-| `venue`           | string  |                                                                 |
+| `venue_id`        | id (FK) | -> `venue.id`; **nullable**                                     |
 | `status`          | string  | `draft` \| `published`                                          |
-| `is_template`     | bool    | a meeting flagged as a reusable template                        |
 | `meeting_manager` | id (FK) | -> `user.id`; **nullable** (templates / fresh drafts have none) |
 
 Notes:
@@ -149,6 +166,15 @@ Notes:
   session's start time.
 - **Session start times** are computed (`start_time` + cumulative durations + buffer),
   never stored.
+
+## `template`
+
+Marker table for reusable meeting templates. A row means the referenced meeting can be
+offered as a template; absence means it is a regular meeting.
+
+| Column       | Type    | Notes                                      |
+| ------------ | ------- | ------------------------------------------ |
+| `meeting_id` | id (PK) | -> `meeting.id`; cascades when deleted     |
 
 ## `session`
 

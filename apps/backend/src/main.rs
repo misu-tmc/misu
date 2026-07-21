@@ -74,7 +74,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/meetings", get(admin::page_meetings))
         .route("/meetings/new", get(admin::page_editor))
         .route("/meetings/:meeting_id/edit", get(admin::page_editor))
-        .route("/meetings/:meeting_id/agenda/print", get(admin::page_agenda_print))
+        .route("/meetings/:meeting_id/agenda", get(admin::page_agenda_print))
         .route("/users", get(admin::page_users))
         // Management JSON APIs (require an authenticated session).
         .route("/api/meetings", get(admin::list_meetings).post(admin::upsert_meeting))

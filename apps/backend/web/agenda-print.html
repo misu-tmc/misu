@@ -13,7 +13,7 @@
       --yellow: #fff276;
       --red: #ed654c;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     html, body { margin: 0; background: #ccc; color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
     body { padding: 8mm 0; }
     .toolbar { max-width: 210mm; margin: 0 auto 10px; display: flex; justify-content: flex-end; gap: 8px; }
@@ -78,7 +78,7 @@
 
     /* One shared card shell → identical left/right edges across all cards. */
     .card { border-radius: 2mm; padding: 2.5mm 3.5mm; }
-    .meeting-info { background: #e9f2f5; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 5mm; align-items: center; flex: 0 0 auto; }
+    .meeting-info { background: transparent; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 5mm; align-items: center; flex: 0 0 auto; }
     .meeting-info .title { grid-column: 1 / -1; font-size: 20px; font-weight: 800; color: #173f53; margin-bottom: .5mm; }
     .meeting-info .field { font-size: 12px; color: var(--muted); }
     .meeting-info .field strong { color: #284f62; }
@@ -130,7 +130,7 @@
     .value-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2mm 1mm; }
     .core-values-img { display: block; width: 100%; height: auto; max-height: 18mm; object-fit: contain; }
     .value { display: flex; align-items: center; gap: 1.5mm; font-size: 12.5px; font-weight: 700; color: #284f62; }
-    .badge { width: 9mm; height: 9mm; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 800; }
+    .badge { width: 9mm; height: 9mm; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: transparent; border: 2px solid var(--c, #284f62); color: var(--c, #284f62); font-size: 11px; font-weight: 800; }
     .taboos { }
     .taboo-inline { display: flex; align-items: center; justify-content: center; gap: 4mm; }
     .taboo-list { font-size: 12px; font-weight: 700; color: #8a1f1f; line-height: 1.4; text-align: center; }
@@ -156,7 +156,7 @@
     .path .badge { width: 8.5mm; height: 8.5mm; font-size: 9.5px; }
     .path-ico { width: 11mm; height: 11mm; object-fit: contain; flex: 0 0 auto; }
     .levels { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 1.5mm; margin-top: auto; }
-    .level { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 1.5mm; padding: 2mm .5mm; font-size: 10px; font-weight: 700; color: #fff; line-height: 1.2; }
+    .level { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; border-radius: 1.5mm; border: 1.5px solid var(--c, #284f62); background: transparent; padding: 2mm .5mm; font-size: 10px; font-weight: 700; color: var(--c, #284f62); line-height: 1.2; }
     .level .l-num { font-size: 17px; display: block; margin-bottom: .5mm; }
 
     /* Meeting process | QR — compact band */
@@ -247,10 +247,10 @@
         <div class="panel values">
           <div class="box-title">Four Core Values</div>
           <div class="value-tiles">
-            <div class="value"><span class="badge" style="background:#0f3a52">I</span>Integrity</div>
-            <div class="value"><span class="badge" style="background:#ed654c">R</span>Respect</div>
-            <div class="value"><span class="badge" style="background:#6f9a4d">S</span>Service</div>
-            <div class="value"><span class="badge" style="background:#2b6c89">E</span>Excellence</div>
+            <div class="value"><span class="badge" style="--c:#0f3a52">I</span>Integrity</div>
+            <div class="value"><span class="badge" style="--c:#ed654c">R</span>Respect</div>
+            <div class="value"><span class="badge" style="--c:#6f9a4d">S</span>Service</div>
+            <div class="value"><span class="badge" style="--c:#2b6c89">E</span>Excellence</div>
           </div>
         </div>
         <div class="panel taboos">
@@ -298,11 +298,11 @@
             <div class="path"><img class="path-ico" src="/static/tm-badges/motivational-strategies.png" alt="" />Motivational Strategies</div>
           </div>
           <div class="levels">
-            <div class="level" style="background:#0f3a52"><span class="l-num">1</span>Public Speaking</div>
-            <div class="level" style="background:#2b6c89"><span class="l-num">2</span>Interpersonal Communication</div>
-            <div class="level" style="background:#ed654c"><span class="l-num">3</span>Strategic Leadership</div>
-            <div class="level" style="background:#6f9a4d"><span class="l-num">4</span>Management</div>
-            <div class="level" style="background:#7d9bb0"><span class="l-num">5</span>Confidence</div>
+            <div class="level" style="--c:#0f3a52"><span class="l-num">1</span>Public Speaking</div>
+            <div class="level" style="--c:#2b6c89"><span class="l-num">2</span>Interpersonal Communication</div>
+            <div class="level" style="--c:#ed654c"><span class="l-num">3</span>Strategic Leadership</div>
+            <div class="level" style="--c:#6f9a4d"><span class="l-num">4</span>Management</div>
+            <div class="level" style="--c:#7d9bb0"><span class="l-num">5</span>Confidence</div>
           </div>
         </div>
       </section>
@@ -328,7 +328,7 @@
   <script>
     const BUFFER_MINUTES = 1;
     function meetingIdFromPath() {
-      const match = location.pathname.match(/\/meetings\/(\d+)\/agenda\/print/);
+      const match = location.pathname.match(/\/meetings\/(\d+)\/agenda/);
       return match ? Number(match[1]) : null;
     }
     function toMinutes(hhmm) { const [h, m] = (hhmm || '0:0').split(':').map(Number); return h * 60 + m; }

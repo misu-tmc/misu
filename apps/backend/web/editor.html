@@ -567,7 +567,7 @@
     }
     function previewAgenda() {
       if (!state.meetingId) { toast('Save the meeting first'); return; }
-      window.open('/meetings/' + state.meetingId + '/agenda/print', '_blank');
+      window.open('/meetings/' + state.meetingId + '/agenda', '_blank');
     }
 
     // --- init ---

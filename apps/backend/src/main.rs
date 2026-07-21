@@ -61,10 +61,19 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/meetings/upcoming", get(handlers::meetings_upcoming))
         .route("/api/meetings/:meeting_id", get(handlers::meeting_detail))
         // Mini program editor: per-section batch saves.
-        .route("/api/meetings/:meeting_id/info", put(admin::update_meeting_info))
+        .route(
+            "/api/meetings/:meeting_id/info",
+            put(admin::update_meeting_info),
+        )
         .route("/api/meetings/:meeting_id/slots", put(admin::put_slots))
-        .route("/api/meetings/:meeting_id/sessions", put(admin::put_sessions))
-        .route("/api/meetings/:meeting_id/status", put(admin::update_status))
+        .route(
+            "/api/meetings/:meeting_id/sessions",
+            put(admin::put_sessions),
+        )
+        .route(
+            "/api/meetings/:meeting_id/status",
+            put(admin::update_status),
+        )
         .route("/api/book", post(handlers::book))
         .route("/api/users/:user_id", post(handlers::update_user))
         .route("/api/club-info", get(handlers::club_info))
@@ -74,12 +83,24 @@ async fn main() -> anyhow::Result<()> {
         .route("/meetings", get(admin::page_meetings))
         .route("/meetings/new", get(admin::page_editor))
         .route("/meetings/:meeting_id/edit", get(admin::page_editor))
-        .route("/meetings/:meeting_id/agenda", get(admin::page_agenda_print))
+        .route(
+            "/meetings/:meeting_id/agenda",
+            get(admin::page_agenda_print),
+        )
         .route("/users", get(admin::page_users))
         // Management JSON APIs (require an authenticated session).
-        .route("/api/meetings", get(admin::list_meetings).post(admin::upsert_meeting))
-        .route("/api/roles", get(admin::list_roles).post(admin::create_role))
-        .route("/api/users", get(admin::list_users).post(admin::create_user))
+        .route(
+            "/api/meetings",
+            get(admin::list_meetings).post(admin::upsert_meeting),
+        )
+        .route(
+            "/api/roles",
+            get(admin::list_roles).post(admin::create_role),
+        )
+        .route(
+            "/api/users",
+            get(admin::list_users).post(admin::create_user),
+        )
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

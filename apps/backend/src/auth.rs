@@ -72,7 +72,9 @@ fn cookie_value(parts: &Parts, name: &str) -> Option<String> {
 fn bearer_token(parts: &Parts) -> Option<String> {
     let header = parts.headers.get(axum::http::header::AUTHORIZATION)?;
     let value = header.to_str().ok()?;
-    let token = value.strip_prefix("Bearer ").or_else(|| value.strip_prefix("bearer "))?;
+    let token = value
+        .strip_prefix("Bearer ")
+        .or_else(|| value.strip_prefix("bearer "))?;
     let token = token.trim();
     if token.is_empty() {
         None
@@ -160,11 +162,10 @@ pub async fn create_web_user(
     display_name: &str,
 ) -> Result<i64, AppError> {
     let hash = hash_password(password)?;
-    let user_id: i64 =
-        sqlx::query_scalar("INSERT INTO user(display_name) VALUES (?) RETURNING id")
-            .bind(display_name)
-            .fetch_one(pool)
-            .await?;
+    let user_id: i64 = sqlx::query_scalar("INSERT INTO user(display_name) VALUES (?) RETURNING id")
+        .bind(display_name)
+        .fetch_one(pool)
+        .await?;
     sqlx::query("INSERT INTO web_credential(username, user_id, password_hash) VALUES (?, ?, ?)")
         .bind(username)
         .bind(user_id)
@@ -189,18 +190,16 @@ pub async fn set_web_password(
     .bind(username)
     .fetch_optional(pool)
     .await?;
-    user_id.ok_or_else(|| {
-        AppError::Internal(anyhow::anyhow!("web credential '{username}' not found"))
-    })
+    user_id
+        .ok_or_else(|| AppError::Internal(anyhow::anyhow!("web credential '{username}' not found")))
 }
 
 /// Whether a web credential already exists for a username.
 pub async fn web_username_exists(pool: &SqlitePool, username: &str) -> Result<bool, AppError> {
-    let count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM web_credential WHERE username = ?")
-            .bind(username)
-            .fetch_one(pool)
-            .await?;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM web_credential WHERE username = ?")
+        .bind(username)
+        .fetch_one(pool)
+        .await?;
     Ok(count > 0)
 }
 
@@ -281,11 +280,10 @@ pub async fn upsert_wechat_user(
     // WeChat no longer exposes real nicknames, so a new user starts nameless; the mini
     // program requires them to set one on first login.
     let default_name = String::new();
-    let user_id: i64 =
-        sqlx::query_scalar("INSERT INTO user(display_name) VALUES (?) RETURNING id")
-            .bind(&default_name)
-            .fetch_one(pool)
-            .await?;
+    let user_id: i64 = sqlx::query_scalar("INSERT INTO user(display_name) VALUES (?) RETURNING id")
+        .bind(&default_name)
+        .fetch_one(pool)
+        .await?;
     sqlx::query("INSERT INTO wechat_identity(openid, user_id) VALUES (?, ?)")
         .bind(openid)
         .bind(user_id)

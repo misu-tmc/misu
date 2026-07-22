@@ -2,8 +2,11 @@ mod admin;
 mod auth;
 mod config;
 mod db;
+mod domain;
 mod error;
 mod handlers;
+mod meetings;
+mod models;
 
 use axum::{
     extract::FromRef,
@@ -55,9 +58,9 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/healthz", get(handlers::healthz))
-        .route("/api/auth/wechat", post(handlers::auth_wechat))
-        .route("/api/auth/login", post(handlers::auth_login))
-        .route("/api/auth/logout", post(handlers::auth_logout))
+        .route("/api/auth/wechat", post(auth::auth_wechat))
+        .route("/api/auth/login", post(auth::auth_login))
+        .route("/api/auth/logout", post(auth::auth_logout))
         .route("/api/meetings/upcoming", get(handlers::meetings_upcoming))
         .route("/api/meetings/:meeting_id", get(handlers::meeting_detail))
         // Mini program editor: per-section batch saves.

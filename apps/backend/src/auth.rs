@@ -1,13 +1,19 @@
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
+    http::header::SET_COOKIE,
     http::request::Parts,
+    response::{IntoResponse, Response},
+    Json,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sqlx::SqlitePool;
 
 use crate::config::Config;
-use crate::error::AppError;
+use crate::error::{AppError, AppResult};
+use crate::models::UserResponse;
+use crate::AppState;
 
 /// The authenticated caller, resolved from the `Authorization: Bearer <token>` header.
 /// Every protected handler takes this extractor; the acting user is therefore always
@@ -116,6 +122,110 @@ where
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         Ok(SessionToken(session_token(parts)))
     }
+}
+
+#[derive(Deserialize)]
+pub struct WechatLoginReq {
+    pub code: String,
+}
+
+#[derive(Serialize)]
+pub struct LoginResp {
+    pub token: String,
+    pub user: UserResponse,
+}
+
+pub async fn auth_wechat(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    Json(req): Json<WechatLoginReq>,
+) -> AppResult<Json<LoginResp>> {
+    if req.code.trim().is_empty() {
+        return Err(AppError::BadRequest("missing code".into()));
+    }
+    let openid = resolve_openid(&state.config, req.code.trim()).await?;
+    let (user_id, display_name, _created) = upsert_wechat_user(&state.pool, &openid).await?;
+
+    let token = create_session(&state.pool, user_id).await?;
+    Ok(Json(LoginResp {
+        token,
+        user: UserResponse {
+            id: user_id,
+            display_name,
+        },
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct WebLoginReq {
+    pub username: String,
+    pub password: String,
+}
+
+/// `Secure` is added unless running in DEV mode, so the cookie only travels over HTTPS
+/// in production while local HTTP dev still works.
+fn secure_attr(dev_mode: bool) -> &'static str {
+    if dev_mode {
+        ""
+    } else {
+        "; Secure"
+    }
+}
+
+fn session_cookie(token: &str, dev_mode: bool) -> String {
+    format!(
+        "{SESSION_COOKIE}={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000{}",
+        secure_attr(dev_mode)
+    )
+}
+
+fn cleared_cookie(dev_mode: bool) -> String {
+    format!(
+        "{SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0{}",
+        secure_attr(dev_mode)
+    )
+}
+
+pub async fn auth_login(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    Json(req): Json<WebLoginReq>,
+) -> AppResult<Response> {
+    let username = req.username.trim();
+    if username.is_empty() || req.password.is_empty() {
+        return Err(AppError::BadRequest(
+            "username and password are required".into(),
+        ));
+    }
+    let (user_id, display_name) = verify_web_login(&state.pool, username, &req.password)
+        .await?
+        .ok_or(AppError::Unauthorized)?;
+
+    let token = create_session(&state.pool, user_id).await?;
+    let mut resp = Json(json!({
+        "user": { "id": user_id, "display_name": display_name }
+    }))
+    .into_response();
+    resp.headers_mut().insert(
+        SET_COOKIE,
+        session_cookie(&token, state.config.dev_mode())
+            .parse()
+            .unwrap(),
+    );
+    Ok(resp)
+}
+
+pub async fn auth_logout(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    SessionToken(token): SessionToken,
+) -> AppResult<Response> {
+    if let Some(token) = token {
+        delete_session(&state.pool, &token).await?;
+    }
+    let mut resp = Json(json!({ "ok": true })).into_response();
+    resp.headers_mut().insert(
+        SET_COOKIE,
+        cleared_cookie(state.config.dev_mode()).parse().unwrap(),
+    );
+    Ok(resp)
 }
 
 // ---------------------------------------------------------------------------

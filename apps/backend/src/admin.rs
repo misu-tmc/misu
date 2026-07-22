@@ -17,7 +17,8 @@ use std::collections::HashSet;
 
 use crate::auth::{AuthUser, MaybeAuthUser};
 use crate::error::{AppError, AppResult};
-use crate::handlers;
+use crate::meetings;
+use crate::models::MeetingResponse;
 use crate::AppState;
 
 // ---------------------------------------------------------------------------
@@ -168,7 +169,7 @@ pub async fn list_meetings(
         }
     };
     for m in &mut rows {
-        m.phase = handlers::meeting_phase(&m.status, &m.date, &m.start_time).to_string();
+        m.phase = meetings::meeting_phase(&m.status, &m.date, &m.start_time).to_string();
     }
     Ok(Json(rows))
 }
@@ -231,7 +232,7 @@ pub async fn upsert_meeting(
     State(state): State<AppState>,
     _user: AuthUser,
     Json(input): Json<MeetingIn>,
-) -> AppResult<Json<handlers::MeetingDto>> {
+) -> AppResult<Json<MeetingResponse>> {
     if input.title.trim().is_empty() {
         return Err(AppError::BadRequest("title is required".into()));
     }
@@ -431,7 +432,7 @@ pub async fn upsert_meeting(
 
     tx.commit().await?;
 
-    handlers::meeting_dto_by_id(&state.pool, meeting_id)
+    meetings::meeting_response_by_id(&state.pool, meeting_id)
         .await?
         .map(Json)
         .ok_or(AppError::NotFound)
@@ -445,12 +446,12 @@ pub async fn upsert_meeting(
 // section never clobbers another. See design/functionalities/meeting_info.md.
 // ---------------------------------------------------------------------------
 
-/// Return the meeting as a DTO after a section save (shared tail of every handler below).
+/// Return the meeting response after a section save (shared tail of every handler below).
 async fn meeting_dto_response(
     pool: &sqlx::SqlitePool,
     meeting_id: i64,
-) -> AppResult<Json<handlers::MeetingDto>> {
-    handlers::meeting_dto_by_id(pool, meeting_id)
+) -> AppResult<Json<MeetingResponse>> {
+    meetings::meeting_response_by_id(pool, meeting_id)
         .await?
         .map(Json)
         .ok_or(AppError::NotFound)
@@ -517,7 +518,7 @@ pub async fn update_meeting_info(
     _user: AuthUser,
     Path(meeting_id): Path<i64>,
     Json(input): Json<InfoIn>,
-) -> AppResult<Json<handlers::MeetingDto>> {
+) -> AppResult<Json<MeetingResponse>> {
     if input.title.trim().is_empty() {
         return Err(AppError::BadRequest("title is required".into()));
     }
@@ -584,7 +585,7 @@ pub async fn put_slots(
     _user: AuthUser,
     Path(meeting_id): Path<i64>,
     Json(input): Json<SlotsIn>,
-) -> AppResult<Json<handlers::MeetingDto>> {
+) -> AppResult<Json<MeetingResponse>> {
     let mut tx = state.pool.begin().await?;
 
     let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
@@ -751,7 +752,7 @@ pub async fn put_sessions(
     _user: AuthUser,
     Path(meeting_id): Path<i64>,
     Json(input): Json<SessionsIn>,
-) -> AppResult<Json<handlers::MeetingDto>> {
+) -> AppResult<Json<MeetingResponse>> {
     let mut tx = state.pool.begin().await?;
 
     let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
@@ -817,7 +818,7 @@ pub async fn update_status(
     _user: AuthUser,
     Path(meeting_id): Path<i64>,
     Json(input): Json<StatusIn>,
-) -> AppResult<Json<handlers::MeetingDto>> {
+) -> AppResult<Json<MeetingResponse>> {
     let status = match input.status.as_str() {
         "published" => "published",
         "draft" => "draft",

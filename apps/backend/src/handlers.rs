@@ -1,18 +1,15 @@
 use axum::{
     extract::{Path, State},
-    http::header::SET_COOKIE,
-    response::{IntoResponse, Response},
     Json,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use sqlx::FromRow;
 
-use crate::auth::{
-    create_session, delete_session, resolve_openid, upsert_wechat_user, verify_web_login, AuthUser,
-    SessionToken, SESSION_COOKIE,
-};
+use crate::auth::AuthUser;
 use crate::error::{AppError, AppResult};
+use crate::meetings;
+use crate::models::{MeetingResponse, UserResponse};
 use crate::AppState;
 
 // ---------------------------------------------------------------------------
@@ -23,464 +20,24 @@ pub async fn healthz() -> &'static str {
     "ok"
 }
 
-// ---------------------------------------------------------------------------
-// Auth: WeChat login
-// ---------------------------------------------------------------------------
-
-#[derive(Deserialize)]
-pub struct WechatLoginReq {
-    pub code: String,
-}
-
-#[derive(Serialize)]
-pub struct UserDto {
-    pub id: i64,
-    pub display_name: String,
-}
-
-#[derive(Serialize)]
-pub struct LoginResp {
-    pub token: String,
-    pub user: UserDto,
-}
-
-pub async fn auth_wechat(
-    State(state): State<AppState>,
-    Json(req): Json<WechatLoginReq>,
-) -> AppResult<Json<LoginResp>> {
-    if req.code.trim().is_empty() {
-        return Err(AppError::BadRequest("missing code".into()));
-    }
-    let openid = resolve_openid(&state.config, req.code.trim()).await?;
-    let (user_id, display_name, _created) = upsert_wechat_user(&state.pool, &openid).await?;
-
-    let token = create_session(&state.pool, user_id).await?;
-    Ok(Json(LoginResp {
-        token,
-        user: UserDto {
-            id: user_id,
-            display_name,
-        },
-    }))
-}
-
-// ---------------------------------------------------------------------------
-// Auth: web username/password login
-// ---------------------------------------------------------------------------
-
-#[derive(Deserialize)]
-pub struct WebLoginReq {
-    pub username: String,
-    pub password: String,
-}
-
-/// `Secure` is added unless running in DEV mode, so the cookie only travels over HTTPS
-/// in production while local HTTP dev still works.
-fn secure_attr(dev_mode: bool) -> &'static str {
-    if dev_mode {
-        ""
-    } else {
-        "; Secure"
-    }
-}
-
-fn session_cookie(token: &str, dev_mode: bool) -> String {
-    // 30 days; HttpOnly + Lax so it rides top-level navigations to the admin pages.
-    format!(
-        "{SESSION_COOKIE}={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000{}",
-        secure_attr(dev_mode)
-    )
-}
-
-fn cleared_cookie(dev_mode: bool) -> String {
-    format!(
-        "{SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0{}",
-        secure_attr(dev_mode)
-    )
-}
-
-/// Web login: verify username/password, mint a session, and set it as an HttpOnly cookie.
-pub async fn auth_login(
-    State(state): State<AppState>,
-    Json(req): Json<WebLoginReq>,
-) -> AppResult<Response> {
-    let username = req.username.trim();
-    if username.is_empty() || req.password.is_empty() {
-        return Err(AppError::BadRequest(
-            "username and password are required".into(),
-        ));
-    }
-    let (user_id, display_name) = verify_web_login(&state.pool, username, &req.password)
-        .await?
-        .ok_or(AppError::Unauthorized)?;
-
-    let token = create_session(&state.pool, user_id).await?;
-    let mut resp = Json(json!({
-        "user": { "id": user_id, "display_name": display_name }
-    }))
-    .into_response();
-    resp.headers_mut().insert(
-        SET_COOKIE,
-        session_cookie(&token, state.config.dev_mode())
-            .parse()
-            .unwrap(),
-    );
-    Ok(resp)
-}
-
-/// Web logout: drop the session row and clear the cookie.
-pub async fn auth_logout(
-    State(state): State<AppState>,
-    SessionToken(token): SessionToken,
-) -> AppResult<Response> {
-    if let Some(token) = token {
-        delete_session(&state.pool, &token).await?;
-    }
-    let mut resp = Json(json!({ "ok": true })).into_response();
-    resp.headers_mut().insert(
-        SET_COOKIE,
-        cleared_cookie(state.config.dev_mode()).parse().unwrap(),
-    );
-    Ok(resp)
-}
-
-// ---------------------------------------------------------------------------
-// Meetings
-// ---------------------------------------------------------------------------
-
-#[derive(Serialize)]
-pub struct SessionDto {
-    pub id: i64,
-    pub position: i64,
-    pub group_label: String,
-    pub name: String,
-    /// Functional display name for agenda/timer/print surfaces. For prepared speech
-    /// sessions this prefers the speaker's prep title; otherwise it falls back to `name`.
-    pub agenda_name: String,
-    pub duration_minutes: i64,
-    pub role_slot_id: Option<i64>,
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct PrepFieldDto {
-    pub key: String,
-    #[serde(rename = "type")]
-    pub field_type: String,
-}
-
-#[derive(Serialize)]
-pub struct RoleSlotDto {
-    pub id: i64,
-    pub role_id: i64,
-    pub role_name: String,
-    /// Display label: the custom `label` when set, otherwise `role_name` plus an ordinal
-    /// when the meeting has more than one slot of the same role (e.g. `Speaker 1`).
-    pub label: String,
-    /// The admin-entered custom label, if any (null means "use the derived label").
-    pub custom_label: Option<String>,
-    pub is_optional: bool,
-    pub booker_id: Option<i64>,
-    pub booker_name: Option<String>,
-    pub taker_id: Option<i64>,
-    pub prep_fields: Vec<PrepFieldDto>,
-    pub prep_data: serde_json::Value,
-    pub prep_updated_at: Option<String>,
-}
-
-#[derive(Serialize)]
-pub struct MeetingDto {
-    pub id: i64,
-    pub number: i64,
-    pub title: String,
-    pub theme: String,
-    pub keyword: String,
-    pub date: String,
-    pub start_time: String,
-    pub end_time: String,
-    pub venue: String,
-    pub status: String,
-    /// Derived lifecycle phase: `draft`, `open`, `ongoing`, or `archived`.
-    pub phase: String,
-    pub is_template: bool,
-    pub sessions: Vec<SessionDto>,
-    pub role_slots: Vec<RoleSlotDto>,
-}
-
-/// Derived meeting phase used for labelling and booking rules.
-///
-/// - `draft`: not yet published.
-/// - `open`: published and its date is today (before start) or in the future.
-/// - `ongoing`: published, today, and the start time has passed.
-/// - `archived`: published and its date is in the past.
-pub fn meeting_phase(status: &str, date: &str, start_time: &str) -> &'static str {
-    if status != "published" {
-        return "draft";
-    }
-    let today = chrono::Local::now().date_naive();
-    let mdate = match chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
-        Ok(d) => d,
-        Err(_) => return "open",
-    };
-    if mdate < today {
-        return "archived";
-    }
-    if mdate > today {
-        return "open";
-    }
-    // Same day: ongoing once the start time has passed.
-    match chrono::NaiveTime::parse_from_str(start_time, "%H:%M") {
-        Ok(start) if chrono::Local::now().time() >= start => "ongoing",
-        _ => "open",
-    }
-}
-
-#[derive(FromRow)]
-struct MeetingRow {
-    id: i64,
-    number: i64,
-    title: String,
-    theme: String,
-    keyword: String,
-    date: String,
-    start_time: String,
-    end_time: String,
-    venue: String,
-    status: String,
-    is_template: bool,
-}
-
-#[derive(FromRow)]
-struct SessionRow {
-    id: i64,
-    position: i64,
-    group_label: String,
-    name: String,
-    duration_minutes: i64,
-    role_slot_id: Option<i64>,
-}
-
-#[derive(FromRow)]
-struct SlotRow {
-    id: i64,
-    role_id: i64,
-    role_name: String,
-    properties: Option<String>,
-    label: Option<String>,
-    is_optional: i64,
-    booker_id: Option<i64>,
-    booker_name: Option<String>,
-    taker_id: Option<i64>,
-    prep_data: String,
-    prep_updated_at: Option<String>,
-}
-
-fn parse_prep_fields(properties: Option<&str>) -> Vec<PrepFieldDto> {
-    let Some(raw) = properties.map(str::trim).filter(|s| !s.is_empty()) else {
-        return Vec::new();
-    };
-    serde_json::from_str::<Vec<PrepFieldDto>>(raw).unwrap_or_default()
-}
-
-fn parse_prep_data(raw: &str) -> serde_json::Value {
-    serde_json::from_str(raw).unwrap_or_else(|_| json!({}))
-}
-
-fn prep_text(data: &serde_json::Value, key: &str) -> Option<String> {
-    data.get(key)
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string)
-}
-
-fn is_prepared_speech_role(role_name: &str) -> bool {
-    let role = role_name.to_ascii_lowercase();
-    role.contains("speaker") || role.contains("prepared speech")
-}
-
-impl SessionRow {
-    fn agenda_name(&self, slot: Option<&SlotRow>) -> String {
-        let Some(slot) = slot else {
-            return self.name.clone();
-        };
-        if !is_prepared_speech_role(&slot.role_name) {
-            return self.name.clone();
-        }
-        prep_text(&parse_prep_data(&slot.prep_data), "title")
-            .unwrap_or_else(|| self.name.clone())
-    }
-}
-
-async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<MeetingDto> {
-    let session_rows = sqlx::query_as::<_, SessionRow>(
-        "SELECT id, position, group_label, name, duration_minutes, role_slot_id \
-         FROM session WHERE meeting_id = ? ORDER BY position",
-    )
-    .bind(m.id)
-    .fetch_all(pool)
-    .await?;
-
-    let slot_rows = sqlx::query_as::<_, SlotRow>(
-        "SELECT rs.id, rs.role_id, r.name AS role_name, r.properties, rs.label, rs.is_optional, \
-            ra.booker_id, u.display_name AS booker_name, ra.taker_id, \
-            COALESCE(ra.prep_data, '{}') AS prep_data, ra.prep_updated_at \
-         FROM role_slot rs \
-         JOIN role r ON r.id = rs.role_id \
-         LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
-         LEFT JOIN user u ON u.id = ra.booker_id \
-         WHERE rs.meeting_id = ? ORDER BY rs.id",
-    )
-    .bind(m.id)
-    .fetch_all(pool)
-    .await?;
-
-    let sessions = {
-        let slot_by_id: std::collections::HashMap<i64, &SlotRow> =
-            slot_rows.iter().map(|s| (s.id, s)).collect();
-        session_rows
-            .into_iter()
-            .map(|s| {
-                let slot = s
-                    .role_slot_id
-                    .and_then(|slot_id| slot_by_id.get(&slot_id).copied());
-                let agenda_name = s.agenda_name(slot);
-                SessionDto {
-                    id: s.id,
-                    position: s.position,
-                    group_label: s.group_label,
-                    name: s.name,
-                    agenda_name,
-                    duration_minutes: s.duration_minutes,
-                    role_slot_id: s.role_slot_id,
-                }
-            })
-            .collect()
-    };
-
-    // Derive display labels: append an ordinal only when a role repeats in the meeting.
-    let mut counts: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();
-    for s in &slot_rows {
-        *counts.entry(s.role_id).or_insert(0) += 1;
-    }
-    let mut seen: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();
-    let role_slots = slot_rows
-        .into_iter()
-        .map(|s| {
-            let ordinal = {
-                let n = seen.entry(s.role_id).or_insert(0);
-                *n += 1;
-                *n
-            };
-            let derived = if counts.get(&s.role_id).copied().unwrap_or(0) > 1 {
-                format!("{} {}", s.role_name, ordinal)
-            } else {
-                s.role_name.clone()
-            };
-            let custom_label = s
-                .label
-                .as_deref()
-                .map(str::trim)
-                .filter(|x| !x.is_empty())
-                .map(str::to_string);
-            let label = custom_label.clone().unwrap_or_else(|| derived.clone());
-            RoleSlotDto {
-                id: s.id,
-                role_id: s.role_id,
-                role_name: s.role_name,
-                label,
-                custom_label,
-                is_optional: s.is_optional != 0,
-                booker_id: s.booker_id,
-                booker_name: s.booker_name,
-                taker_id: s.taker_id,
-                prep_fields: parse_prep_fields(s.properties.as_deref()),
-                prep_data: parse_prep_data(&s.prep_data),
-                prep_updated_at: s.prep_updated_at,
-            }
-        })
-        .collect();
-
-    let phase = meeting_phase(&m.status, &m.date, &m.start_time).to_string();
-    Ok(MeetingDto {
-        id: m.id,
-        number: m.number,
-        title: m.title,
-        theme: m.theme,
-        keyword: m.keyword,
-        date: m.date,
-        start_time: m.start_time,
-        end_time: m.end_time,
-        venue: m.venue,
-        status: m.status,
-        phase,
-        is_template: m.is_template,
-        sessions,
-        role_slots,
-    })
-}
-
 /// Upcoming published meetings (today onward), soonest first — for the Booking tab and
 /// the Meeting tab's "next meeting" preview.
 pub async fn meetings_upcoming(
     State(state): State<AppState>,
     _user: AuthUser,
-) -> AppResult<Json<Vec<MeetingDto>>> {
-    let today = chrono::Local::now().date_naive().to_string();
-    let rows = sqlx::query_as::<_, MeetingRow>(
-        "SELECT m.id, m.number, m.title, m.theme, m.keyword, m.date, m.start_time, m.end_time, \
-            COALESCE(v.name, '') AS venue, m.status, \
-            CASE WHEN t.meeting_id IS NULL THEN 0 ELSE 1 END AS is_template \
-         FROM meeting m \
-         LEFT JOIN venue v ON v.id = m.venue_id \
-         LEFT JOIN template t ON t.meeting_id = m.id \
-         WHERE m.status = 'published' AND m.date >= ? \
-         ORDER BY m.date ASC, m.number ASC",
-    )
-    .bind(&today)
-    .fetch_all(&state.pool)
-    .await?;
-
-    let mut out = Vec::with_capacity(rows.len());
-    for m in rows {
-        out.push(load_meeting_dto(&state.pool, m).await?);
-    }
-    Ok(Json(out))
+) -> AppResult<Json<Vec<MeetingResponse>>> {
+    Ok(Json(meetings::upcoming_published(&state.pool).await?))
 }
 
 pub async fn meeting_detail(
     State(state): State<AppState>,
     _user: AuthUser,
     Path(meeting_id): Path<i64>,
-) -> AppResult<Json<MeetingDto>> {
-    meeting_dto_by_id(&state.pool, meeting_id)
+) -> AppResult<Json<MeetingResponse>> {
+    meetings::meeting_response_by_id(&state.pool, meeting_id)
         .await?
         .map(Json)
         .ok_or(AppError::NotFound)
-}
-
-/// Load one meeting as a nested DTO by id, or `None` if it does not exist.
-/// Shared by the authenticated app endpoint and the admin editor.
-pub(crate) async fn meeting_dto_by_id(
-    pool: &sqlx::SqlitePool,
-    meeting_id: i64,
-) -> AppResult<Option<MeetingDto>> {
-    let m = sqlx::query_as::<_, MeetingRow>(
-        "SELECT m.id, m.number, m.title, m.theme, m.keyword, m.date, m.start_time, m.end_time, \
-            COALESCE(v.name, '') AS venue, m.status, \
-            CASE WHEN t.meeting_id IS NULL THEN 0 ELSE 1 END AS is_template \
-         FROM meeting m \
-         LEFT JOIN venue v ON v.id = m.venue_id \
-         LEFT JOIN template t ON t.meeting_id = m.id \
-         WHERE m.id = ?",
-    )
-    .bind(meeting_id)
-    .fetch_optional(pool)
-    .await?;
-
-    match m {
-        Some(m) => Ok(Some(load_meeting_dto(pool, m).await?)),
-        None => Ok(None),
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -627,7 +184,7 @@ pub async fn update_prep(
     _user: AuthUser,
     Path(meeting_id): Path<i64>,
     Json(req): Json<PrepUpdateReq>,
-) -> AppResult<Json<MeetingDto>> {
+) -> AppResult<Json<MeetingResponse>> {
     let slot = sqlx::query_as::<_, PrepSlotRow>(
         "SELECT rs.meeting_id \
          FROM role_slot rs \
@@ -658,7 +215,7 @@ pub async fn update_prep(
     .execute(&state.pool)
     .await?;
 
-    meeting_dto_by_id(&state.pool, meeting_id)
+    meetings::meeting_response_by_id(&state.pool, meeting_id)
         .await?
         .map(Json)
         .ok_or(AppError::NotFound)
@@ -678,7 +235,7 @@ pub async fn update_user(
     _user: AuthUser,
     Path(user_id): Path<i64>,
     Json(req): Json<UpdateUserReq>,
-) -> AppResult<Json<UserDto>> {
+) -> AppResult<Json<UserResponse>> {
     let name = req.display_name.trim();
     if name.is_empty() {
         return Err(AppError::BadRequest("display_name is required".into()));
@@ -693,7 +250,7 @@ pub async fn update_user(
     if affected == 0 {
         return Err(AppError::NotFound);
     }
-    Ok(Json(UserDto {
+    Ok(Json(UserResponse {
         id: user_id,
         display_name: name.to_string(),
     }))

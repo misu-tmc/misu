@@ -121,3 +121,4 @@
 .speech-card.hl-card { border: 2rpx solid #5b2a86; box-shadow: 0 0 0 4rpx #f0ecf6; }
 .speech-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
 .textarea { min-height: 150rpx; line-height: 1.5; }
+.speech-textarea { min-height: 48rpx; }

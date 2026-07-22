@@ -135,8 +135,8 @@
           <view class="field"><text class="field-label muted">Title</text><input class="field-input" value="{{speech.title}}" data-index="{{index}}" data-field="title" bindinput="onSpeechInput" /></view>
           <view class="field"><text class="field-label muted">Pathway</text><input class="field-input" value="{{speech.pathway}}" data-index="{{index}}" data-field="pathway" bindinput="onSpeechInput" /></view>
           <view class="field"><text class="field-label muted">Level</text><input class="field-input" type="number" value="{{speech.level}}" data-index="{{index}}" data-field="level" bindinput="onSpeechInput" /></view>
-          <view class="field"><text class="field-label muted">Purpose</text><textarea class="field-input textarea" value="{{speech.purpose}}" data-index="{{index}}" data-field="purpose" maxlength="1000" bindinput="onSpeechInput" /></view>
-          <view class="field"><text class="field-label muted">Description</text><textarea class="field-input textarea" value="{{speech.description}}" data-index="{{index}}" data-field="description" maxlength="1000" bindinput="onSpeechInput" /></view>
+          <view class="field"><text class="field-label muted">Purpose</text><textarea class="field-input textarea speech-textarea" auto-height="{{true}}" value="{{speech.purpose}}" data-index="{{index}}" data-field="purpose" maxlength="240" bindinput="onSpeechInput" /></view>
+          <view class="field"><text class="field-label muted">Description</text><textarea class="field-input textarea speech-textarea" auto-height="{{true}}" value="{{speech.description}}" data-index="{{index}}" data-field="description" maxlength="240" bindinput="onSpeechInput" /></view>
         </view>
         <view class="savebar"><text class="save-hint muted">Saving Speeches</text><view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSpeeches">Save</view></view>
       </block>

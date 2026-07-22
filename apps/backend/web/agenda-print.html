@@ -131,16 +131,18 @@
     .core-values-img { display: block; width: 100%; height: auto; max-height: 18mm; object-fit: contain; }
     .value { display: flex; align-items: center; gap: 1.5mm; font-size: 12.5px; font-weight: 700; color: #284f62; }
     .badge { width: 9mm; height: 9mm; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: transparent; border: 2px solid var(--c, #284f62); color: var(--c, #284f62); font-size: 11px; font-weight: 800; }
-    .taboos { }
     .taboo-inline { display: flex; align-items: center; justify-content: center; gap: 4mm; }
     .taboo-list { font-size: 12px; font-weight: 700; color: #8a1f1f; line-height: 1.4; text-align: center; }
     .no-sign { width: 11mm; height: 11mm; border-radius: 50%; border: 1.6mm solid #c62828; position: relative; margin: 0; flex: 0 0 auto; }
     .no-sign::after { content: ''; position: absolute; left: 50%; top: 50%; width: 13mm; height: 1.6mm; background: #c62828; transform: translate(-50%, -50%) rotate(45deg); }
 
     /* Prepared speakers */
+    .speech-list { display: grid; gap: 2mm; }
+    .speech-item { break-inside: avoid; }
     .speaker .sp-title { font-size: 15px; font-weight: 800; color: #173f53; }
     .speaker .sp-row { font-size: 12.5px; margin-top: 1.2mm; color: #33525f; line-height: 1.5; }
     .speaker .sp-row b { color: #284f62; }
+    .speaker .sp-empty { font-size: 12.5px; color: var(--muted); }
 
     /* Middle: roles | pathways — divided by a vertical hairline. */
     .edu { display: grid; grid-template-columns: 1fr 1.3fr; gap: 0; min-height: 0; }
@@ -176,7 +178,7 @@
       <div class="club-wrap">
         <div class="club-brand">
           <div class="name"><span style="color:#ed654c">M</span><span style="color:#a4d66f">i</span>crosoft <span style="color:#4da3ff">S</span><span style="color:#fff276">u</span>zhou Toastmasters Club</div>
-          <div class="ids">Club #07964606 · District 128 · Division R Area 3</div>
+          <div class="ids">Club #07964606 · Division R Area 3 · District 128 </div>
         </div>
         <div class="ms-logo"><img src="/static/Microsoft_logo.svg" alt="Microsoft" /></div>
       </div>
@@ -265,12 +267,7 @@
       <!-- Prepared speakers -->
       <section class="panel speaker">
         <h3>Today's Prepared Speeches</h3>
-        <div class="sp-title">The Unscripted Project</div>
-        <div class="sp-row"><b>Speaker:</b> Chao Chen</div>
-        <div class="sp-row"><b>Pathway:</b> Engaging Humor · Level 2</div>
-        <div class="sp-row"><b>Speech Purpose:</b> The purpose of this project is for the member
-        to clearly define how Toastmasters envisions mentoring; to share some aspect of a
-        previous experience as a protégé.</div>
+        <div id="preparedSpeeches" class="speech-list"></div>
       </section>
 
       <!-- Roles + Pathways -->
@@ -345,6 +342,30 @@
       (meeting.role_slots || []).forEach(slot => { out[slot.id] = slot; });
       return out;
     }
+    function isPreparedSpeechSlot(slot) {
+      const role = String(slot && slot.role_name || '').toLowerCase();
+      return role.includes('speaker') || role.includes('prepared speech');
+    }
+    function prepText(slot, key) {
+      const data = slot && slot.prep_data;
+      if (!data || data[key] == null) return '';
+      return String(data[key]).trim();
+    }
+    function agendaName(session, slot) {
+      const derived = String(session.agenda_name || '').trim();
+      if (derived) return derived;
+      const title = prepText(slot, 'title');
+      if (isPreparedSpeechSlot(slot) && title) return title;
+      return session.name || '';
+    }
+    function speechLevel(slot, longForm) {
+      const level = prepText(slot, 'level');
+      if (!level) return '';
+      return longForm ? `Level ${level}` : `L${level}`;
+    }
+    function speechMeta(slot) {
+      return [prepText(slot, 'pathway'), speechLevel(slot, false)].filter(Boolean).join(' · ');
+    }
     function renderRows(meeting) {
       const slots = slotById(meeting);
       const rows = [];
@@ -369,12 +390,37 @@
         const slot = session.role_slot_id ? slots[session.role_slot_id] : null;
         // A session with no role is a whole-club activity — taken by "All".
         const taker = slot ? (slot.taker_name || slot.booker_name || '') : 'All';
-        const meta = session.speech_title || session.pathways ? `<div class="speech-meta">${escapeHtml([session.speech_title, session.pathways].filter(Boolean).join(' · '))}</div>` : '';
-        rows.push(`<tr><td class="time">${toHHMM(cursor)}</td><td><div class="session-title">${escapeHtml(session.name)}</div>${meta}</td><td class="dur">${durationText(session.duration_minutes)}</td><td class="taker">${escapeHtml(taker)}</td></tr>`);
+        const metaText = speechMeta(slot);
+        const meta = metaText ? `<div class="speech-meta">${escapeHtml(metaText)}</div>` : '';
+        rows.push(`<tr><td class="time">${toHHMM(cursor)}</td><td><div class="session-title">${escapeHtml(agendaName(session, slot))}</div>${meta}</td><td class="dur">${durationText(session.duration_minutes)}</td><td class="taker">${escapeHtml(taker)}</td></tr>`);
         cursor += Number(session.duration_minutes) || 0;
         if (index < visible.length - 1) cursor += BUFFER_MINUTES;
       });
       document.getElementById('agendaRows').innerHTML = rows.join('');
+    }
+    function renderPreparedSpeeches(meeting) {
+      const container = document.getElementById('preparedSpeeches');
+      const slots = (meeting.role_slots || []).filter(isPreparedSpeechSlot).filter(slot => {
+        return slot.booker_name || prepText(slot, 'title') || prepText(slot, 'pathway') ||
+          prepText(slot, 'level') || prepText(slot, 'purpose') || prepText(slot, 'description');
+      });
+      if (!slots.length) {
+        container.innerHTML = '<div class="sp-empty">No prepared speeches yet.</div>';
+        return;
+      }
+      container.innerHTML = slots.map(slot => {
+        const title = prepText(slot, 'title') || slot.label || slot.role_name || 'Prepared speech';
+        const pathway = [prepText(slot, 'pathway'), speechLevel(slot, true)].filter(Boolean).join(' · ');
+        const purpose = prepText(slot, 'purpose');
+        const description = prepText(slot, 'description');
+        return `<div class="speech-item">
+          <div class="sp-title">${escapeHtml(title)}</div>
+          ${slot.booker_name ? `<div class="sp-row"><b>Speaker:</b> ${escapeHtml(slot.booker_name)}</div>` : ''}
+          ${pathway ? `<div class="sp-row"><b>Pathway:</b> ${escapeHtml(pathway)}</div>` : ''}
+          ${purpose ? `<div class="sp-row"><b>Speech Purpose:</b> ${escapeHtml(purpose)}</div>` : ''}
+          ${description ? `<div class="sp-row"><b>Description:</b> ${escapeHtml(description)}</div>` : ''}
+        </div>`;
+      }).join('');
     }
     /// Shrink the agenda type until it fits the fixed panel (auto-compact, never a 2nd page).
     function fitAgenda() {
@@ -410,6 +456,7 @@
       document.getElementById('fPhotographer').textContent =
         photographer ? (photographer.booker_name || '') : '';
       renderRows(meeting);
+      renderPreparedSpeeches(meeting);
       fitAgenda();
     }
     init();

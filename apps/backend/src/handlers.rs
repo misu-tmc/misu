@@ -154,6 +154,9 @@ pub struct SessionDto {
     pub position: i64,
     pub group_label: String,
     pub name: String,
+    /// Functional display name for agenda/timer/print surfaces. For prepared speech
+    /// sessions this prefers the speaker's prep title; otherwise it falls back to `name`.
+    pub agenda_name: String,
     pub duration_minutes: i64,
     pub role_slot_id: Option<i64>,
 }
@@ -282,24 +285,40 @@ fn parse_prep_data(raw: &str) -> serde_json::Value {
     serde_json::from_str(raw).unwrap_or_else(|_| json!({}))
 }
 
+fn prep_text(data: &serde_json::Value, key: &str) -> Option<String> {
+    data.get(key)
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+fn is_prepared_speech_role(role_name: &str) -> bool {
+    let role = role_name.to_ascii_lowercase();
+    role.contains("speaker") || role.contains("prepared speech")
+}
+
+impl SessionRow {
+    fn agenda_name(&self, slot: Option<&SlotRow>) -> String {
+        let Some(slot) = slot else {
+            return self.name.clone();
+        };
+        if !is_prepared_speech_role(&slot.role_name) {
+            return self.name.clone();
+        }
+        prep_text(&parse_prep_data(&slot.prep_data), "title")
+            .unwrap_or_else(|| self.name.clone())
+    }
+}
+
 async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<MeetingDto> {
-    let sessions = sqlx::query_as::<_, SessionRow>(
+    let session_rows = sqlx::query_as::<_, SessionRow>(
         "SELECT id, position, group_label, name, duration_minutes, role_slot_id \
          FROM session WHERE meeting_id = ? ORDER BY position",
     )
     .bind(m.id)
     .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(|s| SessionDto {
-        id: s.id,
-        position: s.position,
-        group_label: s.group_label,
-        name: s.name,
-        duration_minutes: s.duration_minutes,
-        role_slot_id: s.role_slot_id,
-    })
-    .collect();
+    .await?;
 
     let slot_rows = sqlx::query_as::<_, SlotRow>(
         "SELECT rs.id, rs.role_id, r.name AS role_name, r.properties, rs.label, rs.is_optional, \
@@ -314,6 +333,29 @@ async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<M
     .bind(m.id)
     .fetch_all(pool)
     .await?;
+
+    let sessions = {
+        let slot_by_id: std::collections::HashMap<i64, &SlotRow> =
+            slot_rows.iter().map(|s| (s.id, s)).collect();
+        session_rows
+            .into_iter()
+            .map(|s| {
+                let slot = s
+                    .role_slot_id
+                    .and_then(|slot_id| slot_by_id.get(&slot_id).copied());
+                let agenda_name = s.agenda_name(slot);
+                SessionDto {
+                    id: s.id,
+                    position: s.position,
+                    group_label: s.group_label,
+                    name: s.name,
+                    agenda_name,
+                    duration_minutes: s.duration_minutes,
+                    role_slot_id: s.role_slot_id,
+                }
+            })
+            .collect()
+    };
 
     // Derive display labels: append an ordinal only when a role repeats in the meeting.
     let mut counts: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();

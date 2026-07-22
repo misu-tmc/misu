@@ -31,11 +31,28 @@ function meetingInfo(meeting) {
   };
 }
 
+function isPreparedSpeechSlot(slot) {
+  const role = String((slot && slot.role_name) || '').toLowerCase();
+  return role.indexOf('speaker') >= 0 || role.indexOf('prepared speech') >= 0;
+}
+
+function prepText(slot, key) {
+  if (!slot || !slot.prep_data) return '';
+  return String(slot.prep_data[key] || '').trim();
+}
+
+function agendaName(session, slot) {
+  if (session && session.agenda_name) return session.agenda_name;
+  const title = prepText(slot, 'title');
+  if (isPreparedSpeechSlot(slot) && title) return title;
+  return (session && session.name) || '';
+}
+
 function speechMeta(slot) {
   if (!slot || !slot.prep_data) return '';
   const data = slot.prep_data;
   const level = data.level == null || data.level === '' ? '' : `L${data.level}`;
-  return [data.title, data.pathway, level].filter(Boolean).join(' · ');
+  return [data.pathway, level].filter(Boolean).join(' · ');
 }
 
 // Compute each session's start time from the meeting start + cumulative durations,
@@ -56,7 +73,9 @@ function buildAgenda(meeting) {
     return {
       id: s.id,
       start,
-      name: s.name,
+      name: agendaName(s, slot),
+      agenda_name: agendaName(s, slot),
+      session_name: s.name,
       group_label: s.group_label,
       duration_minutes: s.duration_minutes,
       taker: slot && slot.booker_name ? slot.booker_name : '',

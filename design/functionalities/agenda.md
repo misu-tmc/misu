@@ -87,9 +87,11 @@ Sections:
 	time, venue, officer team, how to join, guest fee / donation QR.
 - **Agenda table** — generated from sessions:
 	- Time: client/server computed from meeting start + durations + buffer.
-	- Session: group headers and agenda row names. For prepared speeches, include the
-		speech title and Pathways path/level/project under the session name in a smaller line
-		(e.g. `The Feline Savior of Kishi Station · Presentation Mastery L2`).
+	- Session: group headers and derived agenda row names. `sessions[].agenda_name` is a
+		functional display field: for prepared speeches it prefers the speaker's
+		`prep_data.title`, otherwise it falls back to `session.name`.
+	- Prepared-speech metadata: Pathways path/level/project stays in a smaller secondary
+		line when present, without repeating the title.
 	- Duration: mm:ss or h:mm style.
 	- Role Takers: `taker_name` after check-in, otherwise `booker_name`, otherwise blank.
 - **Timer guide** — static timing rules table at bottom.
@@ -100,8 +102,8 @@ Design notes:
 - Group headers (Warm Up, Prepared Speech, Evaluation, etc.) are centered, low-height rows.
 - The printed page prioritizes readability during the meeting; keep the agenda table the
 	largest element.
-- Prepared speech metadata should stay compact: one secondary line in the Session cell,
-	not a separate back-side speaker section.
+- Prepared speech metadata should stay compact: the title is the agenda row name, and
+	Pathways details are a secondary line in the Session cell.
 
 ### Printed Page — Back Side (Introduction)
 
@@ -135,8 +137,8 @@ Sections:
 - **Header** — identical to the front page (Toastmasters logo · club name · Microsoft mark).
 - **Intro band** — a short Toastmasters description, the **Four Core Values** and the
 	**Four Taboos** (with a drawn prohibition sign).
-- **Prepared speakers** — for now the speech is **hard-coded** (title, Pathways path/level,
-	speech purpose); it will later come from prepared-speaker fields on the meeting DTO.
+- **Prepared speakers** — rendered from prepared-speaker role slots and their live
+	`prep_data` fields: title, speaker/booker, Pathways path/level, purpose and description.
 - **Regular Meeting Roles** — a two-column table of role names and one-line descriptions.
 - **Pathways** — the six paths as labelled tiles plus the five competency levels.
 - **Meeting process** — the three-step meeting flow, with the guest-fee QR beside it.
@@ -153,10 +155,12 @@ Print render should use the same meeting DTO shape as the editor/mini program wh
 possible:
 
 - `meeting.number`, `theme`, `date`, `start_time`, `end_time`, `venue` → header.
-- `sessions[]` + `BUFFER_MINUTES` → agenda start times.
+- `sessions[]` + `BUFFER_MINUTES` → agenda start times and structural row fallback names.
+- `sessions[].agenda_name` → public agenda row name. This is derived, not stored or posted
+	by editors.
 - `role_slots[]` + assignments → role taker labels and booking state.
-- `role_assignment.prep_data` interpreted by `role.properties` → secondary metadata line
-	in prepared-speech session rows.
+- `role_assignment.prep_data` interpreted by `role.properties` → prepared-speech title
+	source plus secondary metadata line in prepared-speech session rows.
 - Static resources → configured print asset bundle.
 
 ## Asset Checklist

@@ -40,7 +40,11 @@
             <view class="field half"><text class="field-label muted">Start</text><picker mode="time" value="{{info.start_time}}" bindchange="onStartChange"><view class="picker-value">{{info.start_time || '--:--'}}</view></picker></view>
             <view class="field half"><text class="field-label muted">End</text><picker mode="time" value="{{info.end_time}}" bindchange="onEndChange"><view class="picker-value">{{info.end_time || '--:--'}}</view></picker></view>
           </view>
-          <view class="field {{highlightField === 'venue' ? 'hl' : ''}}"><text class="field-label muted">Venue</text><input class="field-input" value="{{info.venue}}" data-field="venue" bindinput="onInfoInput" /></view>
+          <view class="field {{highlightField === 'venue' ? 'hl' : ''}}">
+            <text class="field-label muted">Venue</text>
+            <picker range="{{venueNames}}" bindchange="onVenuePick"><view class="picker-value">{{info.venue || 'Pick saved venue'}}</view></picker>
+            <input class="field-input sub-input" placeholder="or type venue" value="{{info.venue}}" data-field="venue" bindinput="onInfoInput" />
+          </view>
         </view>
         <view class="savebar"><text class="save-hint muted">Saving Information</text><view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveInfo">Save</view></view>
       </block>

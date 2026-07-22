@@ -50,6 +50,8 @@ Page({
     speeches: [],
     roleCatalog: [],
     roleNames: [],
+    venueCatalog: [],
+    venueNames: [],
     userCatalog: [],
     userNames: [NONE_LABEL],
     slotPickerLabels: [NONE_LABEL],
@@ -98,13 +100,14 @@ Page({
         }
         meetingId = list[0].id;
       }
-      const [detail, roles, users] = await Promise.all([
+      const [detail, roles, venues, users] = await Promise.all([
         api.meeting(meetingId),
         api.roles().catch(() => []),
+        api.venues().catch(() => []),
         api.users().catch(() => [])
       ]);
       this.meetingId = meetingId;
-      this.applyMeeting(detail, roles, users);
+      this.applyMeeting(detail, roles, venues, users);
     } catch (e) {
       console.error(e);
       wx.showToast({ title: 'Load failed', icon: 'none' });
@@ -112,10 +115,11 @@ Page({
     }
   },
 
-  // Hydrate the page from a meeting DTO. `roles`/`users` are optional; when omitted the
+  // Hydrate the page from a meeting DTO. Catalogs are optional; when omitted the
   // current catalogs are kept (used after a section save, which returns only the meeting).
-  applyMeeting(detail, roles, users) {
+  applyMeeting(detail, roles, venues, users) {
     const roleCatalog = roles || this.data.roleCatalog;
+    const venueCatalog = venues || this.data.venueCatalog;
     const userCatalog = users || this.data.userCatalog;
 
     const slots = (detail.role_slots || []).map((s) => ({
@@ -183,6 +187,8 @@ Page({
       },
       roleCatalog,
       roleNames: roleCatalog.map((r) => r.name),
+      venueCatalog,
+      venueNames: venueCatalog.map((v) => v.name),
       userCatalog,
       userNames: [NONE_LABEL].concat(userCatalog.map((u) => u.display_name)),
       slots,
@@ -221,7 +227,7 @@ Page({
     this.setData({ saving: true });
     return promise
       .then((detail) => {
-        this.applyMeeting(detail, this.data.roleCatalog, this.data.userCatalog);
+        this.applyMeeting(detail, this.data.roleCatalog, this.data.venueCatalog, this.data.userCatalog);
         wx.showToast({ title: 'Saved', icon: 'success' });
       })
       .catch((err) => wx.showToast({ title: (err && err.error) || 'Save failed', icon: 'none' }))
@@ -313,6 +319,11 @@ Page({
   },
   onEndChange(e) {
     this.setData({ 'info.end_time': e.detail.value });
+  },
+  onVenuePick(e) {
+    const venue = this.data.venueCatalog[e.detail.value];
+    if (!venue) return;
+    this.setData({ 'info.venue': venue.name });
   },
   saveInfo() {
     const info = this.data.info;

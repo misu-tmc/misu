@@ -473,6 +473,26 @@ async fn resolve_venue_id(conn: &mut SqliteConnection, venue: &str) -> AppResult
     ))
 }
 
+// ---------------------------------------------------------------------------
+// Venues catalog
+// ---------------------------------------------------------------------------
+
+#[derive(FromRow, Serialize)]
+pub struct VenueDto {
+    pub id: i64,
+    pub name: String,
+}
+
+pub async fn list_venues(
+    State(state): State<AppState>,
+    _user: AuthUser,
+) -> AppResult<Json<Vec<VenueDto>>> {
+    let rows = sqlx::query_as::<_, VenueDto>("SELECT id, name FROM venue ORDER BY name")
+        .fetch_all(&state.pool)
+        .await?;
+    Ok(Json(rows))
+}
+
 // --- Info section: the meeting header row --------------------------------------------
 
 #[derive(Deserialize)]

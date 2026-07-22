@@ -87,6 +87,7 @@ const api = {
 
   // Meeting editor: per-section batch saves. Each returns the full updated meeting.
   roles: () => request('/api/roles'),
+  venues: () => request('/api/venues'),
   users: () => request('/api/users'),
   saveMeetingInfo: (id, info) =>
     request('/api/meetings/' + id + '/info', { method: 'PUT', data: info }),

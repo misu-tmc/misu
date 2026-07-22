@@ -49,7 +49,7 @@
 /* Fields */
 .field { margin-top: 24rpx; }
 .field:first-child { margin-top: 0; }
-.field-row { display: flex; gap: 24rpx; }
+.field-row { display: flex; gap: 24rpx; margin-top: 24rpx; }
 .field-row .field { margin-top: 0; }
 .field-row .half { flex: 1; }
 .field-label { display: block; font-size: 24rpx; margin-bottom: 8rpx; }

@@ -117,7 +117,7 @@
 /* Empty / stub tabs */
 .empty-tab { display: flex; flex-direction: column; gap: 12rpx; }
 .et-title { font-size: 30rpx; font-weight: 600; }
-
-/* Review */
-.rev-row { display: flex; justify-content: space-between; padding: 18rpx 4rpx; border-bottom: 1rpx solid #f0f0f2; font-size: 28rpx; }
-.rev-row:last-child { border-bottom: none; }
+.speech-card { margin-bottom: 20rpx; }
+.speech-card.hl-card { border: 2rpx solid #5b2a86; box-shadow: 0 0 0 4rpx #f0ecf6; }
+.speech-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
+.textarea { min-height: 150rpx; line-height: 1.5; }

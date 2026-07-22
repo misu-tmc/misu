@@ -16,8 +16,8 @@
             class="btn btn-ghost"
             data-meeting-id="{{item.meetingId}}"
             data-slot-id="{{item.slotId}}"
-            data-role-label="{{item.roleLabel}}"
-            data-role-name="{{item.roleName}}"
+            data-tab="{{item.prepTab}}"
+            data-field="{{item.prepField}}"
             bindtap="onPrepare"
           >Prepare</view>
           <view

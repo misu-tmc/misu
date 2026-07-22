@@ -1,6 +1,6 @@
 // pages/prepare/prepare.js
-// Role "extra info" (speech title/level, evaluatee, etc.) is deferred in the design.
-// This page shows the booked role and a note that preparation details are coming.
+// Prepare now deep-links into the meeting editor. This page is kept only as a fallback
+// placeholder for older links.
 Page({
   data: {
     role: ''

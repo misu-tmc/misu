@@ -116,31 +116,29 @@
         <view class="savebar"><text class="save-hint muted">Saving Sessions</text><view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSessions">Save</view></view>
       </block>
 
-      <!-- Speeches (stub — needs backend) -->
+      <!-- Speeches -->
       <block wx:elif="{{activeTab === 'speeches'}}">
-        <view class="card empty-tab">
+        <view wx:if="{{speeches.length === 0}}" class="card empty-tab">
           <text class="et-title">Prepared Speeches</text>
-          <text class="muted">Speech title, Pathways path/level and purpose per speaker. Coming soon — needs a backend field + endpoint.</text>
+          <text class="muted">No prepared speech slots yet. Add Speaker or Prepared Speech roles first.</text>
         </view>
-      </block>
-
-      <!-- Table Topics (stub — needs backend) -->
-      <block wx:elif="{{activeTab === 'topics'}}">
-        <view class="card empty-tab">
-          <text class="et-title">Table Topics</text>
-          <text class="muted">Impromptu participants list. Coming soon — needs a participants table + endpoint.</text>
+        <view
+          wx:for="{{speeches}}"
+          wx:key="role_slot_id"
+          wx:for-item="speech"
+          class="card speech-card {{highlightSlotId === speech.role_slot_id ? 'hl-card' : ''}}"
+        >
+          <view class="speech-head">
+            <text class="et-title">{{speech.display}}</text>
+            <text class="muted">{{speech.booker_name || 'Unassigned'}}</text>
+          </view>
+          <view class="field"><text class="field-label muted">Title</text><input class="field-input" value="{{speech.title}}" data-index="{{index}}" data-field="title" bindinput="onSpeechInput" /></view>
+          <view class="field"><text class="field-label muted">Pathway</text><input class="field-input" value="{{speech.pathway}}" data-index="{{index}}" data-field="pathway" bindinput="onSpeechInput" /></view>
+          <view class="field"><text class="field-label muted">Level</text><input class="field-input" type="number" value="{{speech.level}}" data-index="{{index}}" data-field="level" bindinput="onSpeechInput" /></view>
+          <view class="field"><text class="field-label muted">Purpose</text><textarea class="field-input textarea" value="{{speech.purpose}}" data-index="{{index}}" data-field="purpose" maxlength="1000" bindinput="onSpeechInput" /></view>
+          <view class="field"><text class="field-label muted">Description</text><textarea class="field-input textarea" value="{{speech.description}}" data-index="{{index}}" data-field="description" maxlength="1000" bindinput="onSpeechInput" /></view>
         </view>
-      </block>
-
-      <!-- Review -->
-      <block wx:elif="{{activeTab === 'review'}}">
-        <view class="card">
-          <view class="rev-row"><text>Info</text><text class="muted">{{header.title || '—'}}</text></view>
-          <view class="rev-row"><text>Roles</text><text class="muted">{{slots.length}} slots</text></view>
-          <view class="rev-row"><text>Sessions</text><text class="muted">{{sessions.length}} rows</text></view>
-          <view class="rev-row"><text>Status</text><text class="muted">{{header.status}}</text></view>
-        </view>
-        <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="togglePublish">{{header.published ? 'Unpublish meeting' : 'Publish meeting'}}</view>
+        <view class="savebar"><text class="save-hint muted">Saving Speeches</text><view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSpeeches">Save</view></view>
       </block>
 
     </view>

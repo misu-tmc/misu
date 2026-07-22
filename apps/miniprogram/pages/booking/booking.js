@@ -1,14 +1,14 @@
 // pages/booking/booking.js
 const api = require('../../utils/api.js');
-const { shortDate } = require('../../utils/format.js');
+const { meetingInfo, shortDate } = require('../../utils/format.js');
 
-// Map a role to the editor tab (and optional field to highlight) that Prepare should open.
-// Client-side only — no backend involvement. Tune this table as roles/tabs evolve.
 function prepTarget(roleName) {
-  const r = (roleName || '').toLowerCase();
-  if (r.indexOf('grammarian') >= 0) return { tab: 'info', field: 'keyword' };
-  if (r.indexOf('speaker') >= 0) return { tab: 'speeches', field: '' };
-  if (r.indexOf('toastmaster') >= 0) return { tab: 'sessions', field: '' };
+  const role = (roleName || '').toLowerCase();
+  if (role.indexOf('grammarian') >= 0) return { tab: 'info', field: 'keyword' };
+  if (role.indexOf('table topics master') >= 0) return { tab: 'info', field: 'theme' };
+  if (role.indexOf('speaker') >= 0 || role.indexOf('prepared speech') >= 0) {
+    return { tab: 'speeches', field: '' };
+  }
   return { tab: 'roles', field: '' };
 }
 
@@ -49,13 +49,16 @@ Page({
         const slots = (m.role_slots || []).map((s) => {
           const mine = s.booker_id === me;
           if (mine) {
+            const target = prepTarget(s.role_name);
             bookings.push({
               meetingId: m.id,
               slotId: s.id,
               number: m.number,
               dateLabel,
               roleLabel: s.label,
-              roleName: s.role_name
+              roleName: s.role_name,
+              prepTab: target.tab,
+              prepField: target.field
             });
           }
           return {
@@ -70,7 +73,7 @@ Page({
           id: m.id,
           number: m.number,
           dateLabel,
-          theme: m.theme,
+          theme: meetingInfo(m).theme,
           expanded: previousExpanded[m.id] == null ? index === 0 : previousExpanded[m.id],
           slots
         };
@@ -127,10 +130,9 @@ Page({
   },
 
   onPrepare(e) {
-    const { meetingId, roleName } = e.currentTarget.dataset;
-    const t = prepTarget(roleName);
-    let url = `/pages/edit-meeting/edit-meeting?id=${meetingId}&tab=${t.tab}`;
-    if (t.field) url += `&field=${t.field}`;
+    const { meetingId, slotId, tab, field } = e.currentTarget.dataset;
+    let url = `/pages/edit-meeting/edit-meeting?id=${meetingId}&tab=${tab || 'roles'}&slotId=${slotId}`;
+    if (field) url += `&field=${field}`;
     wx.navigateTo({ url });
   }
 });

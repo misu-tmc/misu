@@ -158,6 +158,13 @@ pub struct SessionDto {
     pub role_slot_id: Option<i64>,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct PrepFieldDto {
+    pub key: String,
+    #[serde(rename = "type")]
+    pub field_type: String,
+}
+
 #[derive(Serialize)]
 pub struct RoleSlotDto {
     pub id: i64,
@@ -172,6 +179,9 @@ pub struct RoleSlotDto {
     pub booker_id: Option<i64>,
     pub booker_name: Option<String>,
     pub taker_id: Option<i64>,
+    pub prep_fields: Vec<PrepFieldDto>,
+    pub prep_data: serde_json::Value,
+    pub prep_updated_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -251,11 +261,25 @@ struct SlotRow {
     id: i64,
     role_id: i64,
     role_name: String,
+    properties: Option<String>,
     label: Option<String>,
     is_optional: i64,
     booker_id: Option<i64>,
     booker_name: Option<String>,
     taker_id: Option<i64>,
+    prep_data: String,
+    prep_updated_at: Option<String>,
+}
+
+fn parse_prep_fields(properties: Option<&str>) -> Vec<PrepFieldDto> {
+    let Some(raw) = properties.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Vec::new();
+    };
+    serde_json::from_str::<Vec<PrepFieldDto>>(raw).unwrap_or_default()
+}
+
+fn parse_prep_data(raw: &str) -> serde_json::Value {
+    serde_json::from_str(raw).unwrap_or_else(|_| json!({}))
 }
 
 async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<MeetingDto> {
@@ -278,8 +302,9 @@ async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<M
     .collect();
 
     let slot_rows = sqlx::query_as::<_, SlotRow>(
-        "SELECT rs.id, rs.role_id, r.name AS role_name, rs.label, rs.is_optional, ra.booker_id, \
-                u.display_name AS booker_name, ra.taker_id \
+        "SELECT rs.id, rs.role_id, r.name AS role_name, r.properties, rs.label, rs.is_optional, \
+            ra.booker_id, u.display_name AS booker_name, ra.taker_id, \
+            COALESCE(ra.prep_data, '{}') AS prep_data, ra.prep_updated_at \
          FROM role_slot rs \
          JOIN role r ON r.id = rs.role_id \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
@@ -326,6 +351,9 @@ async fn load_meeting_dto(pool: &sqlx::SqlitePool, m: MeetingRow) -> AppResult<M
                 booker_id: s.booker_id,
                 booker_name: s.booker_name,
                 taker_id: s.taker_id,
+                prep_fields: parse_prep_fields(s.properties.as_deref()),
+                prep_data: parse_prep_data(&s.prep_data),
+                prep_updated_at: s.prep_updated_at,
             }
         })
         .collect();
@@ -473,7 +501,16 @@ pub async fn book(
         }
         sqlx::query(
             "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
-             ON CONFLICT(role_slot_id) DO UPDATE SET booker_id = excluded.booker_id",
+             ON CONFLICT(role_slot_id) DO UPDATE SET \
+                booker_id = excluded.booker_id, \
+                prep_data = CASE \
+                    WHEN role_assignment.booker_id IS excluded.booker_id THEN role_assignment.prep_data \
+                    ELSE '{}' \
+                END, \
+                prep_updated_at = CASE \
+                    WHEN role_assignment.booker_id IS excluded.booker_id THEN role_assignment.prep_updated_at \
+                    ELSE NULL \
+                END",
         )
         .bind(req.role_slot_id)
         .bind(target)
@@ -488,6 +525,12 @@ pub async fn book(
             Some(_) => {
                 // Release the booking; keep the row so a taker_id (if any) survives.
                 sqlx::query("UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?")
+                    .bind(req.role_slot_id)
+                    .execute(&state.pool)
+                    .await?;
+                sqlx::query(
+                    "UPDATE role_assignment SET prep_data = '{}', prep_updated_at = NULL WHERE role_slot_id = ?",
+                )
                     .bind(req.role_slot_id)
                     .execute(&state.pool)
                     .await?;
@@ -519,6 +562,64 @@ pub async fn book(
         }
     }
     Ok(Json(json!({ "ok": true, "booker_id": me })))
+}
+
+// ---------------------------------------------------------------------------
+// Role preparation data
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct PrepUpdateReq {
+    pub role_slot_id: i64,
+    #[serde(default)]
+    pub prep_data: serde_json::Value,
+}
+
+#[derive(FromRow)]
+struct PrepSlotRow {
+    meeting_id: i64,
+}
+
+pub async fn update_prep(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+    Json(req): Json<PrepUpdateReq>,
+) -> AppResult<Json<MeetingDto>> {
+    let slot = sqlx::query_as::<_, PrepSlotRow>(
+        "SELECT rs.meeting_id \
+         FROM role_slot rs \
+         WHERE rs.id = ?",
+    )
+    .bind(req.role_slot_id)
+    .fetch_optional(&state.pool)
+    .await?
+    .ok_or(AppError::NotFound)?;
+
+    if slot.meeting_id != meeting_id {
+        return Err(AppError::BadRequest(
+            "role_slot does not belong to meeting".into(),
+        ));
+    }
+    if !req.prep_data.is_object() {
+        return Err(AppError::BadRequest("prep_data must be an object".into()));
+    }
+
+    sqlx::query(
+        "INSERT INTO role_assignment(role_slot_id, prep_data, prep_updated_at) \
+         VALUES (?, ?, datetime('now')) \
+         ON CONFLICT(role_slot_id) DO UPDATE SET \
+            prep_data = excluded.prep_data, prep_updated_at = excluded.prep_updated_at",
+    )
+    .bind(req.role_slot_id)
+    .bind(req.prep_data.to_string())
+    .execute(&state.pool)
+    .await?;
+
+    meeting_dto_by_id(&state.pool, meeting_id)
+        .await?
+        .map(Json)
+        .ok_or(AppError::NotFound)
 }
 
 // ---------------------------------------------------------------------------

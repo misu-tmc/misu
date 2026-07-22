@@ -215,13 +215,10 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
             ),
         ),
         ("Individual Evaluator", None),
-        (
-            "Table Topics Master",
-            Some(r#"[{"key":"theme","type":"string"},{"key":"count","type":"integer"}]"#),
-        ),
+        ("Table Topics Master", None),
         ("Timer", None),
         ("Ah-Counter", None),
-        ("Grammarian", Some(r#"[{"key":"keyword","type":"string"}]"#)),
+        ("Grammarian", None),
         ("General Evaluator", None),
     ];
     for (name, properties) in roles {
@@ -240,6 +237,11 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
             .await?;
         }
     }
+    sqlx::query(
+        "UPDATE role SET properties = NULL WHERE name IN ('Grammarian', 'Table Topics Master')",
+    )
+    .execute(pool)
+    .await?;
 
     seed_web_admin(pool, config).await?;
 
@@ -332,15 +334,15 @@ async fn seed_one_meeting(
     .await?;
 
     // Role slots for the meeting (user-agnostic bookable seats).
-    let tmod = insert_slot(pool, meeting_id, "TMOD").await?;
+    let toe = insert_slot(pool, meeting_id, "TOE").await?;
     let sp1 = insert_slot(pool, meeting_id, "Speaker").await?;
-    let ev1 = insert_slot(pool, meeting_id, "Evaluator").await?;
+    let ev1 = insert_slot(pool, meeting_id, "Individual Evaluator").await?;
     let ttm = insert_slot(pool, meeting_id, "Table Topics Master").await?;
     let timer = insert_slot(pool, meeting_id, "Timer").await?;
 
     // Sessions (agenda). Start times are computed by clients from durations + buffer.
     let sessions: [(i64, &str, &str, i64, Option<i64>); 5] = [
-        (1, "Opening", "Opening / TMOD", 6, Some(tmod)),
+        (1, "Opening", "Opening / TOE", 6, Some(toe)),
         (2, "Prepared Speeches", "Speech 1", 7, Some(sp1)),
         (3, "Prepared Speeches", "Evaluation 1", 3, Some(ev1)),
         (4, "Table Topics", "Table Topics", 20, Some(ttm)),

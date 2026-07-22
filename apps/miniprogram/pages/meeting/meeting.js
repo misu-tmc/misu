@@ -1,6 +1,6 @@
 // pages/meeting/meeting.js
 const api = require('../../utils/api.js');
-const { shortDate, buildAgenda } = require('../../utils/format.js');
+const { shortDate, buildAgenda, meetingInfo } = require('../../utils/format.js');
 
 Page({
   data: {
@@ -43,6 +43,7 @@ Page({
       const preferred = app.globalData.checkinMeetingId;
       const meetingId = preferred && meetings.some((m) => m.id === preferred) ? preferred : meetings[0].id;
       const detail = await api.meeting(meetingId);
+      const info = meetingInfo(detail);
       const checkedIn = !!wx.getStorageSync(this.storageKey(detail.id, app.globalData.userId));
       this.setData({
         loading: false,
@@ -51,7 +52,7 @@ Page({
         meeting: {
           id: detail.id,
           number: detail.number,
-          theme: detail.theme,
+          theme: info.theme,
           venue: detail.venue,
           phase: detail.phase,
           dateLabel: shortDate(detail.date),

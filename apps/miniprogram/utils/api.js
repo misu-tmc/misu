@@ -5,8 +5,37 @@ function base() {
   return getApp().globalData.apiBase;
 }
 
+function refreshLogin() {
+  return new Promise((resolve, reject) => {
+    wx.login({
+      success: (res) => {
+        if (!res.code) {
+          reject({ error: 'login failed' });
+          return;
+        }
+        request('/api/auth/wechat', {
+          method: 'POST',
+          data: { code: res.code },
+          auth: false,
+          retryAuth: false
+        })
+          .then((data) => {
+            const app = getApp();
+            app.globalData.token = data.token;
+            app.globalData.userId = data.user.id;
+            app.globalData.displayName = data.user.display_name;
+            wx.setStorageSync('token', data.token);
+            resolve(data.token);
+          })
+          .catch(reject);
+      },
+      fail: reject
+    });
+  });
+}
+
 // Low-level request returning a Promise. Rejects on network errors and non-2xx status.
-function request(path, { method = 'GET', data, auth = true } = {}) {
+function request(path, { method = 'GET', data, auth = true, retryAuth = true } = {}) {
   const header = { 'content-type': 'application/json' };
   if (auth) {
     const token = getApp().globalData.token || wx.getStorageSync('token');
@@ -23,6 +52,11 @@ function request(path, { method = 'GET', data, auth = true } = {}) {
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data);
+        } else if (auth && retryAuth && res.statusCode === 401) {
+          refreshLogin()
+            .then(() => request(path, { method, data, auth, retryAuth: false }))
+            .then(resolve)
+            .catch((err) => reject(err || res.data || { error: 'unauthorized' }));
         } else {
           reject(res.data || { error: 'request failed' });
         }
@@ -60,6 +94,11 @@ const api = {
     request('/api/meetings/' + id + '/slots', { method: 'PUT', data: { slots } }),
   saveSessions: (id, sessions) =>
     request('/api/meetings/' + id + '/sessions', { method: 'PUT', data: { sessions } }),
+  savePrep: (meetingId, roleSlotId, prepData) =>
+    request('/api/meetings/' + meetingId + '/prep', {
+      method: 'PUT',
+      data: { role_slot_id: roleSlotId, prep_data: prepData }
+    }),
   setMeetingStatus: (id, status) =>
     request('/api/meetings/' + id + '/status', { method: 'PUT', data: { status } })
 };

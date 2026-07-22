@@ -654,7 +654,16 @@ pub async fn put_slots(
                 }
                 sqlx::query(
                     "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
-                     ON CONFLICT(role_slot_id) DO UPDATE SET booker_id = excluded.booker_id",
+                     ON CONFLICT(role_slot_id) DO UPDATE SET \
+                        booker_id = excluded.booker_id, \
+                        prep_data = CASE \
+                            WHEN role_assignment.booker_id IS excluded.booker_id THEN role_assignment.prep_data \
+                            ELSE '{}' \
+                        END, \
+                        prep_updated_at = CASE \
+                            WHEN role_assignment.booker_id IS excluded.booker_id THEN role_assignment.prep_updated_at \
+                            ELSE NULL \
+                        END",
                 )
                 .bind(slot_id)
                 .bind(booker)
@@ -663,10 +672,13 @@ pub async fn put_slots(
             }
             None => {
                 // Clear any booking but keep the row so a taker_id (if any) survives.
-                sqlx::query("UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?")
-                    .bind(slot_id)
-                    .execute(&mut *tx)
-                    .await?;
+                sqlx::query(
+                    "UPDATE role_assignment SET booker_id = NULL, prep_data = '{}', \
+                     prep_updated_at = NULL WHERE role_slot_id = ?",
+                )
+                .bind(slot_id)
+                .execute(&mut *tx)
+                .await?;
             }
         }
     }

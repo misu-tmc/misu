@@ -1,14 +1,19 @@
 // pages/edit-meeting/edit-meeting.js
 // Tabbed meeting editor. A scrollable tab strip switches sections (Info / Roles / Sessions
-// / Speeches / Table Topics / Review); each section saves independently as a batch to its
-// own backend endpoint; a Publish toggle flips the meeting status. Roles and Sessions share
-// one draggable row; left-swipe reveals Delete (content fades). See
+// / Speeches); each section saves independently as a batch to its own backend endpoint; a
+// Publish toggle flips the meeting status. Roles and Sessions share one draggable row;
+// left-swipe reveals Delete (content fades). See
 // design/functionalities/meeting_info.md.
 const api = require('../../utils/api.js');
 const { shortDate } = require('../../utils/format.js');
 
 const BUFFER_MINUTES = 1;
 const NONE_LABEL = '— None —';
+
+function isPreparedSpeechRole(roleName) {
+  const role = (roleName || '').toLowerCase();
+  return role.indexOf('speaker') >= 0 || role.indexOf('prepared speech') >= 0;
+}
 
 function toMinutes(hhmm) {
   const [h, m] = (hhmm || '0:0').split(':').map((n) => parseInt(n, 10));
@@ -32,17 +37,17 @@ Page({
       { id: 'info', label: 'Information' },
       { id: 'roles', label: 'Roles' },
       { id: 'sessions', label: 'Sessions' },
-      { id: 'speeches', label: 'Speeches' },
-      { id: 'topics', label: 'Table Topics' },
-      { id: 'review', label: 'Review' }
+      { id: 'speeches', label: 'Speeches' }
     ],
     edgeLeft: false,
     edgeRight: true,
     highlightField: '',
+    highlightSlotId: null,
     drag: { type: '', index: -1, offset: 0 },
     info: { title: '', theme: '', keyword: '', date: '', start_time: '', end_time: '', venue: '' },
     slots: [],
     sessions: [],
+    speeches: [],
     roleCatalog: [],
     roleNames: [],
     userCatalog: [],
@@ -55,10 +60,11 @@ Page({
   onLoad(query) {
     query = query || {};
     this.meetingId = query.id ? parseInt(query.id, 10) : null;
-    const valid = ['info', 'roles', 'sessions', 'speeches', 'topics', 'review'];
+    const valid = ['info', 'roles', 'sessions', 'speeches'];
     const patch = {};
     if (query.tab && valid.indexOf(query.tab) >= 0) patch.activeTab = query.tab;
     if (query.field) patch.highlightField = query.field;
+    if (query.slotId) patch.highlightSlotId = parseInt(query.slotId, 10) || null;
     if (Object.keys(patch).length) this.setData(patch);
     this.load();
   },
@@ -121,8 +127,25 @@ Page({
       is_optional: s.is_optional,
       booker_id: s.booker_id || null,
       booker_name: s.booker_name || '',
+      prep_data: s.prep_data || {},
       open: false
     }));
+
+    const speeches = slots
+      .filter((s) => isPreparedSpeechRole(s.role_name))
+      .map((s) => {
+        const prep = s.prep_data || {};
+        return {
+          role_slot_id: s.role_slot_id,
+          display: s.display,
+          booker_name: s.booker_name || '',
+          title: prep.title || '',
+          pathway: prep.pathway || '',
+          level: prep.level == null ? '' : String(prep.level),
+          purpose: prep.purpose || '',
+          description: prep.description || ''
+        };
+      });
 
     const sessions = (detail.sessions || [])
       .slice()
@@ -163,6 +186,7 @@ Page({
       userCatalog,
       userNames: [NONE_LABEL].concat(userCatalog.map((u) => u.display_name)),
       slots,
+      speeches,
       sessions: this.withStarts(sessions, detail.start_time, slots),
       slotPickerLabels: [NONE_LABEL].concat(slots.map((s) => s.display)),
       swipe: { type: '', index: -1 }
@@ -449,6 +473,30 @@ Page({
       }
     }
     this.persist(api.saveSessions(this.meetingId, payload));
+  },
+
+  // --- Prepared speeches -----------------------------------------------------
+  onSpeechInput(e) {
+    const i = e.currentTarget.dataset.index;
+    const field = e.currentTarget.dataset.field;
+    this.setData({ [`speeches[${i}].${field}`]: e.detail.value });
+  },
+  saveSpeeches() {
+    const speeches = this.data.speeches || [];
+    if (!speeches.length) {
+      wx.showToast({ title: 'No speaker slots', icon: 'none' });
+      return;
+    }
+    const jobs = speeches.map((s) =>
+      api.savePrep(this.meetingId, s.role_slot_id, {
+        title: (s.title || '').trim(),
+        pathway: (s.pathway || '').trim(),
+        level: String(s.level || '').trim() === '' ? null : Number(s.level),
+        purpose: (s.purpose || '').trim(),
+        description: (s.description || '').trim()
+      })
+    );
+    this.persist(Promise.all(jobs).then((results) => results[results.length - 1]));
   },
 
   // --- Publish ----------------------------------------------------------------

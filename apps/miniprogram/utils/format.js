@@ -24,6 +24,20 @@ function toHHMM(mins) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+function meetingInfo(meeting) {
+  return {
+    theme: meeting.theme || '',
+    keyword: meeting.keyword || ''
+  };
+}
+
+function speechMeta(slot) {
+  if (!slot || !slot.prep_data) return '';
+  const data = slot.prep_data;
+  const level = data.level == null || data.level === '' ? '' : `L${data.level}`;
+  return [data.title, data.pathway, level].filter(Boolean).join(' · ');
+}
+
 // Compute each session's start time from the meeting start + cumulative durations,
 // inserting BUFFER_MINUTES between sessions (not after the last one). Mirrors the web
 // derivation. Returns sessions augmented with `start` and `taker` (role taker name).
@@ -45,9 +59,10 @@ function buildAgenda(meeting) {
       name: s.name,
       group_label: s.group_label,
       duration_minutes: s.duration_minutes,
-      taker: slot && slot.booker_name ? slot.booker_name : ''
+      taker: slot && slot.booker_name ? slot.booker_name : '',
+      prepMeta: speechMeta(slot)
     };
   });
 }
 
-module.exports = { BUFFER_MINUTES, shortDate, buildAgenda };
+module.exports = { BUFFER_MINUTES, shortDate, buildAgenda, meetingInfo };

@@ -225,7 +225,7 @@ Format:
 Supported first-stage field types: `string` and `integer`. Field order is render order.
 Field keys are stable snake_case names and become keys in `role_assignment.prep_data`.
 
-Examples:
+First-stage example:
 
 ```json
 // Prepared Speaker
@@ -235,21 +235,6 @@ Examples:
   { "key": "level", "type": "integer" },
   { "key": "purpose", "type": "string" },
   { "key": "description", "type": "string" }
-]
-```
-
-```json
-// Grammarian
-[
-  { "key": "keyword", "type": "string" }
-]
-```
-
-```json
-// Table Topics Master
-[
-  { "key": "theme", "type": "string" },
-  { "key": "count", "type": "integer" }
 ]
 ```
 
@@ -312,35 +297,16 @@ next-stage check-in flow).
 - **Next stage**: check-in fills `taker_id` (and attendance for no-role attendees) to
   handle no-shows, substitutions and walk-ins.
 
-## Derived meeting information view
+## Meeting information ownership
 
-Meeting-facing values such as `theme` and `keyword` can be projected from role prep data
-instead of stored as direct meeting columns:
+Meeting-facing values such as `theme` and `keyword` are direct `meeting` columns. Role
+takers prepare them by deep-linking into the Information tab:
 
-- `theme` comes from the Table Topics Master's `prep_data.theme`.
-- `keyword` comes from the Grammarian's `prep_data.keyword`.
+- Grammarian → Information `keyword`.
+- Table Topics Master → Information `theme`.
 
-A SQLite view can group these values into a meeting info document for agenda rendering and
-meeting cards while writes continue to target the relevant `role_assignment.prep_data`:
-
-```sql
-CREATE VIEW meeting_info AS
-SELECT
-  m.id AS meeting_id,
-  MAX(CASE WHEN lower(r.name) = 'table topics master'
-      THEN json_extract(ra.prep_data, '$.theme') END) AS theme,
-  MAX(CASE WHEN lower(r.name) = 'grammarian'
-      THEN json_extract(ra.prep_data, '$.keyword') END) AS keyword
-FROM meeting m
-LEFT JOIN role_slot rs ON rs.meeting_id = m.id
-LEFT JOIN role r ON r.id = rs.role_id
-LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id
-GROUP BY m.id;
-```
-
-The current implementation may keep direct `meeting.theme` / `meeting.keyword` columns as
-a compatibility cache during migration; the normalized source of truth is the role prep
-data above.
+This keeps the club workflow simple: everyone edits the meeting page, and role ownership is
+guided by links rather than enforced by separate storage.
 
 ## Serving a meeting as JSON (optional)
 

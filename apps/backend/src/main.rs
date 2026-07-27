@@ -81,6 +81,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/users/:user_id", post(handlers::update_user))
         .route("/api/club-info", get(handlers::club_info))
         .route("/static/*path", get(admin::static_asset))
+        .route(
+            "/",
+            get(|| async { axum::response::Redirect::to("/meetings") }),
+        )
         // Web admin pages (require a web session; redirect to /login otherwise).
         .route("/login", get(admin::page_login))
         .route("/meetings", get(admin::page_meetings))

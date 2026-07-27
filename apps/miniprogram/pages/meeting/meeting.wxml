@@ -7,7 +7,6 @@
     <view class="card title-card">
       <view class="title-head">
         <text class="title-line">#{{meeting.number}} · {{meeting.dateLabel}} · {{meeting.timeLabel}}</text>
-        <text class="status-badge status-{{meeting.phase}}">{{meeting.phase}}</text>
       </view>
       <text class="title-sub">{{meeting.theme}} · {{meeting.venue}}</text>
       <view class="actions">

@@ -45,28 +45,6 @@ struct RoleTakerRow {
     prep_updated_at: Option<String>,
 }
 
-/// Derived lifecycle phase for a meeting: `draft`, `open`, `ongoing`, or `archived`.
-pub fn meeting_phase(status: &str, date: &str, start_time: &str) -> &'static str {
-    if status != "published" {
-        return "draft";
-    }
-    let today = chrono::Local::now().date_naive();
-    let meeting_date = match chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
-        Ok(date) => date,
-        Err(_) => return "open",
-    };
-    if meeting_date < today {
-        return "archived";
-    }
-    if meeting_date > today {
-        return "open";
-    }
-    match chrono::NaiveTime::parse_from_str(start_time, "%H:%M") {
-        Ok(start) if chrono::Local::now().time() >= start => "ongoing",
-        _ => "open",
-    }
-}
-
 fn is_prepared_speech(role_name: &str) -> bool {
     let name = role_name.to_ascii_lowercase();
     name.contains("speaker") || name.contains("prepared speech")
@@ -170,7 +148,6 @@ fn meeting_response(
     sessions: Vec<SessionResponse>,
     role_takers: Vec<RoleTakerResponse>,
 ) -> MeetingResponse {
-    let phase = meeting_phase(&meeting.status, &meeting.date, &meeting.start_time).to_string();
     MeetingResponse {
         id: meeting.id,
         number: meeting.number,
@@ -182,7 +159,6 @@ fn meeting_response(
         end_time: meeting.end_time,
         venue: meeting.venue,
         status: meeting.status,
-        phase,
         is_template: meeting.is_template,
         sessions,
         role_takers,

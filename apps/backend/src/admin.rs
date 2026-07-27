@@ -109,9 +109,6 @@ pub struct MeetingSummary {
     pub end_time: String,
     pub venue: String,
     pub status: String,
-    /// Derived lifecycle phase: `draft`, `open`, `ongoing`, or `archived`.
-    #[sqlx(default)]
-    pub phase: String,
     pub is_template: i64,
     pub meeting_manager: Option<i64>,
 }
@@ -132,7 +129,7 @@ pub async fn list_meetings(
     let today = chrono::Local::now().date_naive().to_string();
     let scope = q.scope.as_deref().unwrap_or("open");
 
-    let mut rows = match scope {
+    let rows = match scope {
         "templates" => {
             sqlx::query_as::<_, MeetingSummary>(&format!(
                 "SELECT {SUMMARY_COLS} FROM {SUMMARY_FROM} \
@@ -168,9 +165,6 @@ pub async fn list_meetings(
             .await?
         }
     };
-    for m in &mut rows {
-        m.phase = meetings::meeting_phase(&m.status, &m.date, &m.start_time).to_string();
-    }
     Ok(Json(rows))
 }
 

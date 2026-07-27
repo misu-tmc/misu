@@ -35,9 +35,7 @@
     .iconbtn.add { background: #e7f5ea; color: #2e7d32; }
     .pill { display: inline-block; font-size: 12px; padding: 5px 12px; border-radius: 999px; align-self: flex-start; }
     .pill.draft { background: #fff3e0; color: #b26a00; }
-    .pill.published, .pill.open { background: #e8f5e9; color: #2e7d32; }
-    .pill.ongoing { background: #e3f2fd; color: #1565c0; }
-    .pill.archived { background: #eceff1; color: #546e7a; }
+    .pill.published { background: #e8f5e9; color: #2e7d32; }
     input[readonly] { background: var(--bg); color: var(--muted); }
     .checks { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; }
     .check { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
@@ -175,21 +173,9 @@
     }
     function renderStatus() {
       const pill = document.getElementById('statusPill');
-      const ph = meetingPhase();
-      pill.className = 'pill ' + ph;
-      pill.textContent = ph;
-    }
-    /// Derived lifecycle phase mirroring the server: draft | open | ongoing | archived.
-    function meetingPhase() {
-      if (state.status !== 'published') return 'draft';
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const d = new Date((state.date || '') + 'T00:00');
-      if (isNaN(d.getTime())) return 'open';
-      if (d < today) return 'archived';
-      if (d > today) return 'open';
-      const [h, m] = (state.start_time || '0:0').split(':').map(Number);
-      const start = new Date(); start.setHours(h || 0, m || 0, 0, 0);
-      return new Date() >= start ? 'ongoing' : 'open';
+      const status = state.status === 'published' ? 'published' : 'draft';
+      pill.className = 'pill ' + status;
+      pill.textContent = status;
     }
 
     // --- rendering ---

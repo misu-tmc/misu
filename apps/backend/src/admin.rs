@@ -109,18 +109,15 @@ pub struct MeetingSummary {
     pub end_time: String,
     pub venue: String,
     pub status: String,
-    pub is_template: i64,
     pub meeting_manager: Option<i64>,
 }
 
 const SUMMARY_COLS: &str = "m.id, m.number, m.title, m.theme, m.date, m.start_time, m.end_time, \
-    COALESCE(v.name, '') AS venue, m.status, \
-    CASE WHEN t.meeting_id IS NULL THEN 0 ELSE 1 END AS is_template, m.meeting_manager";
+    COALESCE(v.name, '') AS venue, m.status, m.meeting_manager";
 const SUMMARY_FROM: &str = "meeting m \
-    LEFT JOIN venue v ON v.id = m.venue_id \
-    LEFT JOIN template t ON t.meeting_id = m.id";
+    LEFT JOIN venue v ON v.id = m.venue_id";
 
-/// `scope`: `open` (today onward, default), `archived` (past), `all`, or `templates`.
+/// `scope`: `open` (today onward, default), `archived` (past), or `all`.
 pub async fn list_meetings(
     State(state): State<AppState>,
     _user: AuthUser,
@@ -130,14 +127,6 @@ pub async fn list_meetings(
     let scope = q.scope.as_deref().unwrap_or("open");
 
     let rows = match scope {
-        "templates" => {
-            sqlx::query_as::<_, MeetingSummary>(&format!(
-                "SELECT {SUMMARY_COLS} FROM {SUMMARY_FROM} \
-                 WHERE t.meeting_id IS NOT NULL ORDER BY m.number DESC"
-            ))
-            .fetch_all(&state.pool)
-            .await?
-        }
         "all" => {
             sqlx::query_as::<_, MeetingSummary>(&format!(
                 "SELECT {SUMMARY_COLS} FROM {SUMMARY_FROM} ORDER BY m.date DESC, m.number DESC"
@@ -485,6 +474,32 @@ pub async fn list_venues(
     let rows = sqlx::query_as::<_, VenueDto>("SELECT id, name FROM venue ORDER BY name")
         .fetch_all(&state.pool)
         .await?;
+    Ok(Json(rows))
+}
+
+// ---------------------------------------------------------------------------
+// Templates catalog
+// ---------------------------------------------------------------------------
+
+#[derive(FromRow, Serialize)]
+pub struct TemplateDto {
+    pub id: i64,
+    pub number: i64,
+    pub title: String,
+}
+
+/// `GET /api/templates` — meetings marked as reusable templates.
+pub async fn list_templates(
+    State(state): State<AppState>,
+    _user: AuthUser,
+) -> AppResult<Json<Vec<TemplateDto>>> {
+    let rows = sqlx::query_as::<_, TemplateDto>(
+        "SELECT m.id, m.number, m.title \
+         FROM template t JOIN meeting m ON m.id = t.meeting_id \
+         ORDER BY m.number DESC",
+    )
+    .fetch_all(&state.pool)
+    .await?;
     Ok(Json(rows))
 }
 

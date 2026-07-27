@@ -52,7 +52,6 @@ pub struct MeetingResponse {
     pub end_time: String,
     pub venue: String,
     pub status: String,
-    pub is_template: bool,
     pub sessions: Vec<SessionResponse>,
     #[serde(rename = "role_slots")]
     pub role_takers: Vec<RoleTakerResponse>,

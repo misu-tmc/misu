@@ -456,7 +456,7 @@
         date: asTemplate ? addDays(d.date, 14) : d.date,
         start_time: d.start_time || '19:00', end_time: d.end_time || '21:00',
         venue: d.venue || '', status: asTemplate ? 'draft' : (d.status || 'draft'),
-        is_template: asTemplate ? false : !!d.is_template, slots, sessions
+        is_template: false, slots, sessions
       };
       fillHeader(); render();
     }
@@ -466,7 +466,7 @@
     async function setupStartFrom() {
       document.getElementById('startFromCard').style.display = 'block';
       const [allRes, tplRes] = await Promise.all([
-        fetch('/api/meetings?scope=all'), fetch('/api/meetings?scope=templates')
+        fetch('/api/meetings?scope=all'), fetch('/api/templates')
       ]);
       const all = await allRes.json();
       templates = await tplRes.json();
@@ -563,10 +563,17 @@
       const id = meetingIdFromPath();
       if (id) {
         document.getElementById('heading').textContent = 'Editing #…';
-        const res = await fetch('/api/meetings/' + id);
+        const [res, tplRes] = await Promise.all([
+          fetch('/api/meetings/' + id),
+          fetch('/api/templates')
+        ]);
         if (!res.ok) { toast('Meeting not found'); return; }
         const d = await res.json();
         applyDetail(d, false);
+        // Template membership is standalone data, not a field on the meeting.
+        const templates = tplRes.ok ? await tplRes.json() : [];
+        state.is_template = templates.some(t => t.id === d.id);
+        document.getElementById('is_template').checked = state.is_template;
         document.getElementById('heading').textContent = 'Editing #' + d.number;
       } else {
         document.getElementById('heading').textContent = 'New meeting';

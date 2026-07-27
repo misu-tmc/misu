@@ -101,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
             get(admin::list_roles).post(admin::create_role),
         )
         .route("/api/venues", get(admin::list_venues))
+        .route("/api/templates", get(admin::list_templates))
         .route(
             "/api/users",
             get(admin::list_users).post(admin::create_user),

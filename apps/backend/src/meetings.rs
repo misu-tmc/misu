@@ -17,7 +17,6 @@ struct MeetingRow {
     end_time: String,
     venue: String,
     status: String,
-    is_template: bool,
 }
 
 #[derive(FromRow)]
@@ -159,7 +158,6 @@ fn meeting_response(
         end_time: meeting.end_time,
         venue: meeting.venue,
         status: meeting.status,
-        is_template: meeting.is_template,
         sessions,
         role_takers,
     }
@@ -208,11 +206,9 @@ pub async fn upcoming_published(pool: &SqlitePool) -> AppResult<Vec<MeetingRespo
     let today = chrono::Local::now().date_naive().to_string();
     let rows = sqlx::query_as::<_, MeetingRow>(
         "SELECT m.id, m.number, m.title, m.theme, m.keyword, m.date, m.start_time, m.end_time, \
-            COALESCE(v.name, '') AS venue, m.status, \
-            CASE WHEN t.meeting_id IS NULL THEN 0 ELSE 1 END AS is_template \
+            COALESCE(v.name, '') AS venue, m.status \
          FROM meeting m \
          LEFT JOIN venue v ON v.id = m.venue_id \
-         LEFT JOIN template t ON t.meeting_id = m.id \
          WHERE m.status = 'published' AND m.date >= ? \
          ORDER BY m.date ASC, m.number ASC",
     )
@@ -233,11 +229,9 @@ pub async fn meeting_response_by_id(
 ) -> AppResult<Option<MeetingResponse>> {
     let meeting = sqlx::query_as::<_, MeetingRow>(
         "SELECT m.id, m.number, m.title, m.theme, m.keyword, m.date, m.start_time, m.end_time, \
-            COALESCE(v.name, '') AS venue, m.status, \
-            CASE WHEN t.meeting_id IS NULL THEN 0 ELSE 1 END AS is_template \
+            COALESCE(v.name, '') AS venue, m.status \
          FROM meeting m \
          LEFT JOIN venue v ON v.id = m.venue_id \
-         LEFT JOIN template t ON t.meeting_id = m.id \
          WHERE m.id = ?",
     )
     .bind(meeting_id)

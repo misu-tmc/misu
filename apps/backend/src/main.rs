@@ -2,7 +2,6 @@ mod admin;
 mod auth;
 mod config;
 mod db;
-mod domain;
 mod error;
 mod handlers;
 mod meetings;

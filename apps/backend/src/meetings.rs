@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use sqlx::{FromRow, SqlitePool};
 
-use crate::domain::{Meeting, PrepData, PrepField, Role, RoleTaker, RoleTakerRef, Session, User};
 use crate::error::AppResult;
-use crate::models::MeetingResponse;
+use crate::models::{MeetingResponse, PrepFieldResponse, RoleTakerResponse, SessionResponse};
 
 #[derive(FromRow)]
 struct MeetingRow {
@@ -42,94 +41,81 @@ struct RoleTakerRow {
     booker_id: Option<i64>,
     booker_name: Option<String>,
     taker_id: Option<i64>,
-    taker_name: Option<String>,
     prep_data: String,
     prep_updated_at: Option<String>,
 }
 
-impl MeetingRow {
-    fn into_meeting(self, sessions: Vec<Session>, role_takers: Vec<RoleTaker>) -> Meeting {
-        Meeting {
-            id: Some(self.id),
-            number: self.number,
-            title: self.title,
-            theme: self.theme,
-            keyword: self.keyword,
-            date: self.date,
-            start_time: self.start_time,
-            end_time: self.end_time,
-            venue: self.venue,
-            status: self.status,
-            is_template: self.is_template,
-            sessions,
-            role_takers,
-        }
-    }
-}
-
-impl SessionRow {
-    fn into_session(self, role: Option<RoleTakerRef>) -> Session {
-        Session {
-            id: Some(self.id),
-            position: self.position,
-            group: self.group_label,
-            name: self.name,
-            duration_minutes: self.duration_minutes,
-            role,
-        }
-    }
-}
-
-impl RoleTakerRow {
-    fn into_role_taker(self, label: String, custom_label: Option<String>) -> RoleTaker {
-        RoleTaker {
-            id: Some(self.id),
-            role: Role {
-                id: Some(self.role_id),
-                name: self.role_name,
-                prep_fields: parse_prep_fields(self.properties.as_deref()),
-            },
-            label,
-            custom_label,
-            is_optional: self.is_optional != 0,
-            booker: user_from_parts(self.booker_id, self.booker_name),
-            taker: user_from_parts(self.taker_id, self.taker_name),
-            prep_data: parse_prep_data(&self.prep_data),
-            prep_updated_at: self.prep_updated_at,
-        }
-    }
-}
-
+/// Derived lifecycle phase for a meeting: `draft`, `open`, `ongoing`, or `archived`.
 pub fn meeting_phase(status: &str, date: &str, start_time: &str) -> &'static str {
-    crate::domain::meeting_phase(status, date, start_time)
+    if status != "published" {
+        return "draft";
+    }
+    let today = chrono::Local::now().date_naive();
+    let meeting_date = match chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
+        Ok(date) => date,
+        Err(_) => return "open",
+    };
+    if meeting_date < today {
+        return "archived";
+    }
+    if meeting_date > today {
+        return "open";
+    }
+    match chrono::NaiveTime::parse_from_str(start_time, "%H:%M") {
+        Ok(start) if chrono::Local::now().time() >= start => "ongoing",
+        _ => "open",
+    }
 }
 
-fn user_from_parts(id: Option<i64>, display_name: Option<String>) -> Option<User> {
-    id.map(|id| User {
-        id: Some(id),
-        display_name: display_name.unwrap_or_default(),
-    })
+fn is_prepared_speech(role_name: &str) -> bool {
+    let name = role_name.to_ascii_lowercase();
+    name.contains("speaker") || name.contains("prepared speech")
 }
 
-fn parse_prep_fields(properties: Option<&str>) -> Vec<PrepField> {
+/// Non-empty title entered by a prepared-speech taker, if any.
+fn prep_title(prep_data: &serde_json::Value) -> Option<&str> {
+    prep_data
+        .get("title")?
+        .as_str()
+        .map(str::trim)
+        .filter(|title| !title.is_empty())
+}
+
+fn parse_prep_fields(properties: Option<&str>) -> Vec<PrepFieldResponse> {
     let Some(raw) = properties.map(str::trim).filter(|s| !s.is_empty()) else {
         return Vec::new();
     };
-    serde_json::from_str::<Vec<crate::models::PrepFieldResponse>>(raw)
-        .unwrap_or_default()
-        .into_iter()
-        .map(|field| PrepField {
-            key: field.key,
-            field_type: field.field_type,
-        })
-        .collect()
+    serde_json::from_str::<Vec<PrepFieldResponse>>(raw).unwrap_or_default()
 }
 
-fn parse_prep_data(raw: &str) -> PrepData {
-    PrepData::from_json(serde_json::from_str(raw).unwrap_or_else(|_| serde_json::json!({})))
+fn parse_prep_data(raw: &str) -> serde_json::Value {
+    serde_json::from_str(raw).unwrap_or_else(|_| serde_json::json!({}))
 }
 
-fn role_takers_from_rows(rows: Vec<RoleTakerRow>) -> Vec<RoleTaker> {
+fn role_taker_response(
+    row: RoleTakerRow,
+    label: String,
+    custom_label: Option<String>,
+) -> RoleTakerResponse {
+    RoleTakerResponse {
+        id: row.id,
+        role_id: row.role_id,
+        role_name: row.role_name,
+        label,
+        custom_label,
+        is_optional: row.is_optional != 0,
+        booker_id: row.booker_id,
+        booker_name: row.booker_name,
+        taker_id: row.taker_id,
+        prep_fields: parse_prep_fields(row.properties.as_deref()),
+        prep_data: parse_prep_data(&row.prep_data),
+        prep_updated_at: row.prep_updated_at,
+    }
+}
+
+/// Build the role-slot views, deriving a display label: the custom label when set,
+/// otherwise the role name with an ordinal suffix when a role appears more than once.
+fn role_taker_responses(rows: Vec<RoleTakerRow>) -> Vec<RoleTakerResponse> {
     let mut counts: HashMap<i64, i64> = HashMap::new();
     for row in &rows {
         *counts.entry(row.role_id).or_insert(0) += 1;
@@ -155,12 +141,55 @@ fn role_takers_from_rows(rows: Vec<RoleTakerRow>) -> Vec<RoleTaker> {
                 .filter(|label| !label.is_empty())
                 .map(str::to_string);
             let label = custom_label.clone().unwrap_or(derived_label);
-            row.into_role_taker(label, custom_label)
+            role_taker_response(row, label, custom_label)
         })
         .collect()
 }
 
-async fn load_meeting(pool: &SqlitePool, meeting: MeetingRow) -> AppResult<Meeting> {
+fn session_response(row: SessionRow, slot: Option<&RoleTakerResponse>) -> SessionResponse {
+    // For a prepared-speech session, show the speech title (when the taker entered one)
+    // in place of the generic session name.
+    let agenda_name = slot
+        .filter(|slot| is_prepared_speech(&slot.role_name))
+        .and_then(|slot| prep_title(&slot.prep_data))
+        .map(str::to_string)
+        .unwrap_or_else(|| row.name.clone());
+    SessionResponse {
+        id: row.id,
+        position: row.position,
+        group_label: row.group_label,
+        name: row.name,
+        agenda_name,
+        duration_minutes: row.duration_minutes,
+        role_slot_id: row.role_slot_id,
+    }
+}
+
+fn meeting_response(
+    meeting: MeetingRow,
+    sessions: Vec<SessionResponse>,
+    role_takers: Vec<RoleTakerResponse>,
+) -> MeetingResponse {
+    let phase = meeting_phase(&meeting.status, &meeting.date, &meeting.start_time).to_string();
+    MeetingResponse {
+        id: meeting.id,
+        number: meeting.number,
+        title: meeting.title,
+        theme: meeting.theme,
+        keyword: meeting.keyword,
+        date: meeting.date,
+        start_time: meeting.start_time,
+        end_time: meeting.end_time,
+        venue: meeting.venue,
+        status: meeting.status,
+        phase,
+        is_template: meeting.is_template,
+        sessions,
+        role_takers,
+    }
+}
+
+async fn load_meeting(pool: &SqlitePool, meeting: MeetingRow) -> AppResult<MeetingResponse> {
     let session_rows = sqlx::query_as::<_, SessionRow>(
         "SELECT id, position, group_label, name, duration_minutes, role_slot_id \
          FROM session WHERE meeting_id = ? ORDER BY position",
@@ -171,37 +200,32 @@ async fn load_meeting(pool: &SqlitePool, meeting: MeetingRow) -> AppResult<Meeti
 
     let role_taker_rows = sqlx::query_as::<_, RoleTakerRow>(
         "SELECT rs.id, rs.role_id, r.name AS role_name, r.properties, rs.label, rs.is_optional, \
-            ra.booker_id, booker.display_name AS booker_name, \
-            ra.taker_id, taker.display_name AS taker_name, \
+            ra.booker_id, booker.display_name AS booker_name, ra.taker_id, \
             COALESCE(ra.prep_data, '{}') AS prep_data, ra.prep_updated_at \
          FROM role_slot rs \
          JOIN role r ON r.id = rs.role_id \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          LEFT JOIN user booker ON booker.id = ra.booker_id \
-         LEFT JOIN user taker ON taker.id = ra.taker_id \
          WHERE rs.meeting_id = ? ORDER BY rs.id",
     )
     .bind(meeting.id)
     .fetch_all(pool)
     .await?;
 
-    let role_takers = role_takers_from_rows(role_taker_rows);
-    let role_by_id: HashMap<i64, RoleTakerRef> = role_takers
-        .iter()
-        .filter_map(|role_taker| role_taker.id.map(|id| (id, RoleTakerRef::from(role_taker))))
-        .collect();
+    let role_takers = role_taker_responses(role_taker_rows);
+    let slot_by_id: HashMap<i64, &RoleTakerResponse> =
+        role_takers.iter().map(|slot| (slot.id, slot)).collect();
 
     let sessions = session_rows
         .into_iter()
-        .map(|session| {
-            let role = session
-                .role_slot_id
-                .and_then(|role_id| role_by_id.get(&role_id).cloned());
-            session.into_session(role)
+        .map(|row| {
+            let slot = row.role_slot_id.and_then(|id| slot_by_id.get(&id).copied());
+            session_response(row, slot)
         })
         .collect();
+    drop(slot_by_id);
 
-    Ok(meeting.into_meeting(sessions, role_takers))
+    Ok(meeting_response(meeting, sessions, role_takers))
 }
 
 pub async fn upcoming_published(pool: &SqlitePool) -> AppResult<Vec<MeetingResponse>> {
@@ -222,13 +246,15 @@ pub async fn upcoming_published(pool: &SqlitePool) -> AppResult<Vec<MeetingRespo
 
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
-        let meeting = load_meeting(pool, row).await?;
-        out.push(MeetingResponse::from(&meeting));
+        out.push(load_meeting(pool, row).await?);
     }
     Ok(out)
 }
 
-pub async fn meeting_by_id(pool: &SqlitePool, meeting_id: i64) -> AppResult<Option<Meeting>> {
+pub async fn meeting_response_by_id(
+    pool: &SqlitePool,
+    meeting_id: i64,
+) -> AppResult<Option<MeetingResponse>> {
     let meeting = sqlx::query_as::<_, MeetingRow>(
         "SELECT m.id, m.number, m.title, m.theme, m.keyword, m.date, m.start_time, m.end_time, \
             COALESCE(v.name, '') AS venue, m.status, \
@@ -246,13 +272,4 @@ pub async fn meeting_by_id(pool: &SqlitePool, meeting_id: i64) -> AppResult<Opti
         Some(meeting) => Ok(Some(load_meeting(pool, meeting).await?)),
         None => Ok(None),
     }
-}
-
-pub async fn meeting_response_by_id(
-    pool: &SqlitePool,
-    meeting_id: i64,
-) -> AppResult<Option<MeetingResponse>> {
-    Ok(meeting_by_id(pool, meeting_id)
-        .await?
-        .map(|meeting| MeetingResponse::from(&meeting)))
 }

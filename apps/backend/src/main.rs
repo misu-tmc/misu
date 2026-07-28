@@ -12,7 +12,7 @@ use axum::{
     routing::{get, post, put},
     Router,
 };
-use sqlx::SqlitePool;
+use sqlx::MySqlPool;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -21,12 +21,12 @@ use crate::config::Config;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub pool: SqlitePool,
+    pub pool: MySqlPool,
     pub config: Arc<Config>,
 }
 
-impl FromRef<AppState> for SqlitePool {
-    fn from_ref(state: &AppState) -> SqlitePool {
+impl FromRef<AppState> for MySqlPool {
+    fn from_ref(state: &AppState) -> MySqlPool {
         state.pool.clone()
     }
 }

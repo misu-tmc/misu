@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use sqlx::{FromRow, SqlitePool};
+use sqlx::{FromRow, MySqlPool};
 
 use crate::error::AppResult;
 use crate::models::{MeetingResponse, PrepFieldResponse, RoleTakerResponse, SessionResponse};
@@ -163,10 +163,10 @@ fn meeting_response(
     }
 }
 
-async fn load_meeting(pool: &SqlitePool, meeting: MeetingRow) -> AppResult<MeetingResponse> {
+async fn load_meeting(pool: &MySqlPool, meeting: MeetingRow) -> AppResult<MeetingResponse> {
     let session_rows = sqlx::query_as::<_, SessionRow>(
         "SELECT id, position, group_label, name, duration_minutes, role_slot_id \
-         FROM session WHERE meeting_id = ? ORDER BY position",
+         FROM `session` WHERE meeting_id = ? ORDER BY position",
     )
     .bind(meeting.id)
     .fetch_all(pool)
@@ -177,7 +177,7 @@ async fn load_meeting(pool: &SqlitePool, meeting: MeetingRow) -> AppResult<Meeti
             ra.booker_id, booker.display_name AS booker_name, ra.taker_id, \
             COALESCE(ra.prep_data, '{}') AS prep_data, ra.prep_updated_at \
          FROM role_slot rs \
-         JOIN role r ON r.id = rs.role_id \
+         JOIN `role` r ON r.id = rs.role_id \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          LEFT JOIN user booker ON booker.id = ra.booker_id \
          WHERE rs.meeting_id = ? ORDER BY rs.id",
@@ -202,7 +202,7 @@ async fn load_meeting(pool: &SqlitePool, meeting: MeetingRow) -> AppResult<Meeti
     Ok(meeting_response(meeting, sessions, role_takers))
 }
 
-pub async fn upcoming_published(pool: &SqlitePool) -> AppResult<Vec<MeetingResponse>> {
+pub async fn upcoming_published(pool: &MySqlPool) -> AppResult<Vec<MeetingResponse>> {
     let today = chrono::Local::now().date_naive().to_string();
     let rows = sqlx::query_as::<_, MeetingRow>(
         "SELECT m.id, m.number, m.title, m.theme, m.keyword, m.date, m.start_time, m.end_time, \
@@ -224,7 +224,7 @@ pub async fn upcoming_published(pool: &SqlitePool) -> AppResult<Vec<MeetingRespo
 }
 
 pub async fn meeting_response_by_id(
-    pool: &SqlitePool,
+    pool: &MySqlPool,
     meeting_id: i64,
 ) -> AppResult<Option<MeetingResponse>> {
     let meeting = sqlx::query_as::<_, MeetingRow>(

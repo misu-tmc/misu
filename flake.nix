@@ -1,5 +1,5 @@
 {
-  description = "MISU - Rust (axum + SQLite) backend dev environment";
+  description = "MISU - Rust (axum + MySQL) backend dev environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -30,7 +30,7 @@
             clippy
             rust-analyzer
             pkg-config
-            sqlite # `sqlite3` CLI for inspecting misu.sqlite
+            mariadb.client # MySQL-compatible client
           ];
 
           RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";

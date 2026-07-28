@@ -33,7 +33,7 @@ Likely web flows:
 
 ## Shared backend
 
-Both surfaces should call the same backend operations and use the same SQLite-backed
+Both surfaces should call the same backend operations and use the same MySQL-backed
 domain model. Do not duplicate meeting, booking, auth or permission rules in each
 frontend.
 

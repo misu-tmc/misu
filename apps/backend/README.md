@@ -1,19 +1,48 @@
 # MISU backend
 
-Rust (axum + SQLite) JSON API for the MISU WeChat mini program. Implements the
+Rust (axum + MySQL) JSON API for the MISU WeChat mini program. Implements the
 first-stage endpoints the mini program needs: WeChat auth, upcoming meetings, role
 booking, profile update, and club info.
 
 ## Run
 
-```pwsh
+Start a MySQL 8 instance, create a local account, then configure and run the backend:
+
+```sh
 cd apps/backend
-copy .env.example .env   # optional; defaults work out of the box
+cp .env.example .env
 cargo run
 ```
 
-The server listens on `http://127.0.0.1:8080` by default and creates `misu.sqlite`,
-applying the schema and seeding the role catalog plus two sample published meetings.
+The server listens on `http://127.0.0.1:8080`. SQLx applies the files under
+`migrations/` and seeds the role catalog plus two sample published meetings when the
+database is empty.
+
+### MySQL configuration
+
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `MISU_DB_HOST` | `127.0.0.1` | MySQL private hostname or IP |
+| `MISU_DB_PORT` | `3306` | MySQL port |
+| `MISU_DB_USER` | `misu` | Database account |
+| `MISU_DB_PASSWORD` | empty | Database password |
+| `MISU_DB_NAME` | `misu` | Existing database/schema name |
+
+The backend creates `MISU_DB_NAME` when it does not exist, applies SQLx migrations, and
+seeds initial data. The account needs normal CRUD access plus `CREATE`, `ALTER`, `INDEX`,
+and `REFERENCES` on that database. The account itself must still be created by an
+administrator before deployment.
+
+### WeChat Cloud Hosting
+
+1. Open MySQL from the Cloud Hosting console and create a dedicated account.
+2. Grant it CRUD and migration permissions on `misu.*`; the database need not exist yet.
+3. Add the five `MISU_DB_*` variables above to the service version, using the **private**
+	MySQL endpoint shown in the console. Do not put the password in the image.
+4. Keep MySQL automatic pause enabled if cold-start latency is acceptable. Backend
+	startup retries for up to one minute while Serverless MySQL resumes.
+
+MySQL 5.7 and 8.0 are supported; development and CI validation use MySQL 8.0.
 
 ### DEV auth mode
 
@@ -76,7 +105,8 @@ Web admin JSON APIs (require a web session):
 ## Layout
 
 - `src/config.rs` — env-based configuration.
-- `src/db.rs` — schema + seed.
+- `migrations/` — versioned MySQL schema.
+- `src/db.rs` — MySQL pool, migration runner, and seed data.
 - `src/auth.rs` — WeChat code exchange, sessions, the `AuthUser` extractor, permissions.
 - `src/handlers.rs` — app route handlers and JSON DTOs.
 - `src/admin.rs` — web admin pages + admin-scoped `/api/*` handlers.

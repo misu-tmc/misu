@@ -1,211 +1,97 @@
 use anyhow::Context;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use sqlx::SqlitePool;
-use std::str::FromStr;
+use sqlx::mysql::{MySqlConnectOptions, MySqlPoolOptions, MySqlQueryResult};
+use sqlx::MySqlPool;
+use std::time::Duration;
 
 use crate::config::Config;
 
-/// Full schema. Base tables are the source of truth (see design/storage/schema.md).
-/// Note: the agenda "sessions" table is named `session`; the auth session table is
-/// named `auth_session` to avoid the clash.
-const SCHEMA: &str = r#"
-PRAGMA foreign_keys = ON;
+static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
-CREATE TABLE IF NOT EXISTS user (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    display_name TEXT NOT NULL
-);
+pub async fn connect(config: &Config) -> anyhow::Result<MySqlPool> {
+    if !config
+        .db_name
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric() || character == '_')
+    {
+        anyhow::bail!("MISU_DB_NAME may only contain ASCII letters, digits, and underscores");
+    }
 
--- WeChat identity attaches to a user but stays out of the thin `user` table.
-CREATE TABLE IF NOT EXISTS wechat_identity (
-    openid  TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES user(id)
-);
+    let server_options = MySqlConnectOptions::new()
+        .host(&config.db_host)
+        .port(config.db_port)
+        .username(&config.db_user)
+        .password(&config.db_password);
 
--- Username/password identity for the web surface. Another pluggable provider; the
--- password is stored only as a bcrypt hash, never in cleartext.
-CREATE TABLE IF NOT EXISTS web_credential (
-    username      TEXT PRIMARY KEY,
-    user_id       INTEGER NOT NULL REFERENCES user(id),
-    password_hash TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS auth_session (
-    token      TEXT PRIMARY KEY,
-    user_id    INTEGER NOT NULL REFERENCES user(id),
-    created_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS venue (
-    id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
-);
-
-CREATE TABLE IF NOT EXISTS meeting (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    number          INTEGER NOT NULL,
-    title           TEXT NOT NULL,
-    theme           TEXT NOT NULL DEFAULT '',
-    keyword         TEXT NOT NULL DEFAULT '',
-    date            TEXT NOT NULL,
-    start_time      TEXT NOT NULL,
-    end_time        TEXT NOT NULL DEFAULT '',
-    venue_id        INTEGER REFERENCES venue(id),
-    status          TEXT NOT NULL DEFAULT 'draft',
-    meeting_manager INTEGER REFERENCES user(id)
-);
-
-CREATE TABLE IF NOT EXISTS template (
-    meeting_id INTEGER PRIMARY KEY REFERENCES meeting(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS role (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    name       TEXT NOT NULL UNIQUE,
-    properties TEXT
-);
-
--- A concrete bookable seat in a meeting. User-agnostic: bookings live in role_assignment.
-CREATE TABLE IF NOT EXISTS role_slot (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    meeting_id  INTEGER NOT NULL REFERENCES meeting(id) ON DELETE CASCADE,
-    role_id     INTEGER NOT NULL REFERENCES role(id),
-    label       TEXT,
-    is_optional INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS session (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    meeting_id       INTEGER NOT NULL REFERENCES meeting(id) ON DELETE CASCADE,
-    position         INTEGER NOT NULL,
-    group_label      TEXT NOT NULL DEFAULT '',
-    name             TEXT NOT NULL,
-    duration_minutes INTEGER NOT NULL DEFAULT 0,
-    role_slot_id     INTEGER REFERENCES role_slot(id)
-);
-
--- Who fills a slot. The only meeting-related table that references a user.
-CREATE TABLE IF NOT EXISTS role_assignment (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    role_slot_id INTEGER NOT NULL UNIQUE REFERENCES role_slot(id) ON DELETE CASCADE,
-    booker_id    INTEGER REFERENCES user(id),
-    taker_id     INTEGER REFERENCES user(id),
-    prep_data    TEXT NOT NULL DEFAULT '{}',
-    prep_updated_at TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_role_slot_meeting ON role_slot(meeting_id);
-CREATE INDEX IF NOT EXISTS idx_session_meeting ON session(meeting_id);
-"#;
-
-pub async fn connect(config: &Config) -> anyhow::Result<SqlitePool> {
-    let options = SqliteConnectOptions::from_str(&config.db_url)
-        .context("invalid database url")?
-        .create_if_missing(true)
-        .foreign_keys(true);
-
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect_with(options)
+    let server_pool = connect_with_retry(server_options).await?;
+    let database_exists: Option<String> = sqlx::query_scalar(
+        "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?",
+    )
+    .bind(&config.db_name)
+    .fetch_optional(&server_pool)
+    .await
+    .context("failed to check whether the MySQL database exists")?;
+    if database_exists.is_none() {
+        sqlx::query(&format!(
+            "CREATE DATABASE `{}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+            config.db_name
+        ))
+        .execute(&server_pool)
         .await
-        .context("failed to open sqlite database")?;
+        .with_context(|| format!("failed to create MySQL database '{}'; grant CREATE on `{}.*` to the application account", config.db_name, config.db_name))?;
+        tracing::info!(database = %config.db_name, "created MySQL database");
+    }
+    server_pool.close().await;
 
-    sqlx::query(SCHEMA)
-        .execute(&pool)
+    let database_options = MySqlConnectOptions::new()
+        .host(&config.db_host)
+        .port(config.db_port)
+        .username(&config.db_user)
+        .password(&config.db_password)
+        .database(&config.db_name);
+    let pool = connect_with_retry(database_options).await?;
+
+    MIGRATOR
+        .run(&pool)
         .await
-        .context("failed to apply schema")?;
-
-    migrate(&pool).await?;
+        .context("failed to apply MySQL migrations")?;
     seed(&pool, config).await?;
     Ok(pool)
 }
 
-/// Idempotent changes for databases created before these columns/tables existed.
-async fn migrate(pool: &SqlitePool) -> anyhow::Result<()> {
-    for stmt in [
-        "ALTER TABLE role_slot ADD COLUMN label TEXT",
-        "ALTER TABLE role_slot ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0",
-        "ALTER TABLE meeting ADD COLUMN theme TEXT NOT NULL DEFAULT ''",
-        "ALTER TABLE meeting ADD COLUMN keyword TEXT NOT NULL DEFAULT ''",
-        "ALTER TABLE meeting ADD COLUMN venue_id INTEGER REFERENCES venue(id)",
-        "ALTER TABLE role_assignment ADD COLUMN prep_data TEXT NOT NULL DEFAULT '{}'",
-        "ALTER TABLE role_assignment ADD COLUMN prep_updated_at TEXT",
-    ] {
-        if let Err(e) = sqlx::query(stmt).execute(pool).await {
-            // The column already exists on an up-to-date database; anything else is fatal.
-            if !e.to_string().contains("duplicate column name") {
-                return Err(e).context("migration failed");
+async fn connect_with_retry(options: MySqlConnectOptions) -> anyhow::Result<MySqlPool> {
+    // Serverless MySQL can reject connections briefly while resuming. Retrying here
+    // keeps a cold database from making the whole container fail its startup probe.
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        match MySqlPoolOptions::new()
+            .max_connections(5)
+            .min_connections(0)
+            .acquire_timeout(Duration::from_secs(30))
+            .idle_timeout(Duration::from_secs(60))
+            .connect_with(options.clone())
+            .await
+        {
+            Ok(pool) => return Ok(pool),
+            Err(error) => {
+                if attempt >= 12 {
+                    return Err(error).context("failed to connect to MySQL after 12 attempts");
+                }
+                tracing::warn!(attempt, error = %error, "MySQL is not ready; retrying in 5 seconds");
             }
         }
+
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
-
-    if table_has_column(pool, "meeting", "venue").await? {
-        sqlx::query(
-            "INSERT OR IGNORE INTO venue(name) \
-             SELECT DISTINCT TRIM(venue) FROM meeting \
-             WHERE TRIM(COALESCE(venue, '')) <> ''",
-        )
-        .execute(pool)
-        .await
-        .context("migrating meeting venues failed")?;
-        sqlx::query(
-            "UPDATE meeting \
-             SET venue_id = (SELECT id FROM venue WHERE venue.name = TRIM(meeting.venue)) \
-             WHERE venue_id IS NULL AND TRIM(COALESCE(venue, '')) <> ''",
-        )
-        .execute(pool)
-        .await
-        .context("linking migrated venues failed")?;
-        drop_column_if_exists(pool, "meeting", "venue").await?;
-    }
-
-    if table_has_column(pool, "meeting", "is_template").await? {
-        sqlx::query(
-            "INSERT OR IGNORE INTO template(meeting_id) \
-             SELECT id FROM meeting WHERE is_template != 0",
-        )
-        .execute(pool)
-        .await
-        .context("migrating meeting templates failed")?;
-        drop_column_if_exists(pool, "meeting", "is_template").await?;
-    }
-
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_meeting_venue ON meeting(venue_id)")
-        .execute(pool)
-        .await
-        .context("creating idx_meeting_venue failed")?;
-
-    // Drop the retired global permission table if it lingers on an older database.
-    sqlx::query("DROP TABLE IF EXISTS user_permission")
-        .execute(pool)
-        .await
-        .context("dropping user_permission failed")?;
-    Ok(())
 }
 
-async fn table_has_column(pool: &SqlitePool, table: &str, column: &str) -> anyhow::Result<bool> {
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?")
-        .bind(table)
-        .bind(column)
-        .fetch_one(pool)
-        .await?;
-    Ok(count > 0)
-}
-
-async fn drop_column_if_exists(pool: &SqlitePool, table: &str, column: &str) -> anyhow::Result<()> {
-    if !table_has_column(pool, table, column).await? {
-        return Ok(());
-    }
-    sqlx::query(&format!("ALTER TABLE {table} DROP COLUMN {column}"))
-        .execute(pool)
-        .await
-        .with_context(|| format!("dropping {table}.{column} failed"))?;
-    Ok(())
+fn insert_id(result: MySqlQueryResult) -> anyhow::Result<i64> {
+    i64::try_from(result.last_insert_id()).context("generated MySQL id exceeds i64")
 }
 
 /// Seed the role catalog and, in an empty database, a couple of sample meetings so
 /// the mini program has something to show on first run.
-async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
+async fn seed(pool: &MySqlPool, config: &Config) -> anyhow::Result<()> {
     let roles = [
         ("TOE", None),
         (
@@ -222,14 +108,14 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
         ("General Evaluator", None),
     ];
     for (name, properties) in roles {
-        sqlx::query("INSERT OR IGNORE INTO role(name, properties) VALUES (?, ?)")
+        sqlx::query("INSERT IGNORE INTO `role`(name, properties) VALUES (?, ?)")
             .bind(name)
             .bind(properties)
             .execute(pool)
             .await?;
         if let Some(properties) = properties {
             sqlx::query(
-                "UPDATE role SET properties = ? WHERE name = ? AND TRIM(COALESCE(properties, '')) = ''",
+                "UPDATE `role` SET properties = ? WHERE name = ? AND TRIM(COALESCE(properties, '')) = ''",
             )
             .bind(properties)
             .bind(name)
@@ -238,7 +124,7 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
         }
     }
     sqlx::query(
-        "UPDATE role SET properties = NULL WHERE name IN ('Grammarian', 'Table Topics Master')",
+        "UPDATE `role` SET properties = NULL WHERE name IN ('Grammarian', 'Table Topics Master')",
     )
     .execute(pool)
     .await?;
@@ -258,7 +144,7 @@ async fn seed(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
 /// Bootstrap a web user (username/password) so the admin surface is reachable. Uses the
 /// configured credentials, or falls back to `admin`/`admin` in DEV mode. No-op if the
 /// username already has a credential.
-async fn seed_web_admin(pool: &SqlitePool, config: &Config) -> anyhow::Result<()> {
+async fn seed_web_admin(pool: &MySqlPool, config: &Config) -> anyhow::Result<()> {
     let (username, password, explicit) =
         match (&config.seed_web_admin_user, &config.seed_web_admin_password) {
             (Some(u), Some(p)) => (u.clone(), p.clone(), true),
@@ -286,16 +172,16 @@ async fn seed_web_admin(pool: &SqlitePool, config: &Config) -> anyhow::Result<()
     Ok(())
 }
 
-async fn role_id(pool: &SqlitePool, name: &str) -> anyhow::Result<i64> {
+async fn role_id(pool: &MySqlPool, name: &str) -> anyhow::Result<i64> {
     Ok(
-        sqlx::query_scalar::<_, i64>("SELECT id FROM role WHERE name = ?")
+        sqlx::query_scalar::<_, i64>("SELECT id FROM `role` WHERE name = ?")
             .bind(name)
             .fetch_one(pool)
             .await?,
     )
 }
 
-async fn seed_sample_meetings(pool: &SqlitePool) -> anyhow::Result<()> {
+async fn seed_sample_meetings(pool: &MySqlPool) -> anyhow::Result<()> {
     // Two upcoming published meetings so Booking / Meeting tabs are populated.
     let today = chrono::Local::now().date_naive();
     let m1_date = (today + chrono::Duration::days(3)).to_string();
@@ -314,24 +200,24 @@ async fn seed_sample_meetings(pool: &SqlitePool) -> anyhow::Result<()> {
 }
 
 async fn seed_one_meeting(
-    pool: &SqlitePool,
+    pool: &MySqlPool,
     number: i64,
     title: &str,
     theme: &str,
     date: &str,
 ) -> anyhow::Result<()> {
     let venue_id = ensure_venue(pool, "Room A").await?;
-    let meeting_id: i64 = sqlx::query_scalar(
+    let meeting_id = insert_id(sqlx::query(
         "INSERT INTO meeting(number, title, theme, date, start_time, end_time, venue_id, status) \
-         VALUES (?, ?, ?, ?, '19:00', '21:00', ?, 'published') RETURNING id",
+            VALUES (?, ?, ?, ?, '19:00', '21:00', ?, 'published')",
     )
     .bind(number)
     .bind(title)
     .bind(theme)
     .bind(date)
     .bind(venue_id)
-    .fetch_one(pool)
-    .await?;
+    .execute(pool)
+    .await?)?;
 
     // Role slots for the meeting (user-agnostic bookable seats).
     let toe = insert_slot(pool, meeting_id, "TOE").await?;
@@ -350,7 +236,7 @@ async fn seed_one_meeting(
     ];
     for (position, group_label, name, minutes, slot) in sessions {
         sqlx::query(
-            "INSERT INTO session(meeting_id, position, group_label, name, duration_minutes, role_slot_id) \
+            "INSERT INTO `session`(meeting_id, position, group_label, name, duration_minutes, role_slot_id) \
              VALUES (?, ?, ?, ?, ?, ?)",
         )
         .bind(meeting_id)
@@ -365,8 +251,8 @@ async fn seed_one_meeting(
     Ok(())
 }
 
-async fn ensure_venue(pool: &SqlitePool, name: &str) -> anyhow::Result<i64> {
-    sqlx::query("INSERT OR IGNORE INTO venue(name) VALUES (?)")
+async fn ensure_venue(pool: &MySqlPool, name: &str) -> anyhow::Result<i64> {
+    sqlx::query("INSERT IGNORE INTO venue(name) VALUES (?)")
         .bind(name)
         .execute(pool)
         .await?;
@@ -378,13 +264,13 @@ async fn ensure_venue(pool: &SqlitePool, name: &str) -> anyhow::Result<i64> {
     )
 }
 
-async fn insert_slot(pool: &SqlitePool, meeting_id: i64, role_name: &str) -> anyhow::Result<i64> {
+async fn insert_slot(pool: &MySqlPool, meeting_id: i64, role_name: &str) -> anyhow::Result<i64> {
     let rid = role_id(pool, role_name).await?;
-    Ok(sqlx::query_scalar::<_, i64>(
-        "INSERT INTO role_slot(meeting_id, role_id) VALUES (?, ?) RETURNING id",
+    insert_id(
+        sqlx::query("INSERT INTO role_slot(meeting_id, role_id) VALUES (?, ?)")
+            .bind(meeting_id)
+            .bind(rid)
+            .execute(pool)
+            .await?,
     )
-    .bind(meeting_id)
-    .bind(rid)
-    .fetch_one(pool)
-    .await?)
 }

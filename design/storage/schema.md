@@ -1,6 +1,7 @@
 # Storage schema
 
-We use sqlite to save the data.
+We use MySQL (the Serverless MySQL supplied by WeChat Cloud Hosting in production) to
+save the data. Versioned executable schema changes live under `apps/backend/migrations`.
 
 Normalized tables are the source of truth; a meeting can still be served as one nested
 JSON document via a view when needed.
@@ -310,8 +311,8 @@ guided by links rather than enforced by separate storage.
 
 ## Serving a meeting as JSON (optional)
 
-The normalized tables can be merged into one nested JSON document per meeting via a
-SQLite view using `json_object` / `json_group_array` (JSON1, built in). Useful for
-serving a whole meeting to the frontend or the WeChat mini program, and as the basis for
-a future published-snapshot cache. Writes still go to the base tables. Left out for now;
-added if/when needed.
+The normalized tables can be merged into one nested JSON document per meeting in the
+application layer or with MySQL JSON aggregation functions. This is useful for serving a
+whole meeting to the frontend or the WeChat mini program, and as the basis for a future
+published-snapshot cache. Writes still go to the base tables. Left out for now; added
+if/when needed.

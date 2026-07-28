@@ -99,17 +99,17 @@ pub async fn book(
             return Err(AppError::BadRequest("user does not exist".into()));
         }
         sqlx::query(
-            "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
-             ON CONFLICT(role_slot_id) DO UPDATE SET \
-                booker_id = excluded.booker_id, \
+            "INSERT INTO role_assignment(role_slot_id, booker_id, prep_data) VALUES (?, ?, '{}') \
+             ON DUPLICATE KEY UPDATE \
                 prep_data = CASE \
-                    WHEN role_assignment.booker_id IS excluded.booker_id THEN role_assignment.prep_data \
+                    WHEN booker_id <=> VALUES(booker_id) THEN prep_data \
                     ELSE '{}' \
                 END, \
                 prep_updated_at = CASE \
-                    WHEN role_assignment.booker_id IS excluded.booker_id THEN role_assignment.prep_updated_at \
+                    WHEN booker_id <=> VALUES(booker_id) THEN prep_updated_at \
                     ELSE NULL \
-                END",
+                END, \
+                booker_id = VALUES(booker_id)",
         )
         .bind(req.role_slot_id)
         .bind(target)
@@ -145,10 +145,11 @@ pub async fn book(
         Some(_) => return Err(AppError::Conflict("role already taken".into())),
         None => {
             // Upsert the assignment; only claim if still open (guards against a race).
+            // MySQL reports 0 affected rows when the duplicate row is already booked,
+            // and 2 when an open row is claimed by the conditional update.
             let affected = sqlx::query(
-                "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
-                 ON CONFLICT(role_slot_id) DO UPDATE SET booker_id = excluded.booker_id \
-                 WHERE role_assignment.booker_id IS NULL",
+                "INSERT INTO role_assignment(role_slot_id, booker_id, prep_data) VALUES (?, ?, '{}') \
+                 ON DUPLICATE KEY UPDATE booker_id = IF(booker_id IS NULL, VALUES(booker_id), booker_id)",
             )
             .bind(req.role_slot_id)
             .bind(me)
@@ -206,9 +207,9 @@ pub async fn update_prep(
 
     sqlx::query(
         "INSERT INTO role_assignment(role_slot_id, prep_data, prep_updated_at) \
-         VALUES (?, ?, datetime('now')) \
-         ON CONFLICT(role_slot_id) DO UPDATE SET \
-            prep_data = excluded.prep_data, prep_updated_at = excluded.prep_updated_at",
+            VALUES (?, ?, UTC_TIMESTAMP()) \
+            ON DUPLICATE KEY UPDATE \
+                prep_data = VALUES(prep_data), prep_updated_at = VALUES(prep_updated_at)",
     )
     .bind(req.role_slot_id)
     .bind(req.prep_data.to_string())

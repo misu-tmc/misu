@@ -1,10 +1,14 @@
 use std::env;
 
 /// Runtime configuration, loaded from environment variables (and `.env` if present).
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Config {
     pub bind: String,
-    pub db_url: String,
+    pub db_host: String,
+    pub db_port: u16,
+    pub db_user: String,
+    pub db_password: String,
+    pub db_name: String,
     pub wechat_appid: Option<String>,
     pub wechat_secret: Option<String>,
     /// Bootstrap web admin credentials (username/password). When set, a web admin user is
@@ -37,11 +41,15 @@ fn env_bool(key: &str) -> bool {
 
 impl Config {
     pub fn from_env() -> Self {
-        let db_file = non_empty("MISU_DB").unwrap_or_else(|| "misu.sqlite".to_string());
         Config {
             bind: non_empty("MISU_BIND").unwrap_or_else(|| "127.0.0.1:8080".to_string()),
-            // create_if_missing is set on the connect options, so a plain path is fine.
-            db_url: format!("sqlite://{db_file}"),
+            db_host: non_empty("MISU_DB_HOST").unwrap_or_else(|| "127.0.0.1".to_string()),
+            db_port: non_empty("MISU_DB_PORT")
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(3306),
+            db_user: non_empty("MISU_DB_USER").unwrap_or_else(|| "misu".to_string()),
+            db_password: env::var("MISU_DB_PASSWORD").unwrap_or_default(),
+            db_name: non_empty("MISU_DB_NAME").unwrap_or_else(|| "misu".to_string()),
             wechat_appid: non_empty("WECHAT_APPID"),
             wechat_secret: non_empty("WECHAT_SECRET"),
             seed_web_admin_user: non_empty("MISU_WEB_ADMIN_USER"),

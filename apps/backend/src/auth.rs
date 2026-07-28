@@ -8,7 +8,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::SqlitePool;
+use sqlx::MySqlPool;
 
 use crate::config::Config;
 use crate::error::{AppError, AppResult};
@@ -28,13 +28,13 @@ pub struct AuthUser {
 #[async_trait]
 impl<S> FromRequestParts<S> for AuthUser
 where
-    SqlitePool: FromRef<S>,
+    MySqlPool: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let pool = SqlitePool::from_ref(state);
+        let pool = MySqlPool::from_ref(state);
         let token = session_token(parts).ok_or(AppError::Unauthorized)?;
 
         let row = sqlx::query_as::<_, (i64, String)>(
@@ -97,7 +97,7 @@ pub struct MaybeAuthUser(pub Option<AuthUser>);
 #[async_trait]
 impl<S> FromRequestParts<S> for MaybeAuthUser
 where
-    SqlitePool: FromRef<S>,
+    MySqlPool: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = std::convert::Infallible;
@@ -246,7 +246,7 @@ fn verify_password(password: &str, hash: &str) -> bool {
 /// Verify a web login. Returns `(user_id, display_name)` on success, `None` on any
 /// mismatch (unknown username or wrong password — indistinguishable to the caller).
 pub async fn verify_web_login(
-    pool: &SqlitePool,
+    pool: &MySqlPool,
     username: &str,
     password: &str,
 ) -> Result<Option<(i64, String)>, AppError> {
@@ -266,16 +266,17 @@ pub async fn verify_web_login(
 
 /// Create a web user with a username/password credential. Returns the new `user.id`.
 pub async fn create_web_user(
-    pool: &SqlitePool,
+    pool: &MySqlPool,
     username: &str,
     password: &str,
     display_name: &str,
 ) -> Result<i64, AppError> {
     let hash = hash_password(password)?;
-    let user_id: i64 = sqlx::query_scalar("INSERT INTO user(display_name) VALUES (?) RETURNING id")
+    let user_id = sqlx::query("INSERT INTO user(display_name) VALUES (?)")
         .bind(display_name)
-        .fetch_one(pool)
-        .await?;
+        .execute(pool)
+        .await?
+        .last_insert_id() as i64;
     sqlx::query("INSERT INTO web_credential(username, user_id, password_hash) VALUES (?, ?, ?)")
         .bind(username)
         .bind(user_id)
@@ -288,24 +289,29 @@ pub async fn create_web_user(
 /// Update the stored password for an existing web credential. Returns the credential's
 /// `user.id`. Errors if no credential exists for the username.
 pub async fn set_web_password(
-    pool: &SqlitePool,
+    pool: &MySqlPool,
     username: &str,
     password: &str,
 ) -> Result<i64, AppError> {
+    let user_id: Option<i64> =
+        sqlx::query_scalar("SELECT user_id FROM web_credential WHERE username = ?")
+            .bind(username)
+            .fetch_optional(pool)
+            .await?;
+    let user_id = user_id.ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!("web credential '{username}' not found"))
+    })?;
     let hash = hash_password(password)?;
-    let user_id: Option<i64> = sqlx::query_scalar(
-        "UPDATE web_credential SET password_hash = ? WHERE username = ? RETURNING user_id",
-    )
-    .bind(hash)
-    .bind(username)
-    .fetch_optional(pool)
-    .await?;
-    user_id
-        .ok_or_else(|| AppError::Internal(anyhow::anyhow!("web credential '{username}' not found")))
+    sqlx::query("UPDATE web_credential SET password_hash = ? WHERE username = ?")
+        .bind(hash)
+        .bind(username)
+        .execute(pool)
+        .await?;
+    Ok(user_id)
 }
 
 /// Whether a web credential already exists for a username.
-pub async fn web_username_exists(pool: &SqlitePool, username: &str) -> Result<bool, AppError> {
+pub async fn web_username_exists(pool: &MySqlPool, username: &str) -> Result<bool, AppError> {
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM web_credential WHERE username = ?")
         .bind(username)
         .fetch_one(pool)
@@ -314,7 +320,7 @@ pub async fn web_username_exists(pool: &SqlitePool, username: &str) -> Result<bo
 }
 
 /// Delete a session by its token (logout).
-pub async fn delete_session(pool: &SqlitePool, token: &str) -> Result<(), AppError> {
+pub async fn delete_session(pool: &MySqlPool, token: &str) -> Result<(), AppError> {
     sqlx::query("DELETE FROM auth_session WHERE token = ?")
         .bind(token)
         .execute(pool)
@@ -373,7 +379,7 @@ pub async fn resolve_openid(config: &Config, code: &str) -> Result<String, AppEr
 /// Look up the user for an openid, creating a thin user + identity row on first login.
 /// Returns (user_id, display_name).
 pub async fn upsert_wechat_user(
-    pool: &SqlitePool,
+    pool: &MySqlPool,
     openid: &str,
 ) -> Result<(i64, String, bool), AppError> {
     if let Some((user_id, display_name)) = sqlx::query_as::<_, (i64, String)>(
@@ -390,10 +396,11 @@ pub async fn upsert_wechat_user(
     // WeChat no longer exposes real nicknames, so a new user starts nameless; the mini
     // program requires them to set one on first login.
     let default_name = String::new();
-    let user_id: i64 = sqlx::query_scalar("INSERT INTO user(display_name) VALUES (?) RETURNING id")
+    let user_id = sqlx::query("INSERT INTO user(display_name) VALUES (?)")
         .bind(&default_name)
-        .fetch_one(pool)
-        .await?;
+        .execute(pool)
+        .await?
+        .last_insert_id() as i64;
     sqlx::query("INSERT INTO wechat_identity(openid, user_id) VALUES (?, ?)")
         .bind(openid)
         .bind(user_id)
@@ -403,7 +410,7 @@ pub async fn upsert_wechat_user(
 }
 
 /// Create a fresh opaque session token for a user.
-pub async fn create_session(pool: &SqlitePool, user_id: i64) -> Result<String, AppError> {
+pub async fn create_session(pool: &MySqlPool, user_id: i64) -> Result<String, AppError> {
     let token = uuid::Uuid::new_v4().simple().to_string();
     sqlx::query("INSERT INTO auth_session(token, user_id, created_at) VALUES (?, ?, ?)")
         .bind(&token)

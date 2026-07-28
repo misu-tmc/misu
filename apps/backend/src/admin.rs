@@ -12,7 +12,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, SqliteConnection};
+use sqlx::{FromRow, MySqlConnection};
 use std::collections::HashSet;
 
 use crate::auth::{AuthUser, MaybeAuthUser};
@@ -229,7 +229,7 @@ pub async fn upsert_meeting(
     };
 
     let mut tx = state.pool.begin().await?;
-    let venue_id = resolve_venue_id(&mut *tx, &input.venue).await?;
+    let venue_id = resolve_venue_id(&mut tx, &input.venue).await?;
 
     // Resolve every slot's role_id (create role from name for the creatable combobox).
     let mut slot_role_ids: Vec<i64> = Vec::with_capacity(input.role_slots.len());
@@ -243,11 +243,11 @@ pub async fn upsert_meeting(
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
                     .ok_or_else(|| AppError::BadRequest("each role slot needs a role".into()))?;
-                sqlx::query("INSERT OR IGNORE INTO role(name) VALUES (?)")
+                sqlx::query("INSERT IGNORE INTO `role`(name) VALUES (?)")
                     .bind(name)
                     .execute(&mut *tx)
                     .await?;
-                sqlx::query_scalar::<_, i64>("SELECT id FROM role WHERE name = ?")
+                sqlx::query_scalar::<_, i64>("SELECT id FROM `role` WHERE name = ?")
                     .bind(name)
                     .fetch_one(&mut *tx)
                     .await?
@@ -298,9 +298,9 @@ pub async fn upsert_meeting(
                         .await?
                 }
             };
-            sqlx::query_scalar::<_, i64>(
+            sqlx::query(
                  "INSERT INTO meeting(number, title, theme, keyword, date, start_time, end_time, venue_id, \
-                  status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(number)
             .bind(input.title.trim())
@@ -311,13 +311,14 @@ pub async fn upsert_meeting(
             .bind(input.end_time.trim())
             .bind(venue_id)
             .bind(status)
-            .fetch_one(&mut *tx)
+            .execute(&mut *tx)
             .await?
+            .last_insert_id() as i64
         }
     };
 
     if input.is_template {
-        sqlx::query("INSERT OR IGNORE INTO template(meeting_id) VALUES (?)")
+        sqlx::query("INSERT IGNORE INTO template(meeting_id) VALUES (?)")
             .bind(meeting_id)
             .execute(&mut *tx)
             .await?;
@@ -337,7 +338,7 @@ pub async fn upsert_meeting(
     let existing_set: HashSet<i64> = existing_slots.iter().copied().collect();
 
     // Remove sessions first so role_slot deletes don't hit the FK reference.
-    sqlx::query("DELETE FROM session WHERE meeting_id = ?")
+    sqlx::query("DELETE FROM `session` WHERE meeting_id = ?")
         .bind(meeting_id)
         .execute(&mut *tx)
         .await?;
@@ -364,18 +365,17 @@ pub async fn upsert_meeting(
                 .await?;
                 id
             }
-            _ => {
-                sqlx::query_scalar::<_, i64>(
-                    "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
-                 VALUES (?, ?, ?, ?) RETURNING id",
-                )
-                .bind(meeting_id)
-                .bind(role_id)
-                .bind(label)
-                .bind(slot.is_optional as i64)
-                .fetch_one(&mut *tx)
-                .await?
-            }
+            _ => sqlx::query(
+                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
+                 VALUES (?, ?, ?, ?)",
+            )
+            .bind(meeting_id)
+            .bind(role_id)
+            .bind(label)
+            .bind(slot.is_optional as i64)
+            .execute(&mut *tx)
+            .await?
+            .last_insert_id() as i64,
         };
         keep.insert(id);
         index_to_id.push(id);
@@ -400,7 +400,7 @@ pub async fn upsert_meeting(
             None => None,
         };
         sqlx::query(
-            "INSERT INTO session(meeting_id, position, group_label, name, duration_minutes, \
+            "INSERT INTO `session`(meeting_id, position, group_label, name, duration_minutes, \
              role_slot_id) VALUES (?, ?, ?, ?, ?, ?)",
         )
         .bind(meeting_id)
@@ -431,7 +431,7 @@ pub async fn upsert_meeting(
 
 /// Return the meeting response after a section save (shared tail of every handler below).
 async fn meeting_dto_response(
-    pool: &sqlx::SqlitePool,
+    pool: &sqlx::MySqlPool,
     meeting_id: i64,
 ) -> AppResult<Json<MeetingResponse>> {
     meetings::meeting_response_by_id(pool, meeting_id)
@@ -440,12 +440,12 @@ async fn meeting_dto_response(
         .ok_or(AppError::NotFound)
 }
 
-async fn resolve_venue_id(conn: &mut SqliteConnection, venue: &str) -> AppResult<Option<i64>> {
+async fn resolve_venue_id(conn: &mut MySqlConnection, venue: &str) -> AppResult<Option<i64>> {
     let venue = venue.trim();
     if venue.is_empty() {
         return Ok(None);
     }
-    sqlx::query("INSERT OR IGNORE INTO venue(name) VALUES (?)")
+    sqlx::query("INSERT IGNORE INTO venue(name) VALUES (?)")
         .bind(venue)
         .execute(&mut *conn)
         .await?;
@@ -536,7 +536,7 @@ pub async fn update_meeting_info(
     }
 
     let mut tx = state.pool.begin().await?;
-    let venue_id = resolve_venue_id(&mut *tx, &input.venue).await?;
+    let venue_id = resolve_venue_id(&mut tx, &input.venue).await?;
 
     let affected = sqlx::query(
         "UPDATE meeting SET title = ?, theme = ?, keyword = ?, date = ?, start_time = ?, \
@@ -617,11 +617,11 @@ pub async fn put_slots(
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
                     .ok_or_else(|| AppError::BadRequest("each role slot needs a role".into()))?;
-                sqlx::query("INSERT OR IGNORE INTO role(name) VALUES (?)")
+                sqlx::query("INSERT IGNORE INTO `role`(name) VALUES (?)")
                     .bind(name)
                     .execute(&mut *tx)
                     .await?;
-                sqlx::query_scalar::<_, i64>("SELECT id FROM role WHERE name = ?")
+                sqlx::query_scalar::<_, i64>("SELECT id FROM `role` WHERE name = ?")
                     .bind(name)
                     .fetch_one(&mut *tx)
                     .await?
@@ -657,18 +657,17 @@ pub async fn put_slots(
                 .await?;
                 id
             }
-            _ => {
-                sqlx::query_scalar::<_, i64>(
-                    "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
-                 VALUES (?, ?, ?, ?) RETURNING id",
-                )
-                .bind(meeting_id)
-                .bind(role_id)
-                .bind(label)
-                .bind(slot.is_optional as i64)
-                .fetch_one(&mut *tx)
-                .await?
-            }
+            _ => sqlx::query(
+                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
+                 VALUES (?, ?, ?, ?)",
+            )
+            .bind(meeting_id)
+            .bind(role_id)
+            .bind(label)
+            .bind(slot.is_optional as i64)
+            .execute(&mut *tx)
+            .await?
+            .last_insert_id() as i64,
         };
         keep.insert(slot_id);
 
@@ -683,17 +682,17 @@ pub async fn put_slots(
                     return Err(AppError::BadRequest("booker does not exist".into()));
                 }
                 sqlx::query(
-                    "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
-                     ON CONFLICT(role_slot_id) DO UPDATE SET \
-                        booker_id = excluded.booker_id, \
+                    "INSERT INTO role_assignment(role_slot_id, booker_id, prep_data) VALUES (?, ?, '{}') \
+                     ON DUPLICATE KEY UPDATE \
                         prep_data = CASE \
-                            WHEN role_assignment.booker_id IS excluded.booker_id THEN role_assignment.prep_data \
+                            WHEN booker_id <=> VALUES(booker_id) THEN prep_data \
                             ELSE '{}' \
                         END, \
                         prep_updated_at = CASE \
-                            WHEN role_assignment.booker_id IS excluded.booker_id THEN role_assignment.prep_updated_at \
+                            WHEN booker_id <=> VALUES(booker_id) THEN prep_updated_at \
                             ELSE NULL \
-                        END",
+                        END, \
+                        booker_id = VALUES(booker_id)",
                 )
                 .bind(slot_id)
                 .bind(booker)
@@ -716,7 +715,7 @@ pub async fn put_slots(
     // Remove slots dropped in the editor: detach sessions, drop assignment, delete slot.
     for old in existing_slots {
         if !keep.contains(&old) {
-            sqlx::query("UPDATE session SET role_slot_id = NULL WHERE role_slot_id = ?")
+            sqlx::query("UPDATE `session` SET role_slot_id = NULL WHERE role_slot_id = ?")
                 .bind(old)
                 .execute(&mut *tx)
                 .await?;
@@ -780,7 +779,7 @@ pub async fn put_sessions(
             .into_iter()
             .collect();
 
-    sqlx::query("DELETE FROM session WHERE meeting_id = ?")
+    sqlx::query("DELETE FROM `session` WHERE meeting_id = ?")
         .bind(meeting_id)
         .execute(&mut *tx)
         .await?;
@@ -797,7 +796,7 @@ pub async fn put_sessions(
             }
         }
         sqlx::query(
-            "INSERT INTO session(meeting_id, position, group_label, name, duration_minutes, \
+            "INSERT INTO `session`(meeting_id, position, group_label, name, duration_minutes, \
              role_slot_id) VALUES (?, ?, ?, ?, ?, ?)",
         )
         .bind(meeting_id)
@@ -865,7 +864,7 @@ pub async fn list_roles(
     State(state): State<AppState>,
     _user: AuthUser,
 ) -> AppResult<Json<Vec<RoleDto>>> {
-    let rows = sqlx::query_as::<_, RoleDto>("SELECT id, name FROM role ORDER BY name")
+    let rows = sqlx::query_as::<_, RoleDto>("SELECT id, name FROM `role` ORDER BY name")
         .fetch_all(&state.pool)
         .await?;
     Ok(Json(rows))
@@ -885,11 +884,11 @@ pub async fn create_role(
     if name.is_empty() {
         return Err(AppError::BadRequest("role name is required".into()));
     }
-    sqlx::query("INSERT OR IGNORE INTO role(name) VALUES (?)")
+    sqlx::query("INSERT IGNORE INTO `role`(name) VALUES (?)")
         .bind(name)
         .execute(&state.pool)
         .await?;
-    let id = sqlx::query_scalar::<_, i64>("SELECT id FROM role WHERE name = ?")
+    let id = sqlx::query_scalar::<_, i64>("SELECT id FROM `role` WHERE name = ?")
         .bind(name)
         .fetch_one(&state.pool)
         .await?;
@@ -951,10 +950,11 @@ pub async fn create_user(
     if name.is_empty() {
         return Err(AppError::BadRequest("display_name is required".into()));
     }
-    let id = sqlx::query_scalar::<_, i64>("INSERT INTO user(display_name) VALUES (?) RETURNING id")
+    let id = sqlx::query("INSERT INTO user(display_name) VALUES (?)")
         .bind(name)
-        .fetch_one(&state.pool)
-        .await?;
+        .execute(&state.pool)
+        .await?
+        .last_insert_id() as i64;
     Ok(Json(UserRowDto {
         id,
         display_name: name.to_string(),

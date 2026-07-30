@@ -109,7 +109,6 @@ struct RoleTaker {
     label: String,
     custom_label: Option<String>,
     is_optional: bool,
-    booker: Option<User>,
     taker: Option<User>,
     prep_data: PrepData,
     prep_updated_at: Option<String>,

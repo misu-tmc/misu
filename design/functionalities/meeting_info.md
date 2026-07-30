@@ -134,8 +134,8 @@ deliberately narrows the web editor's whole-document upsert down to one table pe
 
 Saving Info touches only the structural `meeting` row. Saving Roles replaces the meeting's
 `role_slot` list in one call — existing slots are matched by `role_slot_id` so bookings are
-preserved, new slots are inserted, removed slots deleted; each slot's `booker_id` is
-reconciled into `role_assignment` in the same batch. Saving Sessions replaces the
+preserved, new slots are inserted, removed slots deleted; each slot's `taker_id` is
+  reconciled into `role_assignment` in the same batch. Saving Sessions replaces the
 `session` rows and recomputes `position` from array order. Saving Prep fields updates the
 JSON value for the relevant role assignment. Sections never interfere with each other.
 
@@ -259,7 +259,7 @@ Assignee    [ Bob ▾ ]       ← member picker (list of users)
 Add / edit / delete happen in the in-memory list; the section's single **Save** batches the
 whole list to `PUT /api/meetings/:id/slots`. The endpoint reconciles the `role_slot` list
 (match existing by `role_slot_id` to preserve bookings, insert new, delete removed) and
-reconciles each slot's assignee (`booker_id`) into `role_assignment` in the same call — no
+reconciles each slot's assignee (`taker_id`) into `role_assignment` in the same call — no
 separate booking request from the editor.
 
 ### Sessions

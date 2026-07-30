@@ -77,7 +77,7 @@ Layout (native top bar + content + native bottom tabBar):
 ### Data
 
 - `GET /api/meetings/future` — upcoming meetings, their role slots and takers.
-- Your bookings = slots where `booker_id = me`.
+- Your bookings = slots where `taker_id = me`.
 - **Freshness**: bookings change as others take/release roles, so while the user is on
   this page it should **refresh regularly** (e.g. re-fetch on show and poll on an
   interval) to reflect the newest availability. See the data-fetching TODO for a better

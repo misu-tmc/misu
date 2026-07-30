@@ -6,10 +6,10 @@ save the data. Versioned executable schema changes live under `apps/backend/migr
 Normalized tables are the source of truth; a meeting can still be served as one nested
 JSON document via a view when needed.
 
-Scope: covers the designed pages — meeting info & sessions (`meeting_info.md`) and role
-booking (`role_registration.md`) — plus the shared user model and the auth tables
-(identity + session) backing `../auth.md`. Voting, timer and poster storage are deferred
-until those pages are designed.
+Scope: covers the designed pages — meeting info & sessions (`meeting_info.md`), role
+booking (`role_registration.md`) and check-in (`../functionalities/check_in.md`) — plus
+the shared user model and the auth tables (identity + session) backing `../auth.md`.
+Voting, timer and poster storage are deferred until those pages are designed.
 
 ## Entity overview
 
@@ -25,8 +25,9 @@ erDiagram
     ROLE      ||--o{ ROLE_SLOT : "instances of"
     ROLE_SLOT ||--o{ SESSION   : "hosts (0..many)"
     ROLE_SLOT ||--o| ROLE_ASSIGNMENT : "filled by"
-    USER      |o--o{ ROLE_ASSIGNMENT : "books"
     USER      |o--o{ ROLE_ASSIGNMENT : "takes"
+    MEETING   ||--o{ ATTENDANCE : "records"
+    USER      ||--o{ ATTENDANCE : "attends"
 
     USER {
         id     id
@@ -82,10 +83,16 @@ erDiagram
     ROLE_ASSIGNMENT {
         id     id
         id     role_slot_id "UNIQUE"
-        id     booker_id "-> user.id, nullable; booked/assigned in advance"
-        id     taker_id  "-> user.id, nullable; actually took the role"
+        id     taker_id  "-> user.id, nullable; assignee, reconciled to actual taker"
       string prep_data "JSON values entered by the role taker"
       datetime prep_updated_at
+    }
+    ATTENDANCE {
+        id       id
+        id       meeting_id
+        id       user_id
+        datetime checked_in_at
+        string   source "self | admin"
     }
 ```
 
@@ -243,7 +250,7 @@ First-stage example:
 
 A concrete role opening in a specific meeting — one row per bookable seat. `Prepared
 Speaker × 3` is three `role_slot` rows sharing the same `role_id`. **User-agnostic**: it
-carries no booker/taker, so the whole meeting structure (`meeting`, `session`, `role_slot`)
+carries no assignment, so the whole meeting structure (`meeting`, `session`, `role_slot`)
 can be edited, cloned into templates and published without touching any user data.
 
 | Column       | Type    | Notes             |
@@ -262,23 +269,21 @@ can be edited, cloned into templates and published without touching any user dat
 ## `role_assignment`
 
 Who fills a `role_slot` — the **only** meeting-related table that references a user, so the
-structural tables above stay user-agnostic. Zero or one assignment per slot. `booker_id` is
-who booked or was assigned in advance; `taker_id` is who actually took it (populated by the
-next-stage check-in flow).
+structural tables above stay user-agnostic. Zero or one assignment per slot. `taker_id` is
+the single assignee for the slot: booking or admin assignment sets it in advance, and
+admins reconcile it to whoever actually took the role after the meeting.
 
 | Column         | Type    | Notes                                                        |
 | -------------- | ------- | ------------------------------------------------------------ |
 | `id`           | id (PK) |                                                              |
 | `role_slot_id` | id (FK) | -> `role_slot.id`; **UNIQUE** (one assignment per slot)      |
-| `booker_id`    | id (FK) | -> `user.id`; **nullable** (null = not booked); set by role booking / admin assignment |
-| `taker_id`     | id (FK) | -> `user.id`; **nullable** (null = not yet taken); set by check-in |
+| `taker_id`     | id (FK) | -> `user.id`; **nullable** (null = open); set by role booking / admin assignment, reconciled to the actual taker by admins |
 | `prep_data`    | string  | JSON object containing values entered by the role taker; defaults to `{}` |
 | `prep_updated_at` | datetime | nullable timestamp for the last prep-data update          |
 
-- **Which one downstream reads**: first-stage artifacts (agenda, printed pager, role
-  booking cards) use `booker_id`; check-in and post-meeting artifacts prefer `taker_id`
-  and fall back to `booker_id`.
-- **Open slot**: no `role_assignment` row, or a row with `booker_id` NULL.
+- **Downstream reads**: agenda, printed pager and role-booking cards all read the single
+  `taker_id` (its name shows as the role owner, whether booked or reconciled).
+- **Open slot**: no `role_assignment` row, or a row with `taker_id` NULL.
 - **Prep data**: interpreted according to the assigned role's `role.properties` field
   list. Example for a prepared speaker:
 
@@ -292,11 +297,34 @@ next-stage check-in flow).
 }
 ```
 
-- **Assignment changes**: when a slot's `booker_id` changes to another user or is cleared,
-  clear `prep_data` back to `{}`. If check-in later records a different `taker_id`, admin
-  review can decide whether to keep or clear the prepared values.
-- **Next stage**: check-in fills `taker_id` (and attendance for no-role attendees) to
-  handle no-shows, substitutions and walk-ins.
+- **Assignment changes**: when a slot's `taker_id` changes to another user or is cleared,
+  clear `prep_data` back to `{}`.
+- **Next stage**: admins reconcile `taker_id` to the actual taker after the meeting
+  (no-shows, substitutions, walk-ins); attendance for no-role attendees lives in the
+  separate `attendance` table.
+
+## `attendance`
+
+Who came to a meeting — the durable record backing check-in
+(`../functionalities/check_in.md`). One row per person per meeting; no-role attendees are
+represented naturally (attendance is independent of `role_assignment`).
+
+| Column          | Type     | Notes                                                        |
+| --------------- | -------- | ------------------------------------------------------------ |
+| `id`            | id (PK)  |                                                              |
+| `meeting_id`    | id (FK)  | -> `meeting.id`                                              |
+| `user_id`       | id (FK)  | -> `user.id`                                                 |
+| `checked_in_at` | datetime | when the row was recorded                                    |
+| `source`        | string   | `self` (attendee checked in) \| `admin` (admin added/edited) |
+
+- **UNIQUE** `(meeting_id, user_id)` — check-in is idempotent; re-checking in refreshes
+  `checked_in_at`.
+- **No role reference**: attendance records presence only. Roles stay in
+  `role_assignment`; linking a raw taker to a real attendee is an admin action described
+  in `../functionalities/check_in.md`.
+- **Identity linking / merge**: when an admin links a free raw user to a present WeChat
+  identity, references (including `attendance` rows) are repointed onto the surviving raw
+  user and the emptied WeChat row is deleted only when provably empty.
 
 ## Meeting information ownership
 

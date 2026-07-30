@@ -93,7 +93,7 @@ Sections:
 	- Prepared-speech metadata: Pathways path/level/project stays in a smaller secondary
 		line when present, without repeating the title.
 	- Duration: mm:ss or h:mm style.
-	- Role Takers: `taker_name` after check-in, otherwise `booker_name`, otherwise blank.
+	- Role Takers: the slot's `taker_name` (the single assignee), otherwise blank.
 - **Timer guide** — static timing rules table at bottom.
 
 Design notes:

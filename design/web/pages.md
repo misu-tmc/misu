@@ -107,7 +107,7 @@ source of truth for who can be booked; sessions only *reference* these slots.
   never stored.
 - **Booked by** — a **searchable combobox** over existing users (`/api/users`). Edits are
   **local until Save**: the Save button commits the meeting document first, then applies
-  all booker changes in one batch — creating any typed-but-unknown names as **bare users**
+  all assignment changes in one batch — creating any typed-but-unknown names as **bare users**
   (`POST /api/users`) and assigning each slot via `POST /api/book` with the admin `user_id`
   field. A bare user has no auth identity and cannot log in, by design (identity is separate
   from the user record). Clearing a field releases that booking on the next Save.
@@ -144,14 +144,14 @@ The timed agenda, one row per session. Columns, left to right:
 - `GET /api/meetings/:id` — full meeting document (sessions, role slots, bookings; drafts
   included) for edit mode and "Start from".
 - `POST /api/meetings` — upsert the whole document. Role slots are user-agnostic; slots
-  matched by `role_slot_id` keep their `role_assignment` (booker/taker), so
+  matched by `role_slot_id` keep their `role_assignment` (the `taker_id` assignee), so
   saving/publishing never clobbers bookings.
 - `GET /api/roles`, `POST /api/roles` — role catalog for the combobox; typing a new name
   creates the role (also auto-created on save).
 - `GET /api/users`, `POST /api/users` — list users / create a bare (identity-less) user
   for the Booked-by combobox.
 - `POST /api/book` — `{ meeting_id, role_slot_id, user_id?, cancel? }` book/release a
-  slot. The `user_id` assigns a booker on someone's behalf, so it doubles as the editor's
+  slot. The `user_id` assigns the role on someone's behalf, so it doubles as the editor's
   assignment call.
 
 ## Users — `/users`

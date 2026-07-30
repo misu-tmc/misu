@@ -110,13 +110,14 @@ Meetings:
 Role booking (acts as the current user):
 - `POST /api/book` — `{ meeting_id, role_slot_id, user_id?, cancel? }`. Book an open role
   slot; when `cancel` is true, release the current user's booking of that slot. Booking
-  writes `role_assignment.booker_id` for the slot. The optional `user_id` assigns a booker
-  on someone else's behalf and is honored **only** when the caller is the meeting's
-  manager — this is how the web editor assigns bookers.
+  writes `role_assignment.taker_id` for the slot (the single assignee). The optional
+  `user_id` assigns it on someone else's behalf and is honored **only** when the caller is
+  the meeting's manager — this is how the web editor assigns roles.
 
 Check-in (acts as the current user):
-- `POST /api/checkin` — `{ meeting_id, role_slot_ids: [] }`. Record attendance and the
-  actual roles taken (empty list = just attending); writes `role_assignment.taker_id`.
+- `POST /api/meetings/:meeting_id/checkin` — `{ display_name? }`. Records the current
+  user's attendance for the meeting (presence only; no role selection). Idempotent; writes
+  one `attendance` row.
 
 Voting (acts as the current user):
 - `GET /api/meetings/:meeting_id/voting` — voting page state (candidates, tallies). Later.

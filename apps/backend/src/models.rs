@@ -31,6 +31,7 @@ pub struct RoleTakerResponse {
     pub role_name: String,
     pub label: String,
     pub custom_label: Option<String>,
+    pub position: i64,
     pub is_optional: bool,
     pub booker_id: Option<i64>,
     pub booker_name: Option<String>,

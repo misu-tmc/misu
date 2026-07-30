@@ -343,10 +343,12 @@ pub async fn upsert_meeting(
         .execute(&mut *tx)
         .await?;
 
-    // Upsert slots; build index -> actual id map and the keep set.
+    // Upsert slots; build index -> actual id map and the keep set. The posted array
+    // order is the intended display order, so persist each slot's index as `position`.
     let mut index_to_id: Vec<i64> = Vec::with_capacity(input.role_slots.len());
     let mut keep: HashSet<i64> = HashSet::new();
-    for (slot, role_id) in input.role_slots.iter().zip(slot_role_ids.iter()) {
+    for (index, (slot, role_id)) in input.role_slots.iter().zip(slot_role_ids.iter()).enumerate() {
+        let position = index as i64;
         let label = slot
             .label
             .as_deref()
@@ -355,24 +357,27 @@ pub async fn upsert_meeting(
         let id = match slot.role_slot_id {
             Some(id) if existing_set.contains(&id) => {
                 sqlx::query(
-                    "UPDATE role_slot SET role_id = ?, label = ?, is_optional = ? WHERE id = ?",
+                    "UPDATE role_slot SET role_id = ?, label = ?, is_optional = ?, position = ? \
+                     WHERE id = ?",
                 )
                 .bind(role_id)
                 .bind(label)
                 .bind(slot.is_optional as i64)
+                .bind(position)
                 .bind(id)
                 .execute(&mut *tx)
                 .await?;
                 id
             }
             _ => sqlx::query(
-                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
-                 VALUES (?, ?, ?, ?)",
+                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional, position) \
+                 VALUES (?, ?, ?, ?, ?)",
             )
             .bind(meeting_id)
             .bind(role_id)
             .bind(label)
             .bind(slot.is_optional as i64)
+            .bind(position)
             .execute(&mut *tx)
             .await?
             .last_insert_id() as i64,
@@ -638,7 +643,8 @@ pub async fn put_slots(
     let existing_set: HashSet<i64> = existing_slots.iter().copied().collect();
 
     let mut keep: HashSet<i64> = HashSet::new();
-    for (slot, role_id) in input.slots.iter().zip(role_ids.iter()) {
+    for (index, (slot, role_id)) in input.slots.iter().zip(role_ids.iter()).enumerate() {
+        let position = index as i64;
         let label = slot
             .label
             .as_deref()
@@ -647,24 +653,27 @@ pub async fn put_slots(
         let slot_id = match slot.role_slot_id {
             Some(id) if existing_set.contains(&id) => {
                 sqlx::query(
-                    "UPDATE role_slot SET role_id = ?, label = ?, is_optional = ? WHERE id = ?",
+                    "UPDATE role_slot SET role_id = ?, label = ?, is_optional = ?, position = ? \
+                     WHERE id = ?",
                 )
                 .bind(role_id)
                 .bind(label)
                 .bind(slot.is_optional as i64)
+                .bind(position)
                 .bind(id)
                 .execute(&mut *tx)
                 .await?;
                 id
             }
             _ => sqlx::query(
-                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional) \
-                 VALUES (?, ?, ?, ?)",
+                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional, position) \
+                 VALUES (?, ?, ?, ?, ?)",
             )
             .bind(meeting_id)
             .bind(role_id)
             .bind(label)
             .bind(slot.is_optional as i64)
+            .bind(position)
             .execute(&mut *tx)
             .await?
             .last_insert_id() as i64,

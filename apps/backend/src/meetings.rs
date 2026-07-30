@@ -37,6 +37,7 @@ struct RoleTakerRow {
     properties: Option<String>,
     label: Option<String>,
     is_optional: i64,
+    position: i64,
     booker_id: Option<i64>,
     booker_name: Option<String>,
     taker_id: Option<i64>,
@@ -80,6 +81,7 @@ fn role_taker_response(
         role_name: row.role_name,
         label,
         custom_label,
+        position: row.position,
         is_optional: row.is_optional != 0,
         booker_id: row.booker_id,
         booker_name: row.booker_name,
@@ -174,13 +176,14 @@ async fn load_meeting(pool: &MySqlPool, meeting: MeetingRow) -> AppResult<Meetin
 
     let role_taker_rows = sqlx::query_as::<_, RoleTakerRow>(
         "SELECT rs.id, rs.role_id, r.name AS role_name, r.properties, rs.label, rs.is_optional, \
+            rs.position, \
             ra.booker_id, booker.display_name AS booker_name, ra.taker_id, \
             COALESCE(ra.prep_data, '{}') AS prep_data, ra.prep_updated_at \
          FROM role_slot rs \
          JOIN `role` r ON r.id = rs.role_id \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          LEFT JOIN user booker ON booker.id = ra.booker_id \
-         WHERE rs.meeting_id = ? ORDER BY rs.id",
+         WHERE rs.meeting_id = ? ORDER BY rs.position, rs.id",
     )
     .bind(meeting.id)
     .fetch_all(pool)

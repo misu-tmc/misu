@@ -43,6 +43,12 @@ struct RoleTakerRow {
     taker_id: Option<i64>,
     prep_data: String,
     prep_updated_at: Option<String>,
+    speech_id: Option<i64>,
+    speech_title: Option<String>,
+    speech_pathway: Option<String>,
+    speech_level: Option<i64>,
+    speech_purpose: Option<String>,
+    speech_description: Option<String>,
 }
 
 fn is_prepared_speech(role_name: &str) -> bool {
@@ -75,6 +81,20 @@ fn role_taker_response(
     label: String,
     custom_label: Option<String>,
 ) -> RoleTakerResponse {
+    // Prepared-speech slots keep their details in the `speech` table. Present them in the
+    // same `prep_data` shape the clients already read; other roles fall back to the legacy
+    // role_assignment.prep_data blob.
+    let prep_data = if row.speech_id.is_some() {
+        serde_json::json!({
+            "title": row.speech_title.clone().unwrap_or_default(),
+            "pathway": row.speech_pathway.clone().unwrap_or_default(),
+            "level": row.speech_level,
+            "purpose": row.speech_purpose.clone().unwrap_or_default(),
+            "description": row.speech_description.clone().unwrap_or_default(),
+        })
+    } else {
+        parse_prep_data(&row.prep_data)
+    };
     RoleTakerResponse {
         id: row.id,
         role_id: row.role_id,
@@ -87,7 +107,7 @@ fn role_taker_response(
         booker_name: row.booker_name,
         taker_id: row.taker_id,
         prep_fields: parse_prep_fields(row.properties.as_deref()),
-        prep_data: parse_prep_data(&row.prep_data),
+        prep_data,
         prep_updated_at: row.prep_updated_at,
     }
 }
@@ -178,11 +198,15 @@ async fn load_meeting(pool: &MySqlPool, meeting: MeetingRow) -> AppResult<Meetin
         "SELECT rs.id, rs.role_id, r.name AS role_name, r.properties, rs.label, rs.is_optional, \
             rs.position, \
             ra.booker_id, booker.display_name AS booker_name, ra.taker_id, \
-            COALESCE(ra.prep_data, '{}') AS prep_data, ra.prep_updated_at \
+            COALESCE(ra.prep_data, '{}') AS prep_data, ra.prep_updated_at, \
+            sp.id AS speech_id, sp.title AS speech_title, sp.pathway AS speech_pathway, \
+            sp.level AS speech_level, sp.purpose AS speech_purpose, \
+            sp.description AS speech_description \
          FROM role_slot rs \
          JOIN `role` r ON r.id = rs.role_id \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          LEFT JOIN user booker ON booker.id = ra.booker_id \
+         LEFT JOIN speech sp ON sp.role_slot_id = rs.id \
          WHERE rs.meeting_id = ? ORDER BY rs.position, rs.id",
     )
     .bind(meeting.id)

@@ -223,6 +223,85 @@ pub async fn update_prep(
 }
 
 // ---------------------------------------------------------------------------
+// Prepared-speech details (dedicated `speech` table)
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct SpeechUpdateReq {
+    pub role_slot_id: i64,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub pathway: String,
+    #[serde(default)]
+    pub level: Option<i64>,
+    #[serde(default)]
+    pub purpose: String,
+    #[serde(default)]
+    pub description: String,
+}
+
+#[derive(FromRow)]
+struct SpeechSlotRow {
+    meeting_id: i64,
+    booker_id: Option<i64>,
+}
+
+/// `PUT /api/meetings/:id/speech` — upsert a prepared speech's details. A speech is always
+/// performed by someone, so the slot must have a booked speaker; otherwise this is a 400.
+pub async fn update_speech(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+    Json(req): Json<SpeechUpdateReq>,
+) -> AppResult<Json<MeetingResponse>> {
+    let slot = sqlx::query_as::<_, SpeechSlotRow>(
+        "SELECT rs.meeting_id, ra.booker_id \
+         FROM role_slot rs \
+         LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
+         WHERE rs.id = ?",
+    )
+    .bind(req.role_slot_id)
+    .fetch_optional(&state.pool)
+    .await?
+    .ok_or(AppError::NotFound)?;
+
+    if slot.meeting_id != meeting_id {
+        return Err(AppError::BadRequest(
+            "role_slot does not belong to meeting".into(),
+        ));
+    }
+    let speaker_id = slot.booker_id.ok_or_else(|| {
+        AppError::BadRequest("assign a speaker before adding speech details".into())
+    })?;
+
+    sqlx::query(
+        "INSERT INTO speech(role_slot_id, meeting_id, speaker_id, title, pathway, level, \
+            purpose, description, updated_at) \
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP()) \
+            ON DUPLICATE KEY UPDATE \
+                speaker_id = VALUES(speaker_id), title = VALUES(title), \
+                pathway = VALUES(pathway), level = VALUES(level), purpose = VALUES(purpose), \
+                description = VALUES(description), updated_at = VALUES(updated_at)",
+    )
+    .bind(req.role_slot_id)
+    .bind(meeting_id)
+    .bind(speaker_id)
+    .bind(req.title.trim())
+    .bind(req.pathway.trim())
+    .bind(req.level)
+    .bind(req.purpose.trim())
+    .bind(req.description.trim())
+    .execute(&state.pool)
+    .await?;
+
+    meetings::meeting_response_by_id(&state.pool, meeting_id)
+        .await?
+        .map(Json)
+        .ok_or(AppError::NotFound)
+}
+
+// ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------
 

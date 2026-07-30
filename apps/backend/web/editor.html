@@ -46,6 +46,15 @@
     .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
     .actions .spacer { flex: 1; }
     .muted { color: var(--muted); }
+    .speech-block { padding: 12px 0; border-top: 1px solid #eee; }
+    .speech-block:first-child { border-top: none; padding-top: 0; }
+    .speech-head { margin-bottom: 8px; }
+    .speech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+    .speech-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+    .speech-grid label.wide { grid-column: 1 / -1; }
+    .speech-grid input, .speech-grid textarea { font-size: 14px; color: #222; padding: 8px 10px; border: 1px solid #d8d4e0; border-radius: 8px; }
+    .speech-grid textarea { min-height: 56px; resize: vertical; font-family: inherit; }
+    @media (max-width: 640px) { .speech-grid { grid-template-columns: 1fr; } }
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #333; color: #fff;
              padding: 10px 20px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
     .toast.show { opacity: 1; }
@@ -110,6 +119,14 @@
         </thead>
         <tbody id="sessions"></tbody>
       </table>
+    </div>
+
+    <div class="card" id="speechesCard" style="display:none">
+      <h2>Speeches</h2>
+      <div id="speeches"></div>
+      <div class="muted" style="margin-top:8px; font-size:12px">
+        Speech details unlock once a speaker is booked for a Speaker / Prepared Speech role.
+      </div>
     </div>
 
     <div class="actions">
@@ -179,10 +196,23 @@
     }
 
     // --- rendering ---
-    function render() { renderSlots(); renderSessions(); }
+    function render() { renderSlots(); renderSessions(); renderSpeeches(); }
 
     // --- roles (slots) ---
-    function emptySlot() { return { role_slot_id: null, roleName: '', label: '', optional: false, booker_id: null, booker_name: null, bookerName: '' }; }
+    function emptySpeech() { return { title: '', pathway: '', level: '', purpose: '', description: '' }; }
+    function speechFromPrep(prep) {
+      const p = prep || {};
+      return {
+        title: p.title || '', pathway: p.pathway || '',
+        level: p.level == null ? '' : String(p.level),
+        purpose: p.purpose || '', description: p.description || ''
+      };
+    }
+    function isPreparedSpeechRole(name) {
+      const n = (name || '').toLowerCase();
+      return n.indexOf('speaker') >= 0 || n.indexOf('prepared speech') >= 0;
+    }
+    function emptySlot() { return { role_slot_id: null, roleName: '', label: '', optional: false, booker_id: null, booker_name: null, bookerName: '', speech: emptySpeech() }; }
     function insertSlot(i) {
       state.slots.splice(i + 1, 0, emptySlot());
       // Shift session references that point past the insertion point.
@@ -261,6 +291,44 @@
             </div>
           </td>`;
         tbody.appendChild(tr);
+      });
+    }
+
+    // --- speeches ---
+    function updSpeech(i, field, val) {
+      if (!state.slots[i].speech) state.slots[i].speech = emptySpeech();
+      state.slots[i].speech[field] = val;
+    }
+    function renderSpeeches() {
+      const card = document.getElementById('speechesCard');
+      const container = document.getElementById('speeches');
+      const indices = [];
+      state.slots.forEach((sl, i) => { if (isPreparedSpeechRole(sl.roleName)) indices.push(i); });
+      if (!indices.length) { card.style.display = 'none'; container.innerHTML = ''; return; }
+      card.style.display = '';
+      container.innerHTML = '';
+      indices.forEach(i => {
+        const sl = state.slots[i];
+        if (!sl.speech) sl.speech = emptySpeech();
+        const booker = (sl.bookerName || '').trim();
+        const label = effectiveLabel(i) || '(speech)';
+        const block = document.createElement('div');
+        block.className = 'speech-block';
+        if (!booker) {
+          block.innerHTML = `<div class="speech-head"><strong>${escapeHtml(label)}</strong> <span class="muted">— assign a speaker first</span></div>`;
+        } else {
+          const sp = sl.speech;
+          block.innerHTML = `
+            <div class="speech-head"><strong>${escapeHtml(label)}</strong> <span class="muted">${escapeHtml(booker)}</span></div>
+            <div class="speech-grid">
+              <label>Title<input value="${escapeHtml(sp.title || '')}" oninput="updSpeech(${i},'title',this.value)" /></label>
+              <label>Pathway<input value="${escapeHtml(sp.pathway || '')}" oninput="updSpeech(${i},'pathway',this.value)" /></label>
+              <label>Level<input type="number" min="1" value="${escapeHtml(String(sp.level == null ? '' : sp.level))}" oninput="updSpeech(${i},'level',this.value)" /></label>
+              <label class="wide">Purpose<textarea maxlength="240" oninput="updSpeech(${i},'purpose',this.value)">${escapeHtml(sp.purpose || '')}</textarea></label>
+              <label class="wide">Description<textarea maxlength="240" oninput="updSpeech(${i},'description',this.value)">${escapeHtml(sp.description || '')}</textarea></label>
+            </div>`;
+        }
+        container.appendChild(block);
       });
     }
 
@@ -360,6 +428,30 @@
       return jobs.length;
     }
 
+    /// Save prepared-speech details for booked speaker slots via the speech endpoint.
+    /// Runs after assignments so the speaker (booker) exists server-side first.
+    async function saveSpeechesWeb() {
+      const jobs = state.slots.filter(sl =>
+        isPreparedSpeechRole(sl.roleName) && sl.role_slot_id && (sl.bookerName || '').trim());
+      if (!jobs.length) return;
+      await Promise.all(jobs.map(async sl => {
+        const sp = sl.speech || emptySpeech();
+        const levelStr = String(sp.level == null ? '' : sp.level).trim();
+        const res = await fetch('/api/meetings/' + state.meetingId + '/speech', {
+          method: 'PUT', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            role_slot_id: sl.role_slot_id,
+            title: (sp.title || '').trim(),
+            pathway: (sp.pathway || '').trim(),
+            level: levelStr === '' ? null : Number(levelStr),
+            purpose: (sp.purpose || '').trim(),
+            description: (sp.description || '').trim()
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+      }));
+    }
+
     // --- sessions grid ---
     function emptySession() {
       return { group_label: '', name: '', duration_minutes: 5, slotIndex: null };
@@ -440,7 +532,8 @@
         optional: !!s.is_optional,
         booker_id: asTemplate ? null : s.booker_id,
         booker_name: asTemplate ? null : s.booker_name,
-        bookerName: asTemplate ? '' : (s.booker_name || '')
+        bookerName: asTemplate ? '' : (s.booker_name || ''),
+        speech: asTemplate ? emptySpeech() : speechFromPrep(s.prep_data)
       }));
       const idToIndex = {};
       rawSlots.forEach((s, idx) => { idToIndex[s.id] = idx; });
@@ -540,8 +633,8 @@
       renderStatus();
       // Apply the pending booker assignments (and create new users) in one batch.
       let assignErr = null;
-      try { await applyAssignments(); } catch (e) { assignErr = e; }
-      renderSlots(); renderSessions();
+      try { await applyAssignments(); await saveSpeechesWeb(); } catch (e) { assignErr = e; }
+      renderSlots(); renderSessions(); renderSpeeches();
       // Switch URL to edit mode so further saves update the same meeting.
       if (wasNew) {
         history.replaceState(null, '', '/meetings/' + saved.id + '/edit');

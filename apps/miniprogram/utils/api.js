@@ -100,6 +100,11 @@ const api = {
       method: 'PUT',
       data: { role_slot_id: roleSlotId, prep_data: prepData }
     }),
+  saveSpeech: (meetingId, roleSlotId, speech) =>
+    request('/api/meetings/' + meetingId + '/speech', {
+      method: 'PUT',
+      data: Object.assign({ role_slot_id: roleSlotId }, speech)
+    }),
   setMeetingStatus: (id, status) =>
     request('/api/meetings/' + id + '/status', { method: 'PUT', data: { status } })
 };

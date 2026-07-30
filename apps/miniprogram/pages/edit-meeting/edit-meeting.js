@@ -498,8 +498,14 @@ Page({
       wx.showToast({ title: 'No speaker slots', icon: 'none' });
       return;
     }
-    const jobs = speeches.map((s) =>
-      api.savePrep(this.meetingId, s.role_slot_id, {
+    // A speech must be performed by someone, so only booked slots can be saved.
+    const booked = speeches.filter((s) => (s.booker_name || '').trim());
+    if (!booked.length) {
+      wx.showToast({ title: 'Assign a speaker first', icon: 'none' });
+      return;
+    }
+    const jobs = booked.map((s) =>
+      api.saveSpeech(this.meetingId, s.role_slot_id, {
         title: (s.title || '').trim(),
         pathway: (s.pathway || '').trim(),
         level: String(s.level || '').trim() === '' ? null : Number(s.level),

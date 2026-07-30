@@ -72,6 +72,10 @@
                 <input class="field-input" value="{{slot.label}}" data-index="{{index}}" bindinput="onSlotLabelInput" />
               </view>
               <view class="field">
+                <text class="field-label muted">Voting group</text>
+                <input class="field-input" value="{{slot.voting_group}}" data-index="{{index}}" bindinput="onSlotVotingGroupInput" />
+              </view>
+              <view class="field">
                 <text class="field-label muted">Assignee</text>
                 <picker range="{{userNames}}" data-index="{{index}}" bindchange="onSlotTakerPick"><view class="picker-value">{{slot.taker_name || 'Unassigned'}}</view></picker>
               </view>

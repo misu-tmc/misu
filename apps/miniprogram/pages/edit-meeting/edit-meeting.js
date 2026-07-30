@@ -130,6 +130,7 @@ Page({
       role_name: s.role_name,
       label: s.custom_label || '',
       display: s.label,
+      voting_group: s.voting_group || '',
       is_optional: s.is_optional,
       is_bookable: s.is_bookable !== false,
       taker_id: s.taker_id || null,
@@ -357,7 +358,11 @@ Page({
     const i = e.currentTarget.dataset.index;
     const role = this.data.roleCatalog[e.detail.value];
     if (!role) return;
-    this.setData({ [`slots[${i}].role_id`]: role.id, [`slots[${i}].role_name`]: role.name });
+    this.setData({
+      [`slots[${i}].role_id`]: role.id,
+      [`slots[${i}].role_name`]: role.name,
+      [`slots[${i}].voting_group`]: role.voting_group || ''
+    });
   },
   onSlotRoleInput(e) {
     // Typing a name creates/looks up a role by name on save; clear any picked id.
@@ -367,6 +372,10 @@ Page({
   onSlotLabelInput(e) {
     const i = e.currentTarget.dataset.index;
     this.setData({ [`slots[${i}].label`]: e.detail.value });
+  },
+  onSlotVotingGroupInput(e) {
+    const i = e.currentTarget.dataset.index;
+    this.setData({ [`slots[${i}].voting_group`]: e.detail.value });
   },
   onSlotTakerPick(e) {
     const i = e.currentTarget.dataset.index;
@@ -386,6 +395,7 @@ Page({
       role_name: '',
       label: '',
       display: 'New role',
+      voting_group: '',
       is_optional: false,
       taker_id: null,
       taker_name: '',
@@ -417,6 +427,7 @@ Page({
         role_id: s.role_id || null,
         role_name: (s.role_name || '').trim() || null,
         label: (s.label || '').trim() || null,
+        voting_group: (s.voting_group || '').trim() || null,
         is_optional: !!s.is_optional,
         taker_id: s.taker_id || null
       });

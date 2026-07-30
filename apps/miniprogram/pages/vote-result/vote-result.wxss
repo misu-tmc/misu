@@ -1,0 +1,46 @@
+.result-head { display: flex; flex-direction: column; gap: 8rpx; }
+.result-title { font-size: 34rpx; font-weight: 700; }
+.result-sub { font-size: 26rpx; color: #6b6b70; }
+
+.empty-state { text-align: center; padding: 40rpx 24rpx; }
+.result-group { margin-bottom: 20rpx; }
+
+.group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 14rpx;
+}
+.group-title { font-size: 30rpx; font-weight: 600; }
+.group-meta { font-size: 22rpx; }
+
+.candidate {
+  padding: 14rpx 0;
+  border-top: 1rpx solid #f0f0f2;
+}
+.candidate:first-child { border-top: none; }
+
+.candidate-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10rpx;
+  align-items: center;
+}
+.candidate-name { font-size: 30rpx; }
+.candidate-votes { font-size: 28rpx; font-weight: 600; color: #3a2f46; }
+.candidate-role { display: block; margin-top: 2rpx; font-size: 24rpx; }
+
+.bar-track {
+  margin-top: 10rpx;
+  height: 12rpx;
+  background: #ece4f5;
+  border-radius: 999rpx;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: #b693d1;
+  border-radius: 999rpx;
+}
+.bar-fill.leader { background: #5b2a86; }

@@ -1,0 +1,44 @@
+<view class="container">
+
+  <view wx:if="{{loading}}" class="empty">Loading…</view>
+
+  <block wx:elif="{{meeting}}">
+    <view class="card vote-head">
+      <text class="vote-title">Vote for best</text>
+      <text class="vote-sub">#{{meeting.number}} · {{meeting.dateLabel}} · {{meeting.timeLabel}}</text>
+      <text class="vote-sub">{{meeting.venue}}</text>
+    </view>
+
+    <view wx:if="{{groups.length === 0}}" class="card empty-state">
+      <text class="muted">No voteable candidates yet.</text>
+    </view>
+
+    <view wx:for="{{groups}}" wx:key="voting_group" wx:for-index="gidx" class="card vote-group">
+      <text class="group-title">{{item.voting_group}}</text>
+      <view
+        wx:for="{{item.options}}"
+        wx:key="role_slot_id"
+        wx:for-item="option"
+        class="candidate {{item.selected ? 'candidate-active' : ''}}"
+        data-group-index="{{gidx}}"
+        data-slot-id="{{option.role_slot_id}}"
+        bindtap="onPick"
+      >
+        <view class="dot {{option.selected ? 'dot-active' : ''}}">
+          <view class="dot-inner {{option.selected ? 'dot-inner-active' : ''}}"></view>
+        </view>
+        <view class="candidate-main">
+          <text class="candidate-name">{{option.candidate_name}}</text>
+          <text class="candidate-role muted">{{option.role_name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="savebar">
+      <text class="save-hint muted">Your choices can be updated until meeting ends</text>
+      <view wx:if="{{hasVoted}}" class="btn result-btn" bindtap="goResult">View Result</view>
+      <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveVotes">Save Votes</view>
+    </view>
+  </block>
+
+</view>

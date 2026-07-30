@@ -106,7 +106,11 @@ const api = {
     request('/api/meetings/' + id + '/status', { method: 'PUT', data: { status } })
   ,
   saveTableTopics: (id, participants) =>
-    request('/api/meetings/' + id + '/table-topics', { method: 'PUT', data: { participants } })
+    request('/api/meetings/' + id + '/table-topics', { method: 'PUT', data: { participants } }),
+  voteState: (meetingId) => request('/api/meetings/' + meetingId + '/vote'),
+  voteResult: (meetingId) => request('/api/meetings/' + meetingId + '/vote/result'),
+  submitVotes: (meetingId, ballots) =>
+    request('/api/meetings/' + meetingId + '/vote', { method: 'POST', data: { ballots } })
 };
 
 module.exports = api;

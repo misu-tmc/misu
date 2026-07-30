@@ -35,6 +35,7 @@ struct RoleTakerRow {
     role_id: i64,
     role_name: String,
     label: Option<String>,
+    voting_group: String,
     is_optional: i64,
     is_bookable: i64,
     position: i64,
@@ -74,6 +75,7 @@ fn role_taker_response(
         role_name: row.role_name,
         label,
         custom_label,
+        voting_group: row.voting_group,
         position: row.position,
         is_optional: row.is_optional != 0,
         is_bookable: row.is_bookable != 0,
@@ -168,7 +170,7 @@ async fn load_meeting(pool: &MySqlPool, meeting: MeetingRow) -> AppResult<Meetin
     .await?;
 
     let role_taker_rows = sqlx::query_as::<_, RoleTakerRow>(
-        "SELECT rs.id, rs.role_id, r.name AS role_name, rs.label, rs.is_optional, r.is_bookable, \
+        "SELECT rs.id, rs.role_id, r.name AS role_name, rs.label, r.voting_group, rs.is_optional, r.is_bookable, \
             rs.position, \
             ra.taker_id, taker.display_name AS taker_name, \
             sp.id AS speech_id, sp.title AS speech_title, sp.pathway AS speech_pathway, \

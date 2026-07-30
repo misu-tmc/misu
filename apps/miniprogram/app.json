@@ -7,7 +7,9 @@
     "pages/edit-profile/edit-profile",
     "pages/edit-meeting/edit-meeting",
     "pages/prepare/prepare",
-    "pages/checkin/checkin"
+    "pages/checkin/checkin",
+    "pages/vote/vote",
+    "pages/vote-result/vote-result"
   ],
   "window": {
     "navigationBarTitleText": "MISU",

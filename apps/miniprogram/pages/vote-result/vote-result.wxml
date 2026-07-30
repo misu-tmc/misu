@@ -1,0 +1,40 @@
+<view class="container">
+
+  <view wx:if="{{loading}}" class="empty">Loading…</view>
+
+  <block wx:elif="{{meeting}}">
+    <view class="card result-head">
+      <text class="result-title">Voting Result</text>
+      <text class="result-sub">#{{meeting.number}} · {{meeting.dateLabel}} · {{meeting.timeLabel}}</text>
+      <text class="result-sub">{{meeting.venue}}</text>
+    </view>
+
+    <view wx:if="{{groups.length === 0}}" class="card empty-state">
+      <text class="muted">No vote result yet.</text>
+    </view>
+
+    <view wx:for="{{groups}}" wx:key="voting_group" class="card result-group">
+      <view class="group-head">
+        <text class="group-title">{{item.voting_group}}</text>
+        <text class="group-meta muted">Total {{item.total_votes}} votes</text>
+      </view>
+
+      <view
+        wx:for="{{item.options}}"
+        wx:key="role_slot_id"
+        wx:for-item="option"
+        class="candidate"
+      >
+        <view class="candidate-top">
+          <text class="candidate-name">{{option.candidate_name}}</text>
+          <text class="candidate-votes">{{option.votes}}</text>
+        </view>
+        <text class="candidate-role muted">{{option.role_name}}</text>
+        <view class="bar-track">
+          <view class="bar-fill {{option.isLeader ? 'leader' : ''}}" style="width: {{option.ratio}}%;"></view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+</view>

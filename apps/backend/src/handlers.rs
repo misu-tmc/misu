@@ -2,9 +2,10 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::FromRow;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppResult};
@@ -325,6 +326,281 @@ pub async fn checkin(
     .await?;
 
     Ok(Json(json!({ "checked_in": true })))
+}
+
+// ---------------------------------------------------------------------------
+// Voting
+// ---------------------------------------------------------------------------
+
+#[derive(FromRow)]
+struct VoteOptionRow {
+    role_slot_id: i64,
+    voting_group: String,
+    role_name: String,
+    candidate_name: String,
+}
+
+#[derive(FromRow)]
+struct VotePickRow {
+    voting_group: String,
+    role_slot_id: i64,
+}
+
+#[derive(Serialize)]
+pub struct VoteOption {
+    pub role_slot_id: i64,
+    pub role_name: String,
+    pub candidate_name: String,
+}
+
+#[derive(Serialize)]
+pub struct VoteGroup {
+    pub voting_group: String,
+    pub options: Vec<VoteOption>,
+}
+
+#[derive(Serialize)]
+pub struct VoteStateResp {
+    pub meeting_id: i64,
+    pub groups: Vec<VoteGroup>,
+    pub selections: HashMap<String, i64>,
+}
+
+#[derive(Serialize)]
+pub struct VoteResultOption {
+    pub role_slot_id: i64,
+    pub role_name: String,
+    pub candidate_name: String,
+    pub votes: i64,
+}
+
+#[derive(Serialize)]
+pub struct VoteResultGroup {
+    pub voting_group: String,
+    pub total_votes: i64,
+    pub options: Vec<VoteResultOption>,
+}
+
+#[derive(Serialize)]
+pub struct VoteResultResp {
+    pub meeting_id: i64,
+    pub groups: Vec<VoteResultGroup>,
+}
+
+#[derive(Deserialize)]
+pub struct VoteIn {
+    #[serde(default)]
+    pub ballots: Vec<VoteBallotIn>,
+}
+
+#[derive(Deserialize)]
+pub struct VoteBallotIn {
+    pub voting_group: String,
+    pub role_slot_id: i64,
+}
+
+/// `GET /api/meetings/:id/vote` — voteable options and this user's current selections.
+pub async fn vote_state(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(meeting_id): Path<i64>,
+) -> AppResult<Json<VoteStateResp>> {
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
+        .bind(meeting_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    let rows = sqlx::query_as::<_, VoteOptionRow>(
+        "SELECT rs.id AS role_slot_id, r.voting_group, r.name AS role_name, \
+            COALESCE(NULLIF(u.display_name, ''), NULLIF(rs.label, ''), r.name) AS candidate_name \
+         FROM role_slot rs \
+         JOIN `role` r ON r.id = rs.role_id \
+         LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
+         LEFT JOIN user u ON u.id = ra.taker_id \
+         WHERE rs.meeting_id = ? AND COALESCE(r.voting_group, '') <> '' \
+                     AND ra.taker_id IS NOT NULL \
+         ORDER BY r.voting_group, rs.position, rs.id",
+    )
+    .bind(meeting_id)
+    .fetch_all(&state.pool)
+    .await?;
+
+    let mut by_group: BTreeMap<String, Vec<VoteOption>> = BTreeMap::new();
+    for row in rows {
+        by_group
+            .entry(row.voting_group)
+            .or_default()
+            .push(VoteOption {
+                role_slot_id: row.role_slot_id,
+                role_name: row.role_name,
+                candidate_name: row.candidate_name,
+            });
+    }
+    let groups = by_group
+        .into_iter()
+        .map(|(voting_group, options)| VoteGroup {
+            voting_group,
+            options,
+        })
+        .collect();
+
+    let picks = sqlx::query_as::<_, VotePickRow>(
+        "SELECT voting_group, role_slot_id FROM meeting_vote WHERE meeting_id = ? AND voter_id = ?",
+    )
+    .bind(meeting_id)
+    .bind(user.id)
+    .fetch_all(&state.pool)
+    .await?;
+    let selections = picks
+        .into_iter()
+        .map(|p| (p.voting_group, p.role_slot_id))
+        .collect();
+
+    Ok(Json(VoteStateResp {
+        meeting_id,
+        groups,
+        selections,
+    }))
+}
+
+#[derive(FromRow)]
+struct VoteResultRow {
+    voting_group: String,
+    role_slot_id: i64,
+    role_name: String,
+    candidate_name: String,
+    votes: i64,
+}
+
+/// `GET /api/meetings/:id/vote/result` — aggregated vote counts by voting group.
+pub async fn vote_result(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+) -> AppResult<Json<VoteResultResp>> {
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
+        .bind(meeting_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    let rows = sqlx::query_as::<_, VoteResultRow>(
+        "SELECT r.voting_group, rs.id AS role_slot_id, r.name AS role_name, \
+            COALESCE(NULLIF(u.display_name, ''), NULLIF(rs.label, ''), r.name) AS candidate_name, \
+            COUNT(mv.id) AS votes \
+         FROM role_slot rs \
+         JOIN `role` r ON r.id = rs.role_id \
+         JOIN role_assignment ra ON ra.role_slot_id = rs.id \
+         LEFT JOIN user u ON u.id = ra.taker_id \
+         LEFT JOIN meeting_vote mv ON mv.meeting_id = rs.meeting_id AND mv.role_slot_id = rs.id \
+         WHERE rs.meeting_id = ? AND COALESCE(r.voting_group, '') <> '' \
+           AND ra.taker_id IS NOT NULL \
+         GROUP BY r.voting_group, rs.id, r.name, candidate_name, rs.position \
+         ORDER BY r.voting_group, votes DESC, rs.position, rs.id",
+    )
+    .bind(meeting_id)
+    .fetch_all(&state.pool)
+    .await?;
+
+    let mut by_group: BTreeMap<String, Vec<VoteResultOption>> = BTreeMap::new();
+    for row in rows {
+        by_group
+            .entry(row.voting_group)
+            .or_default()
+            .push(VoteResultOption {
+                role_slot_id: row.role_slot_id,
+                role_name: row.role_name,
+                candidate_name: row.candidate_name,
+                votes: row.votes,
+            });
+    }
+
+    let groups = by_group
+        .into_iter()
+        .map(|(voting_group, options)| {
+            let total_votes = options.iter().map(|o| o.votes).sum();
+            VoteResultGroup {
+                voting_group,
+                total_votes,
+                options,
+            }
+        })
+        .collect();
+
+    Ok(Json(VoteResultResp { meeting_id, groups }))
+}
+
+/// `POST /api/meetings/:id/vote` — upsert this user's votes by group.
+/// Concurrent voting is safe via the unique key on (meeting_id, voter_id, voting_group).
+pub async fn submit_votes(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(meeting_id): Path<i64>,
+    Json(input): Json<VoteIn>,
+) -> AppResult<Json<serde_json::Value>> {
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
+        .bind(meeting_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    let mut seen_groups: HashSet<String> = HashSet::new();
+    for b in &input.ballots {
+        let group = b.voting_group.trim();
+        if group.is_empty() {
+            return Err(AppError::BadRequest("voting_group is required".into()));
+        }
+        if !seen_groups.insert(group.to_string()) {
+            return Err(AppError::BadRequest(
+                "duplicate voting_group in ballots".into(),
+            ));
+        }
+
+        let valid: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) \
+             FROM role_slot rs \
+             JOIN `role` r ON r.id = rs.role_id \
+             LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
+             WHERE rs.id = ? AND rs.meeting_id = ? AND r.voting_group = ? \
+             AND ra.taker_id IS NOT NULL",
+        )
+        .bind(b.role_slot_id)
+        .bind(meeting_id)
+        .bind(group)
+        .fetch_one(&state.pool)
+        .await?;
+        if valid == 0 {
+            return Err(AppError::BadRequest(
+                "ballot has an invalid candidate for its voting group".into(),
+            ));
+        }
+    }
+
+    let mut tx = state.pool.begin().await?;
+    for b in &input.ballots {
+        let group = b.voting_group.trim();
+        sqlx::query(
+            "INSERT INTO meeting_vote(meeting_id, voter_id, voting_group, role_slot_id, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP()) \
+             ON DUPLICATE KEY UPDATE role_slot_id = VALUES(role_slot_id), updated_at = VALUES(updated_at)",
+        )
+        .bind(meeting_id)
+        .bind(user.id)
+        .bind(group)
+        .bind(b.role_slot_id)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+
+    Ok(Json(json!({ "ok": true, "saved": input.ballots.len() })))
 }
 
 // ---------------------------------------------------------------------------

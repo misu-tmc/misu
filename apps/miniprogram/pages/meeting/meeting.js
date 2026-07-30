@@ -120,6 +120,11 @@ Page({
     wx.navigateTo({ url: `/pages/edit-meeting/edit-meeting?id=${this.data.meeting.id}` });
   },
 
+  goVote() {
+    if (!this.data.meeting || !this.data.meeting.id) return;
+    wx.navigateTo({ url: `/pages/vote/vote?id=${this.data.meeting.id}` });
+  },
+
   async goCheckIn() {
     if (!this.data.meeting || !this.data.meeting.id) return;
     const app = getApp();
@@ -247,8 +252,5 @@ Page({
     }
   },
 
-  // Voting is a later-stage flow (see design TODO).
-  comingSoon() {
-    wx.showToast({ title: 'Coming soon', icon: 'none' });
-  }
+  
 });

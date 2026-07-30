@@ -13,7 +13,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, MySqlConnection, QueryBuilder};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::auth::{AuthUser, MaybeAuthUser};
 use crate::error::{AppError, AppResult};
@@ -116,6 +116,22 @@ const SUMMARY_COLS: &str = "m.id, m.number, m.title, m.theme, m.date, m.start_ti
     COALESCE(v.name, '') AS venue, m.status, m.meeting_manager";
 const SUMMARY_FROM: &str = "meeting m \
     LEFT JOIN venue v ON v.id = m.venue_id";
+
+fn default_voting_group_for_role(name: &str) -> Option<&'static str> {
+    match name.trim().to_ascii_lowercase().as_str() {
+        "saa" | "ah-counter" | "timer" | "grammarian" | "photographer" => {
+            Some("Best meeting role")
+        }
+        "individual evaluator"
+        | "table topic evaluator"
+        | "table topics evaluator"
+        | "table topic evaulator"
+        | "table topics evaulator" => Some("Best evaluator"),
+        "prepared speech" => Some("Best speaker"),
+        "table topics speaker" => Some("Best table topic speaker"),
+        _ => None,
+    }
+}
 
 /// `scope`: `open` (today onward, default), `archived` (past), or `all`.
 pub async fn list_meetings(
@@ -243,8 +259,12 @@ pub async fn upsert_meeting(
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
                     .ok_or_else(|| AppError::BadRequest("each role slot needs a role".into()))?;
-                sqlx::query("INSERT IGNORE INTO `role`(name) VALUES (?)")
+                let voting_group = default_voting_group_for_role(name).unwrap_or("");
+                sqlx::query(
+                    "INSERT IGNORE INTO `role`(name, is_bookable, voting_group) VALUES (?, 1, ?)",
+                )
                     .bind(name)
+                    .bind(voting_group)
                     .execute(&mut *tx)
                     .await?;
                 sqlx::query_scalar::<_, i64>("SELECT id FROM `role` WHERE name = ?")
@@ -585,6 +605,8 @@ pub struct SlotBatchIn {
     #[serde(default)]
     pub label: Option<String>,
     #[serde(default)]
+    pub voting_group: Option<String>,
+    #[serde(default)]
     pub is_optional: bool,
     /// Assigned taker; `null` clears the assignment. Reconciled into `role_assignment`.
     #[serde(default)]
@@ -619,6 +641,7 @@ pub async fn put_slots(
 
     // Resolve each slot's role_id, creating the role from a name when needed.
     let mut role_ids: Vec<i64> = Vec::with_capacity(input.slots.len());
+    let mut role_group_updates: HashMap<i64, String> = HashMap::new();
     for slot in &input.slots {
         let role_id = match slot.role_id {
             Some(id) => id,
@@ -629,8 +652,10 @@ pub async fn put_slots(
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
                     .ok_or_else(|| AppError::BadRequest("each role slot needs a role".into()))?;
-                sqlx::query("INSERT IGNORE INTO `role`(name) VALUES (?)")
+                let voting_group = default_voting_group_for_role(name).unwrap_or("");
+                sqlx::query("INSERT IGNORE INTO `role`(name, is_bookable, voting_group) VALUES (?, 1, ?)")
                     .bind(name)
+                    .bind(voting_group)
                     .execute(&mut *tx)
                     .await?;
                 sqlx::query_scalar::<_, i64>("SELECT id FROM `role` WHERE name = ?")
@@ -639,7 +664,30 @@ pub async fn put_slots(
                     .await?
             }
         };
+        let voting_group = slot
+            .voting_group
+            .as_deref()
+            .map(str::trim)
+            .unwrap_or("")
+            .to_string();
+        if let Some(prev) = role_group_updates.get(&role_id) {
+            if prev != &voting_group {
+                return Err(AppError::BadRequest(
+                    "the same role cannot have conflicting voting groups in one save".into(),
+                ));
+            }
+        } else {
+            role_group_updates.insert(role_id, voting_group);
+        }
         role_ids.push(role_id);
+    }
+
+    for (role_id, voting_group) in role_group_updates {
+        sqlx::query("UPDATE `role` SET voting_group = ? WHERE id = ?")
+            .bind(voting_group)
+            .bind(role_id)
+            .execute(&mut *tx)
+            .await?;
     }
 
     let existing_slots: Vec<i64> =
@@ -879,13 +927,16 @@ pub struct RoleDto {
     pub id: i64,
     pub name: String,
     pub is_bookable: bool,
+    pub voting_group: String,
 }
 
 pub async fn list_roles(
     State(state): State<AppState>,
     _user: AuthUser,
 ) -> AppResult<Json<Vec<RoleDto>>> {
-    let rows = sqlx::query_as::<_, RoleDto>("SELECT id, name, is_bookable FROM `role` ORDER BY name")
+    let rows = sqlx::query_as::<_, RoleDto>(
+        "SELECT id, name, is_bookable, voting_group FROM `role` ORDER BY name",
+    )
         .fetch_all(&state.pool)
         .await?;
     Ok(Json(rows))
@@ -905,11 +956,15 @@ pub async fn create_role(
     if name.is_empty() {
         return Err(AppError::BadRequest("role name is required".into()));
     }
-    sqlx::query("INSERT IGNORE INTO `role`(name, is_bookable) VALUES (?, 1)")
+    let voting_group = default_voting_group_for_role(name).unwrap_or("");
+    sqlx::query("INSERT IGNORE INTO `role`(name, is_bookable, voting_group) VALUES (?, 1, ?)")
         .bind(name)
+        .bind(voting_group)
         .execute(&state.pool)
         .await?;
-    let row = sqlx::query_as::<_, RoleDto>("SELECT id, name, is_bookable FROM `role` WHERE name = ?")
+    let row = sqlx::query_as::<_, RoleDto>(
+        "SELECT id, name, is_bookable, voting_group FROM `role` WHERE name = ?",
+    )
         .bind(name)
         .fetch_one(&state.pool)
         .await?;
@@ -1013,7 +1068,9 @@ pub async fn put_table_topics(
     }
 
     // Ensure the non-bookable role exists (auto-create once).
-    sqlx::query("INSERT IGNORE INTO `role`(name, is_bookable) VALUES (?, 0)")
+    sqlx::query(
+        "INSERT IGNORE INTO `role`(name, is_bookable, voting_group) VALUES (?, 0, 'Best table topic speaker')",
+    )
         .bind(TABLE_TOPICS_SPEAKER_ROLE)
         .execute(&mut *tx)
         .await?;

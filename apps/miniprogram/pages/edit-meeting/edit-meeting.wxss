@@ -42,7 +42,7 @@
 .edge.hidden { display: none; }
 
 /* Body */
-.body { padding: 24rpx 24rpx 140rpx; }
+.body { padding: 24rpx 24rpx 196rpx; }
 .card { background: #fff; border-radius: 20rpx; padding: 24rpx; }
 .subtle { display: block; font-size: 24rpx; margin: 0 8rpx 16rpx; }
 
@@ -110,6 +110,8 @@
   display: flex; align-items: center; gap: 16rpx;
   padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
   background: #fff; border-top: 1rpx solid #ececee;
+  z-index: 20;
+  box-shadow: 0 -6rpx 20rpx rgba(0, 0, 0, 0.05);
 }
 .save-hint { flex: 1; font-size: 24rpx; }
 .save-btn { padding: 20rpx 44rpx; }
@@ -122,7 +124,11 @@
 .speech-card.hl-card { border: 2rpx solid #5b2a86; box-shadow: 0 0 0 4rpx #f0ecf6; }
 .speech-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
 .textarea { min-height: 150rpx; line-height: 1.5; }
-.speech-textarea { min-height: 48rpx; }
+.speech-textarea {
+  height: 56rpx;
+  min-height: 56rpx;
+  line-height: 1.5;
+}
 
 /* Table Topics */
 .tt-row { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 0; border-top: 1rpx solid #f0f0f2; }

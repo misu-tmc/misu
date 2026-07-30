@@ -95,11 +95,6 @@ const api = {
     request('/api/meetings/' + id + '/slots', { method: 'PUT', data: { slots } }),
   saveSessions: (id, sessions) =>
     request('/api/meetings/' + id + '/sessions', { method: 'PUT', data: { sessions } }),
-  savePrep: (meetingId, roleSlotId, prepData) =>
-    request('/api/meetings/' + meetingId + '/prep', {
-      method: 'PUT',
-      data: { role_slot_id: roleSlotId, prep_data: prepData }
-    }),
   saveSpeech: (meetingId, roleSlotId, speech) =>
     request('/api/meetings/' + meetingId + '/speech', {
       method: 'PUT',

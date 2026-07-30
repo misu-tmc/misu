@@ -347,7 +347,7 @@
       return role.includes('speaker') || role.includes('prepared speech');
     }
     function prepText(slot, key) {
-      const data = slot && slot.prep_data;
+      const data = slot && slot.speech;
       if (!data || data[key] == null) return '';
       return String(data[key]).trim();
     }

@@ -131,23 +131,23 @@ Page({
       is_optional: s.is_optional,
       booker_id: s.booker_id || null,
       booker_name: s.booker_name || '',
-      prep_data: s.prep_data || {},
+      speech: s.speech || {},
       open: false
     }));
 
     const speeches = slots
       .filter((s) => isPreparedSpeechRole(s.role_name))
       .map((s) => {
-        const prep = s.prep_data || {};
+        const sp = s.speech || {};
         return {
           role_slot_id: s.role_slot_id,
           display: s.display,
           booker_name: s.booker_name || '',
-          title: prep.title || '',
-          pathway: prep.pathway || '',
-          level: prep.level == null ? '' : String(prep.level),
-          purpose: prep.purpose || '',
-          description: prep.description || ''
+          title: sp.title || '',
+          pathway: sp.pathway || '',
+          level: sp.level == null ? '' : String(sp.level),
+          purpose: sp.purpose || '',
+          description: sp.description || ''
         };
       });
 
@@ -498,10 +498,12 @@ Page({
       wx.showToast({ title: 'No speaker slots', icon: 'none' });
       return;
     }
-    // A speech must be performed by someone, so only booked slots can be saved.
-    const booked = speeches.filter((s) => (s.booker_name || '').trim());
+    // A speech must be performed by someone and needs a title; other fields are optional.
+    const booked = speeches.filter(
+      (s) => (s.booker_name || '').trim() && (s.title || '').trim()
+    );
     if (!booked.length) {
-      wx.showToast({ title: 'Assign a speaker first', icon: 'none' });
+      wx.showToast({ title: 'Add a speaker and title', icon: 'none' });
       return;
     }
     const jobs = booked.map((s) =>

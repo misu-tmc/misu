@@ -200,8 +200,8 @@
 
     // --- roles (slots) ---
     function emptySpeech() { return { title: '', pathway: '', level: '', purpose: '', description: '' }; }
-    function speechFromPrep(prep) {
-      const p = prep || {};
+    function speechFromApi(speech) {
+      const p = speech || {};
       return {
         title: p.title || '', pathway: p.pathway || '',
         level: p.level == null ? '' : String(p.level),
@@ -321,7 +321,7 @@
           block.innerHTML = `
             <div class="speech-head"><strong>${escapeHtml(label)}</strong> <span class="muted">${escapeHtml(booker)}</span></div>
             <div class="speech-grid">
-              <label>Title<input value="${escapeHtml(sp.title || '')}" oninput="updSpeech(${i},'title',this.value)" /></label>
+              <label>Title<input value="${escapeHtml(sp.title || '')}" placeholder="required" oninput="updSpeech(${i},'title',this.value)" /></label>
               <label>Pathway<input value="${escapeHtml(sp.pathway || '')}" oninput="updSpeech(${i},'pathway',this.value)" /></label>
               <label>Level<input type="number" min="1" value="${escapeHtml(String(sp.level == null ? '' : sp.level))}" oninput="updSpeech(${i},'level',this.value)" /></label>
               <label class="wide">Purpose<textarea maxlength="240" oninput="updSpeech(${i},'purpose',this.value)">${escapeHtml(sp.purpose || '')}</textarea></label>
@@ -432,7 +432,8 @@
     /// Runs after assignments so the speaker (booker) exists server-side first.
     async function saveSpeechesWeb() {
       const jobs = state.slots.filter(sl =>
-        isPreparedSpeechRole(sl.roleName) && sl.role_slot_id && (sl.bookerName || '').trim());
+        isPreparedSpeechRole(sl.roleName) && sl.role_slot_id && (sl.bookerName || '').trim() &&
+        (sl.speech && (sl.speech.title || '').trim()));
       if (!jobs.length) return;
       await Promise.all(jobs.map(async sl => {
         const sp = sl.speech || emptySpeech();
@@ -533,7 +534,7 @@
         booker_id: asTemplate ? null : s.booker_id,
         booker_name: asTemplate ? null : s.booker_name,
         bookerName: asTemplate ? '' : (s.booker_name || ''),
-        speech: asTemplate ? emptySpeech() : speechFromPrep(s.prep_data)
+        speech: asTemplate ? emptySpeech() : speechFromApi(s.speech)
       }));
       const idToIndex = {};
       rawSlots.forEach((s, idx) => { idToIndex[s.id] = idx; });

@@ -99,22 +99,19 @@ pub async fn book(
             return Err(AppError::BadRequest("user does not exist".into()));
         }
         sqlx::query(
-            "INSERT INTO role_assignment(role_slot_id, booker_id, prep_data) VALUES (?, ?, '{}') \
-             ON DUPLICATE KEY UPDATE \
-                prep_data = CASE \
-                    WHEN booker_id <=> VALUES(booker_id) THEN prep_data \
-                    ELSE '{}' \
-                END, \
-                prep_updated_at = CASE \
-                    WHEN booker_id <=> VALUES(booker_id) THEN prep_updated_at \
-                    ELSE NULL \
-                END, \
-                booker_id = VALUES(booker_id)",
+            "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
+             ON DUPLICATE KEY UPDATE booker_id = VALUES(booker_id)",
         )
         .bind(req.role_slot_id)
         .bind(target)
         .execute(&state.pool)
         .await?;
+        // A different speaker invalidates any speech details already on the slot.
+        sqlx::query("DELETE FROM speech WHERE role_slot_id = ? AND speaker_id <> ?")
+            .bind(req.role_slot_id)
+            .bind(target)
+            .execute(&state.pool)
+            .await?;
         return Ok(Json(json!({ "ok": true, "booker_id": target })));
     }
 
@@ -127,9 +124,8 @@ pub async fn book(
                     .bind(req.role_slot_id)
                     .execute(&state.pool)
                     .await?;
-                sqlx::query(
-                    "UPDATE role_assignment SET prep_data = '{}', prep_updated_at = NULL WHERE role_slot_id = ?",
-                )
+                // No speaker means no speech.
+                sqlx::query("DELETE FROM speech WHERE role_slot_id = ?")
                     .bind(req.role_slot_id)
                     .execute(&state.pool)
                     .await?;
@@ -148,7 +144,7 @@ pub async fn book(
             // MySQL reports 0 affected rows when the duplicate row is already booked,
             // and 2 when an open row is claimed by the conditional update.
             let affected = sqlx::query(
-                "INSERT INTO role_assignment(role_slot_id, booker_id, prep_data) VALUES (?, ?, '{}') \
+                "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
                  ON DUPLICATE KEY UPDATE booker_id = IF(booker_id IS NULL, VALUES(booker_id), booker_id)",
             )
             .bind(req.role_slot_id)
@@ -162,64 +158,6 @@ pub async fn book(
         }
     }
     Ok(Json(json!({ "ok": true, "booker_id": me })))
-}
-
-// ---------------------------------------------------------------------------
-// Role preparation data
-// ---------------------------------------------------------------------------
-
-#[derive(Deserialize)]
-pub struct PrepUpdateReq {
-    pub role_slot_id: i64,
-    #[serde(default)]
-    pub prep_data: serde_json::Value,
-}
-
-#[derive(FromRow)]
-struct PrepSlotRow {
-    meeting_id: i64,
-}
-
-pub async fn update_prep(
-    State(state): State<AppState>,
-    _user: AuthUser,
-    Path(meeting_id): Path<i64>,
-    Json(req): Json<PrepUpdateReq>,
-) -> AppResult<Json<MeetingResponse>> {
-    let slot = sqlx::query_as::<_, PrepSlotRow>(
-        "SELECT rs.meeting_id \
-         FROM role_slot rs \
-         WHERE rs.id = ?",
-    )
-    .bind(req.role_slot_id)
-    .fetch_optional(&state.pool)
-    .await?
-    .ok_or(AppError::NotFound)?;
-
-    if slot.meeting_id != meeting_id {
-        return Err(AppError::BadRequest(
-            "role_slot does not belong to meeting".into(),
-        ));
-    }
-    if !req.prep_data.is_object() {
-        return Err(AppError::BadRequest("prep_data must be an object".into()));
-    }
-
-    sqlx::query(
-        "INSERT INTO role_assignment(role_slot_id, prep_data, prep_updated_at) \
-            VALUES (?, ?, UTC_TIMESTAMP()) \
-            ON DUPLICATE KEY UPDATE \
-                prep_data = VALUES(prep_data), prep_updated_at = VALUES(prep_updated_at)",
-    )
-    .bind(req.role_slot_id)
-    .bind(req.prep_data.to_string())
-    .execute(&state.pool)
-    .await?;
-
-    meetings::meeting_response_by_id(&state.pool, meeting_id)
-        .await?
-        .map(Json)
-        .ok_or(AppError::NotFound)
 }
 
 // ---------------------------------------------------------------------------
@@ -275,6 +213,11 @@ pub async fn update_speech(
         AppError::BadRequest("assign a speaker before adding speech details".into())
     })?;
 
+    let title = req.title.trim();
+    if title.is_empty() {
+        return Err(AppError::BadRequest("speech title is required".into()));
+    }
+
     sqlx::query(
         "INSERT INTO speech(role_slot_id, meeting_id, speaker_id, title, pathway, level, \
             purpose, description, updated_at) \
@@ -287,7 +230,7 @@ pub async fn update_speech(
     .bind(req.role_slot_id)
     .bind(meeting_id)
     .bind(speaker_id)
-    .bind(req.title.trim())
+    .bind(title)
     .bind(req.pathway.trim())
     .bind(req.level)
     .bind(req.purpose.trim())

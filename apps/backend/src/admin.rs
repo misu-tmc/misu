@@ -691,32 +691,31 @@ pub async fn put_slots(
                     return Err(AppError::BadRequest("booker does not exist".into()));
                 }
                 sqlx::query(
-                    "INSERT INTO role_assignment(role_slot_id, booker_id, prep_data) VALUES (?, ?, '{}') \
-                     ON DUPLICATE KEY UPDATE \
-                        prep_data = CASE \
-                            WHEN booker_id <=> VALUES(booker_id) THEN prep_data \
-                            ELSE '{}' \
-                        END, \
-                        prep_updated_at = CASE \
-                            WHEN booker_id <=> VALUES(booker_id) THEN prep_updated_at \
-                            ELSE NULL \
-                        END, \
-                        booker_id = VALUES(booker_id)",
+                    "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
+                     ON DUPLICATE KEY UPDATE booker_id = VALUES(booker_id)",
                 )
                 .bind(slot_id)
                 .bind(booker)
                 .execute(&mut *tx)
                 .await?;
+                // A different speaker invalidates any speech details already on the slot.
+                sqlx::query("DELETE FROM speech WHERE role_slot_id = ? AND speaker_id <> ?")
+                    .bind(slot_id)
+                    .bind(booker)
+                    .execute(&mut *tx)
+                    .await?;
             }
             None => {
                 // Clear any booking but keep the row so a taker_id (if any) survives.
-                sqlx::query(
-                    "UPDATE role_assignment SET booker_id = NULL, prep_data = '{}', \
-                     prep_updated_at = NULL WHERE role_slot_id = ?",
-                )
-                .bind(slot_id)
-                .execute(&mut *tx)
-                .await?;
+                sqlx::query("UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?")
+                    .bind(slot_id)
+                    .execute(&mut *tx)
+                    .await?;
+                // No speaker means no speech.
+                sqlx::query("DELETE FROM speech WHERE role_slot_id = ?")
+                    .bind(slot_id)
+                    .execute(&mut *tx)
+                    .await?;
             }
         }
     }

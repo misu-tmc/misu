@@ -36,21 +36,21 @@ function isPreparedSpeechSlot(slot) {
   return role.indexOf('speaker') >= 0 || role.indexOf('prepared speech') >= 0;
 }
 
-function prepText(slot, key) {
-  if (!slot || !slot.prep_data) return '';
-  return String(slot.prep_data[key] || '').trim();
+function speechField(slot, key) {
+  if (!slot || !slot.speech) return '';
+  return String(slot.speech[key] || '').trim();
 }
 
 function agendaName(session, slot) {
   if (session && session.agenda_name) return session.agenda_name;
-  const title = prepText(slot, 'title');
+  const title = speechField(slot, 'title');
   if (isPreparedSpeechSlot(slot) && title) return title;
   return (session && session.name) || '';
 }
 
 function speechMeta(slot) {
-  if (!slot || !slot.prep_data) return '';
-  const data = slot.prep_data;
+  if (!slot || !slot.speech) return '';
+  const data = slot.speech;
   const level = data.level == null || data.level === '' ? '' : `L${data.level}`;
   return [data.pathway, level].filter(Boolean).join(' · ');
 }

@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct UserResponse {
@@ -6,11 +6,14 @@ pub struct UserResponse {
     pub display_name: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct PrepFieldResponse {
-    pub key: String,
-    #[serde(rename = "type")]
-    pub field_type: String,
+#[derive(Serialize)]
+pub struct SpeechResponse {
+    pub title: String,
+    pub pathway: String,
+    pub level: Option<i64>,
+    pub purpose: String,
+    pub description: String,
+    pub updated_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -36,9 +39,7 @@ pub struct RoleTakerResponse {
     pub booker_id: Option<i64>,
     pub booker_name: Option<String>,
     pub taker_id: Option<i64>,
-    pub prep_fields: Vec<PrepFieldResponse>,
-    pub prep_data: serde_json::Value,
-    pub prep_updated_at: Option<String>,
+    pub speech: Option<SpeechResponse>,
 }
 
 #[derive(Serialize)]

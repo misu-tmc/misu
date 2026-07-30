@@ -145,6 +145,31 @@
         <view class="savebar"><text class="save-hint muted">Saving Speeches</text><view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveSpeeches">Save</view></view>
       </block>
 
+      <!-- Table Topics -->
+      <block wx:elif="{{activeTab === 'topics'}}">
+        <text class="subtle muted">{{tableTopics.length}} participant{{tableTopics.length === 1 ? '' : 's'}} · tap × to remove</text>
+        <view class="card">
+          <view
+            wx:for="{{tableTopics}}"
+            wx:key="index"
+            class="tt-row"
+          >
+            <text class="tt-num muted">{{index + 1}}.</text>
+            <input
+              class="tt-input"
+              value="{{item.name}}"
+              placeholder="Participant name"
+              data-index="{{index}}"
+              bindinput="onTopicInput"
+            />
+            <view class="cancel-x" data-index="{{index}}" bindtap="deleteTopic">×</view>
+          </view>
+          <view wx:if="{{tableTopics.length === 0}}" class="muted tt-empty">No participants yet.</view>
+        </view>
+        <view class="btn btn-ghost add-btn" bindtap="addTopic">+ Add participant</view>
+        <view class="savebar"><text class="save-hint muted">Saving Table Topics</text><view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="saveTableTopics">Save</view></view>
+      </block>
+
     </view>
   </block>
 

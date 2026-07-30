@@ -878,13 +878,14 @@ pub async fn update_status(
 pub struct RoleDto {
     pub id: i64,
     pub name: String,
+    pub is_bookable: bool,
 }
 
 pub async fn list_roles(
     State(state): State<AppState>,
     _user: AuthUser,
 ) -> AppResult<Json<Vec<RoleDto>>> {
-    let rows = sqlx::query_as::<_, RoleDto>("SELECT id, name FROM `role` ORDER BY name")
+    let rows = sqlx::query_as::<_, RoleDto>("SELECT id, name, is_bookable FROM `role` ORDER BY name")
         .fetch_all(&state.pool)
         .await?;
     Ok(Json(rows))
@@ -904,18 +905,15 @@ pub async fn create_role(
     if name.is_empty() {
         return Err(AppError::BadRequest("role name is required".into()));
     }
-    sqlx::query("INSERT IGNORE INTO `role`(name) VALUES (?)")
+    sqlx::query("INSERT IGNORE INTO `role`(name, is_bookable) VALUES (?, 1)")
         .bind(name)
         .execute(&state.pool)
         .await?;
-    let id = sqlx::query_scalar::<_, i64>("SELECT id FROM `role` WHERE name = ?")
+    let row = sqlx::query_as::<_, RoleDto>("SELECT id, name, is_bookable FROM `role` WHERE name = ?")
         .bind(name)
         .fetch_one(&state.pool)
         .await?;
-    Ok(Json(RoleDto {
-        id,
-        name: name.to_string(),
-    }))
+    Ok(Json(row))
 }
 
 // ---------------------------------------------------------------------------
@@ -979,4 +977,103 @@ pub async fn create_user(
         id,
         display_name: name.to_string(),
     }))
+}
+
+// ---------------------------------------------------------------------------
+// Table Topics section: replace all non-bookable role slots for a meeting
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct TableTopicsIn {
+    /// Ordered list of participant names.
+    #[serde(default)]
+    pub participants: Vec<String>,
+}
+
+const TABLE_TOPICS_SPEAKER_ROLE: &str = "Table Topics Speaker";
+
+/// `PUT /api/meetings/:id/table-topics`
+/// Replaces all non-bookable role slots (Table Topics participants) for the meeting.
+/// Each participant is stored as a role_slot with `role.is_bookable = 0` and the
+/// participant name in `role_slot.label`.
+pub async fn put_table_topics(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+    Json(input): Json<TableTopicsIn>,
+) -> AppResult<Json<MeetingResponse>> {
+    let mut tx = state.pool.begin().await?;
+
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
+        .bind(meeting_id)
+        .fetch_one(&mut *tx)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    // Ensure the non-bookable role exists (auto-create once).
+    sqlx::query("INSERT IGNORE INTO `role`(name, is_bookable) VALUES (?, 0)")
+        .bind(TABLE_TOPICS_SPEAKER_ROLE)
+        .execute(&mut *tx)
+        .await?;
+    let role_id: i64 =
+        sqlx::query_scalar("SELECT id FROM `role` WHERE name = ?")
+            .bind(TABLE_TOPICS_SPEAKER_ROLE)
+            .fetch_one(&mut *tx)
+            .await?;
+
+    // Delete existing non-bookable slots for this meeting (and their assignments).
+    let old_ids: Vec<i64> =
+        sqlx::query_scalar(
+            "SELECT rs.id FROM role_slot rs \
+             JOIN `role` r ON r.id = rs.role_id \
+             WHERE rs.meeting_id = ? AND r.is_bookable = 0",
+        )
+        .bind(meeting_id)
+        .fetch_all(&mut *tx)
+        .await?;
+
+    for old_id in &old_ids {
+        sqlx::query("DELETE FROM role_assignment WHERE role_slot_id = ?")
+            .bind(old_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM role_slot WHERE id = ?")
+            .bind(old_id)
+            .execute(&mut *tx)
+            .await?;
+    }
+
+    // Insert new slots, one per participant name.
+    // Get current max position for bookable slots so TT slots follow them.
+    let base_position: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(MAX(rs.position), -1) FROM role_slot rs \
+         JOIN `role` r ON r.id = rs.role_id \
+         WHERE rs.meeting_id = ? AND r.is_bookable = 1",
+    )
+    .bind(meeting_id)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    for (idx, name) in input.participants.iter().enumerate() {
+        let name = name.trim();
+        if name.is_empty() {
+            continue;
+        }
+        let position = base_position + 1 + idx as i64;
+        sqlx::query(
+            "INSERT INTO role_slot(meeting_id, role_id, label, is_optional, position) \
+             VALUES (?, ?, ?, 0, ?)",
+        )
+        .bind(meeting_id)
+        .bind(role_id)
+        .bind(name)
+        .bind(position)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+    meeting_dto_response(&state.pool, meeting_id).await
 }

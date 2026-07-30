@@ -123,3 +123,10 @@
 .speech-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
 .textarea { min-height: 150rpx; line-height: 1.5; }
 .speech-textarea { min-height: 48rpx; }
+
+/* Table Topics */
+.tt-row { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 0; border-top: 1rpx solid #f0f0f2; }
+.tt-row:first-child { border-top: none; }
+.tt-num { width: 44rpx; flex-shrink: 0; font-size: 26rpx; text-align: right; }
+.tt-input { flex: 1; font-size: 28rpx; min-width: 0; }
+.tt-empty { padding: 16rpx 0; font-size: 28rpx; }

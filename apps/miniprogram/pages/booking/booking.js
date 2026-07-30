@@ -46,7 +46,7 @@ Page({
       });
       const cards = meetings.map((m, index) => {
         const dateLabel = shortDate(m.date);
-        const slots = (m.role_slots || []).map((s) => {
+        const slots = (m.role_slots || []).filter((s) => s.is_bookable !== false).map((s) => {
           const mine = s.taker_id === me;
           if (mine) {
             const target = prepTarget(s.role_name);

@@ -37,7 +37,8 @@ Page({
       { id: 'info', label: 'Information' },
       { id: 'roles', label: 'Roles' },
       { id: 'sessions', label: 'Sessions' },
-      { id: 'speeches', label: 'Speeches' }
+      { id: 'speeches', label: 'Speeches' },
+      { id: 'topics', label: 'Table Topics' }
     ],
     edgeLeft: false,
     edgeRight: true,
@@ -48,6 +49,7 @@ Page({
     slots: [],
     sessions: [],
     speeches: [],
+    tableTopics: [],
     roleCatalog: [],
     roleNames: [],
     venueCatalog: [],
@@ -62,7 +64,7 @@ Page({
   onLoad(query) {
     query = query || {};
     this.meetingId = query.id ? parseInt(query.id, 10) : null;
-    const valid = ['info', 'roles', 'sessions', 'speeches'];
+    const valid = ['info', 'roles', 'sessions', 'speeches', 'topics'];
     const patch = {};
     if (query.tab && valid.indexOf(query.tab) >= 0) patch.activeTab = query.tab;
     if (query.field) patch.highlightField = query.field;
@@ -122,20 +124,26 @@ Page({
     const venueCatalog = venues || this.data.venueCatalog;
     const userCatalog = users || this.data.userCatalog;
 
-    const slots = (detail.role_slots || []).map((s) => ({
+    const allSlots = (detail.role_slots || []).map((s) => ({
       role_slot_id: s.id,
       role_id: s.role_id,
       role_name: s.role_name,
       label: s.custom_label || '',
       display: s.label,
       is_optional: s.is_optional,
+      is_bookable: s.is_bookable !== false,
       taker_id: s.taker_id || null,
       taker_name: s.taker_name || '',
       speech: s.speech || {},
       open: false
     }));
 
-    const speeches = slots
+    const slots = allSlots.filter((s) => s.is_bookable);
+    const tableTopics = allSlots
+      .filter((s) => !s.is_bookable)
+      .map((s) => ({ role_slot_id: s.role_slot_id, name: s.label || s.taker_name || '' }));
+
+    const speeches = allSlots
       .filter((s) => isPreparedSpeechRole(s.role_name))
       .map((s) => {
         const sp = s.speech || {};
@@ -194,6 +202,7 @@ Page({
       slots,
       speeches,
       sessions: this.withStarts(sessions, detail.start_time, slots),
+      tableTopics,
       slotPickerLabels: [NONE_LABEL].concat(slots.map((s) => s.display)),
       swipe: { type: '', index: -1 }
     });
@@ -522,5 +531,30 @@ Page({
   togglePublish() {
     const next = this.data.header.published ? 'draft' : 'published';
     this.persist(api.setMeetingStatus(this.meetingId, next));
+  },
+
+  // --- Table Topics -----------------------------------------------------------
+  onTopicInput(e) {
+    const i = e.currentTarget.dataset.index;
+    const list = this.data.tableTopics.slice();
+    list[i] = Object.assign({}, list[i], { name: e.detail.value });
+    this.setData({ tableTopics: list });
+  },
+  addTopic() {
+    const list = this.data.tableTopics.slice();
+    list.push({ role_slot_id: null, name: '' });
+    this.setData({ tableTopics: list });
+  },
+  deleteTopic(e) {
+    const i = e.currentTarget.dataset.index;
+    const list = this.data.tableTopics.slice();
+    list.splice(i, 1);
+    this.setData({ tableTopics: list });
+  },
+  saveTableTopics() {
+    const names = this.data.tableTopics
+      .map((p) => (p.name || '').trim())
+      .filter(Boolean);
+    this.persist(api.saveTableTopics(this.meetingId, names));
   }
 });

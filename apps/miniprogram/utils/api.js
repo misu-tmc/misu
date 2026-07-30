@@ -104,6 +104,9 @@ const api = {
     }),
   setMeetingStatus: (id, status) =>
     request('/api/meetings/' + id + '/status', { method: 'PUT', data: { status } })
+  ,
+  saveTableTopics: (id, participants) =>
+    request('/api/meetings/' + id + '/table-topics', { method: 'PUT', data: { participants } })
 };
 
 module.exports = api;

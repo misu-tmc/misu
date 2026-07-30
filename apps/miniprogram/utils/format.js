@@ -78,7 +78,7 @@ function buildAgenda(meeting) {
       session_name: s.name,
       group_label: s.group_label,
       duration_minutes: s.duration_minutes,
-      taker: slot && slot.booker_name ? slot.booker_name : '',
+      taker: slot && slot.taker_name ? slot.taker_name : '',
       prepMeta: speechMeta(slot)
     };
   });

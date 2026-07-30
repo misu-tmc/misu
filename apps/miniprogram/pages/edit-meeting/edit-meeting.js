@@ -129,8 +129,8 @@ Page({
       label: s.custom_label || '',
       display: s.label,
       is_optional: s.is_optional,
-      booker_id: s.booker_id || null,
-      booker_name: s.booker_name || '',
+      taker_id: s.taker_id || null,
+      taker_name: s.taker_name || '',
       speech: s.speech || {},
       open: false
     }));
@@ -142,7 +142,7 @@ Page({
         return {
           role_slot_id: s.role_slot_id,
           display: s.display,
-          booker_name: s.booker_name || '',
+          taker_name: s.taker_name || '',
           title: sp.title || '',
           pathway: sp.pathway || '',
           level: sp.level == null ? '' : String(sp.level),
@@ -359,15 +359,15 @@ Page({
     const i = e.currentTarget.dataset.index;
     this.setData({ [`slots[${i}].label`]: e.detail.value });
   },
-  onSlotBookerPick(e) {
+  onSlotTakerPick(e) {
     const i = e.currentTarget.dataset.index;
     const idx = parseInt(e.detail.value, 10);
     if (!idx) {
-      this.setData({ [`slots[${i}].booker_id`]: null, [`slots[${i}].booker_name`]: '' });
+      this.setData({ [`slots[${i}].taker_id`]: null, [`slots[${i}].taker_name`]: '' });
       return;
     }
     const u = this.data.userCatalog[idx - 1];
-    this.setData({ [`slots[${i}].booker_id`]: u.id, [`slots[${i}].booker_name`]: u.display_name });
+    this.setData({ [`slots[${i}].taker_id`]: u.id, [`slots[${i}].taker_name`]: u.display_name });
   },
   addSlot(e) {
     const i = e && e.currentTarget ? e.currentTarget.dataset.index : undefined;
@@ -378,8 +378,8 @@ Page({
       label: '',
       display: 'New role',
       is_optional: false,
-      booker_id: null,
-      booker_name: '',
+      taker_id: null,
+      taker_name: '',
       open: true
     };
     const slots = this.data.slots.slice();
@@ -409,7 +409,7 @@ Page({
         role_name: (s.role_name || '').trim() || null,
         label: (s.label || '').trim() || null,
         is_optional: !!s.is_optional,
-        booker_id: s.booker_id || null
+        taker_id: s.taker_id || null
       });
     }
     this.persist(api.saveSlots(this.meetingId, payload));
@@ -500,7 +500,7 @@ Page({
     }
     // A speech must be performed by someone and needs a title; other fields are optional.
     const booked = speeches.filter(
-      (s) => (s.booker_name || '').trim() && (s.title || '').trim()
+      (s) => (s.taker_name || '').trim() && (s.title || '').trim()
     );
     if (!booked.length) {
       wx.showToast({ title: 'Add a speaker and title', icon: 'none' });

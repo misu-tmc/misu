@@ -376,7 +376,7 @@
       const visible = sessions.filter(session => {
         const slot = session.role_slot_id ? slots[session.role_slot_id] : null;
         if (slot && slot.is_optional) {
-          const taken = !!(slot.taker_id || slot.booker_id);
+          const taken = !!slot.taker_id;
           if (!taken) return false;
         }
         return true;
@@ -389,7 +389,7 @@
         }
         const slot = session.role_slot_id ? slots[session.role_slot_id] : null;
         // A session with no role is a whole-club activity — taken by "All".
-        const taker = slot ? (slot.taker_name || slot.booker_name || '') : 'All';
+        const taker = slot ? (slot.taker_name || '') : 'All';
         const metaText = speechMeta(slot);
         const meta = metaText ? `<div class="speech-meta">${escapeHtml(metaText)}</div>` : '';
         rows.push(`<tr><td class="time">${toHHMM(cursor)}</td><td><div class="session-title">${escapeHtml(agendaName(session, slot))}</div>${meta}</td><td class="dur">${durationText(session.duration_minutes)}</td><td class="taker">${escapeHtml(taker)}</td></tr>`);
@@ -401,7 +401,7 @@
     function renderPreparedSpeeches(meeting) {
       const container = document.getElementById('preparedSpeeches');
       const slots = (meeting.role_slots || []).filter(isPreparedSpeechSlot).filter(slot => {
-        return slot.booker_name || prepText(slot, 'title') || prepText(slot, 'pathway') ||
+        return slot.taker_name || prepText(slot, 'title') || prepText(slot, 'pathway') ||
           prepText(slot, 'level') || prepText(slot, 'purpose') || prepText(slot, 'description');
       });
       if (!slots.length) {
@@ -415,7 +415,7 @@
         const description = prepText(slot, 'description');
         return `<div class="speech-item">
           <div class="sp-title">${escapeHtml(title)}</div>
-          ${slot.booker_name ? `<div class="sp-row"><b>Speaker:</b> ${escapeHtml(slot.booker_name)}</div>` : ''}
+          ${slot.taker_name ? `<div class="sp-row"><b>Speaker:</b> ${escapeHtml(slot.taker_name)}</div>` : ''}
           ${pathway ? `<div class="sp-row"><b>Pathway:</b> ${escapeHtml(pathway)}</div>` : ''}
           ${purpose ? `<div class="sp-row"><b>Purpose:</b> ${escapeHtml(purpose)}</div>` : ''}
           ${description ? `<div class="sp-row"><b>Description:</b> ${escapeHtml(description)}</div>` : ''}
@@ -454,7 +454,7 @@
       const photographer = (meeting.role_slots || [])
         .find(s => (s.role_name || '').toLowerCase() === 'photographer');
       document.getElementById('fPhotographer').textContent =
-        photographer ? (photographer.booker_name || '') : '';
+        photographer ? (photographer.taker_name || '') : '';
       renderRows(meeting);
       renderPreparedSpeeches(meeting);
       fitAgenda();

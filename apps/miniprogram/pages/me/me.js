@@ -29,7 +29,7 @@ Page({
       const bookings = [];
       meetings.forEach((m) => {
         (m.role_slots || []).forEach((s) => {
-          if (s.booker_id === me) {
+          if (s.taker_id === me) {
             bookings.push({
               key: `${m.id}-${s.id}`,
               number: m.number,

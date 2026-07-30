@@ -59,7 +59,7 @@ pub struct BookReq {
 #[derive(FromRow)]
 struct SlotBookRow {
     meeting_id: i64,
-    booker_id: Option<i64>,
+    taker_id: Option<i64>,
 }
 
 /// Book, release or assign a role slot. Any authenticated user may act.
@@ -71,9 +71,9 @@ pub async fn book(
     user: AuthUser,
     Json(req): Json<BookReq>,
 ) -> AppResult<Json<serde_json::Value>> {
-    // Slot structure is user-agnostic; the current booker comes from role_assignment.
+    // Slot structure is user-agnostic; the current assignee comes from role_assignment.
     let slot = sqlx::query_as::<_, SlotBookRow>(
-        "SELECT rs.meeting_id, ra.booker_id \
+        "SELECT rs.meeting_id, ra.taker_id \
          FROM role_slot rs \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          WHERE rs.id = ?",
@@ -99,8 +99,8 @@ pub async fn book(
             return Err(AppError::BadRequest("user does not exist".into()));
         }
         sqlx::query(
-            "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
-             ON DUPLICATE KEY UPDATE booker_id = VALUES(booker_id)",
+            "INSERT INTO role_assignment(role_slot_id, taker_id) VALUES (?, ?) \
+             ON DUPLICATE KEY UPDATE taker_id = VALUES(taker_id)",
         )
         .bind(req.role_slot_id)
         .bind(target)
@@ -112,15 +112,15 @@ pub async fn book(
             .bind(target)
             .execute(&state.pool)
             .await?;
-        return Ok(Json(json!({ "ok": true, "booker_id": target })));
+        return Ok(Json(json!({ "ok": true, "taker_id": target })));
     }
 
     if req.cancel {
-        match slot.booker_id {
+        match slot.taker_id {
             None => {} // already open — idempotent
             Some(_) => {
-                // Release the booking; keep the row so a taker_id (if any) survives.
-                sqlx::query("UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?")
+                // Release the assignment; keep the row structure clean.
+                sqlx::query("UPDATE role_assignment SET taker_id = NULL WHERE role_slot_id = ?")
                     .bind(req.role_slot_id)
                     .execute(&state.pool)
                     .await?;
@@ -131,21 +131,21 @@ pub async fn book(
                     .await?;
             }
         }
-        return Ok(Json(json!({ "ok": true, "booker_id": null })));
+        return Ok(Json(json!({ "ok": true, "taker_id": null })));
     }
 
     // --- Self-booking ---
     let me = user.id;
-    match slot.booker_id {
-        Some(booker) if booker == me => {} // already yours — idempotent
+    match slot.taker_id {
+        Some(taker) if taker == me => {} // already yours — idempotent
         Some(_) => return Err(AppError::Conflict("role already taken".into())),
         None => {
             // Upsert the assignment; only claim if still open (guards against a race).
             // MySQL reports 0 affected rows when the duplicate row is already booked,
             // and 2 when an open row is claimed by the conditional update.
             let affected = sqlx::query(
-                "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
-                 ON DUPLICATE KEY UPDATE booker_id = IF(booker_id IS NULL, VALUES(booker_id), booker_id)",
+                "INSERT INTO role_assignment(role_slot_id, taker_id) VALUES (?, ?) \
+                 ON DUPLICATE KEY UPDATE taker_id = IF(taker_id IS NULL, VALUES(taker_id), taker_id)",
             )
             .bind(req.role_slot_id)
             .bind(me)
@@ -157,7 +157,7 @@ pub async fn book(
             }
         }
     }
-    Ok(Json(json!({ "ok": true, "booker_id": me })))
+    Ok(Json(json!({ "ok": true, "taker_id": me })))
 }
 
 // ---------------------------------------------------------------------------
@@ -182,7 +182,7 @@ pub struct SpeechUpdateReq {
 #[derive(FromRow)]
 struct SpeechSlotRow {
     meeting_id: i64,
-    booker_id: Option<i64>,
+    taker_id: Option<i64>,
 }
 
 /// `PUT /api/meetings/:id/speech` — upsert a prepared speech's details. A speech is always
@@ -194,7 +194,7 @@ pub async fn update_speech(
     Json(req): Json<SpeechUpdateReq>,
 ) -> AppResult<Json<MeetingResponse>> {
     let slot = sqlx::query_as::<_, SpeechSlotRow>(
-        "SELECT rs.meeting_id, ra.booker_id \
+        "SELECT rs.meeting_id, ra.taker_id \
          FROM role_slot rs \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          WHERE rs.id = ?",
@@ -209,7 +209,7 @@ pub async fn update_speech(
             "role_slot does not belong to meeting".into(),
         ));
     }
-    let speaker_id = slot.booker_id.ok_or_else(|| {
+    let speaker_id = slot.taker_id.ok_or_else(|| {
         AppError::BadRequest("assign a speaker before adding speech details".into())
     })?;
 

@@ -209,7 +209,7 @@ pub struct MeetingIn {
 }
 
 /// Upsert a whole meeting document. Creates when `meeting_id` is absent, otherwise
-/// overwrites structure. Role slots matched by `role_slot_id` keep their `booker_id`,
+/// overwrites structure. Role slots matched by `role_slot_id` keep their `taker_id`,
 /// so saving/publishing never clobbers bookings.
 pub async fn upsert_meeting(
     State(state): State<AppState>,
@@ -574,11 +574,11 @@ pub async fn update_meeting_info(
     meeting_dto_response(&state.pool, meeting_id).await
 }
 
-// --- Roles section: reconcile the meeting's role_slot list (+ bookers) ---------------
+// --- Roles section: reconcile the meeting's role_slot list (+ assignees) ---------------
 
 #[derive(Deserialize)]
 pub struct SlotBatchIn {
-    /// Present for an existing slot (preserves its booking); absent for a new one.
+    /// Present for an existing slot (preserves its assignment); absent for a new one.
     pub role_slot_id: Option<i64>,
     pub role_id: Option<i64>,
     pub role_name: Option<String>,
@@ -586,9 +586,9 @@ pub struct SlotBatchIn {
     pub label: Option<String>,
     #[serde(default)]
     pub is_optional: bool,
-    /// Assigned booker; `null` clears the booking. Reconciled into `role_assignment`.
+    /// Assigned taker; `null` clears the assignment. Reconciled into `role_assignment`.
     #[serde(default)]
-    pub booker_id: Option<i64>,
+    pub taker_id: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -599,7 +599,7 @@ pub struct SlotsIn {
 
 /// `PUT /api/meetings/:id/slots` — replace the whole role-slot list in one batch.
 /// Existing slots are matched by `role_slot_id` (so bookings survive), new slots are
-/// inserted, removed slots deleted, and each slot's `booker_id` is reconciled into
+/// inserted, removed slots deleted, and each slot's `taker_id` is reconciled into
 /// `role_assignment`.
 pub async fn put_slots(
     State(state): State<AppState>,
@@ -687,34 +687,34 @@ pub async fn put_slots(
         };
         keep.insert(slot_id);
 
-        // Reconcile the booker into role_assignment.
-        match slot.booker_id {
-            Some(booker) => {
+        // Reconcile the taker into role_assignment.
+        match slot.taker_id {
+            Some(taker) => {
                 let user_exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user WHERE id = ?")
-                    .bind(booker)
+                    .bind(taker)
                     .fetch_one(&mut *tx)
                     .await?;
                 if user_exists == 0 {
-                    return Err(AppError::BadRequest("booker does not exist".into()));
+                    return Err(AppError::BadRequest("taker does not exist".into()));
                 }
                 sqlx::query(
-                    "INSERT INTO role_assignment(role_slot_id, booker_id) VALUES (?, ?) \
-                     ON DUPLICATE KEY UPDATE booker_id = VALUES(booker_id)",
+                    "INSERT INTO role_assignment(role_slot_id, taker_id) VALUES (?, ?) \
+                     ON DUPLICATE KEY UPDATE taker_id = VALUES(taker_id)",
                 )
                 .bind(slot_id)
-                .bind(booker)
+                .bind(taker)
                 .execute(&mut *tx)
                 .await?;
                 // A different speaker invalidates any speech details already on the slot.
                 sqlx::query("DELETE FROM speech WHERE role_slot_id = ? AND speaker_id <> ?")
                     .bind(slot_id)
-                    .bind(booker)
+                    .bind(taker)
                     .execute(&mut *tx)
                     .await?;
             }
             None => {
-                // Clear any booking but keep the row so a taker_id (if any) survives.
-                sqlx::query("UPDATE role_assignment SET booker_id = NULL WHERE role_slot_id = ?")
+                // Clear any assignment; the row structure stays clean.
+                sqlx::query("UPDATE role_assignment SET taker_id = NULL WHERE role_slot_id = ?")
                     .bind(slot_id)
                     .execute(&mut *tx)
                     .await?;

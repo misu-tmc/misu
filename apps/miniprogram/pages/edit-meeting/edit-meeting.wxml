@@ -59,7 +59,7 @@
           <view class="drow-main" data-type="role" data-index="{{index}}" bindtouchstart="onSwipeStart" bindtouchend="onSwipeEnd">
             <view class="row-head" data-index="{{index}}" bindtap="toggleSlot">
               <text class="row-name">{{slot.role_name || slot.display || 'New role'}}</text>
-              <text class="row-sub muted">Assignee: {{slot.booker_name || '—'}}</text>
+              <text class="row-sub muted">Assignee: {{slot.taker_name || '—'}}</text>
             </view>
             <view wx:if="{{slot.open}}" class="row-body" catchtap="noop">
               <view class="field">
@@ -73,7 +73,7 @@
               </view>
               <view class="field">
                 <text class="field-label muted">Assignee</text>
-                <picker range="{{userNames}}" data-index="{{index}}" bindchange="onSlotBookerPick"><view class="picker-value">{{slot.booker_name || 'Unassigned'}}</view></picker>
+                <picker range="{{userNames}}" data-index="{{index}}" bindchange="onSlotTakerPick"><view class="picker-value">{{slot.taker_name || 'Unassigned'}}</view></picker>
               </view>
             </view>
           </view>
@@ -134,7 +134,7 @@
         >
           <view class="speech-head">
             <text class="et-title">{{speech.display}}</text>
-            <text class="muted">{{speech.booker_name || 'Unassigned'}}</text>
+            <text class="muted">{{speech.taker_name || 'Unassigned'}}</text>
           </view>
           <view class="field"><text class="field-label muted">Title</text><input class="field-input" value="{{speech.title}}" data-index="{{index}}" data-field="title" bindinput="onSpeechInput" /></view>
           <view class="field"><text class="field-label muted">Pathway</text><input class="field-input" value="{{speech.pathway}}" data-index="{{index}}" data-field="pathway" bindinput="onSpeechInput" /></view>

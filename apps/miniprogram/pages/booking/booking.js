@@ -47,7 +47,7 @@ Page({
       const cards = meetings.map((m, index) => {
         const dateLabel = shortDate(m.date);
         const slots = (m.role_slots || []).map((s) => {
-          const mine = s.booker_id === me;
+          const mine = s.taker_id === me;
           if (mine) {
             const target = prepTarget(s.role_name);
             bookings.push({
@@ -64,8 +64,8 @@ Page({
           return {
             id: s.id,
             label: s.label,
-            takerName: s.booker_name,
-            taken: s.booker_id !== null,
+            takerName: s.taker_name,
+            taken: s.taker_id !== null,
             mine
           };
         });

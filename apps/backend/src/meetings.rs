@@ -37,9 +37,8 @@ struct RoleTakerRow {
     label: Option<String>,
     is_optional: i64,
     position: i64,
-    booker_id: Option<i64>,
-    booker_name: Option<String>,
     taker_id: Option<i64>,
+    taker_name: Option<String>,
     speech_id: Option<i64>,
     speech_title: Option<String>,
     speech_pathway: Option<String>,
@@ -76,9 +75,8 @@ fn role_taker_response(
         custom_label,
         position: row.position,
         is_optional: row.is_optional != 0,
-        booker_id: row.booker_id,
-        booker_name: row.booker_name,
         taker_id: row.taker_id,
+        taker_name: row.taker_name,
         speech,
     }
 }
@@ -170,14 +168,14 @@ async fn load_meeting(pool: &MySqlPool, meeting: MeetingRow) -> AppResult<Meetin
     let role_taker_rows = sqlx::query_as::<_, RoleTakerRow>(
         "SELECT rs.id, rs.role_id, r.name AS role_name, rs.label, rs.is_optional, \
             rs.position, \
-            ra.booker_id, booker.display_name AS booker_name, ra.taker_id, \
+            ra.taker_id, taker.display_name AS taker_name, \
             sp.id AS speech_id, sp.title AS speech_title, sp.pathway AS speech_pathway, \
             sp.level AS speech_level, sp.purpose AS speech_purpose, \
             sp.description AS speech_description, sp.updated_at AS speech_updated_at \
          FROM role_slot rs \
          JOIN `role` r ON r.id = rs.role_id \
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
-         LEFT JOIN user booker ON booker.id = ra.booker_id \
+         LEFT JOIN user taker ON taker.id = ra.taker_id \
          LEFT JOIN speech sp ON sp.role_slot_id = rs.id \
          WHERE rs.meeting_id = ? ORDER BY rs.position, rs.id",
     )

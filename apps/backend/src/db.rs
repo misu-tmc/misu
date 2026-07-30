@@ -66,9 +66,14 @@ async fn connect_with_retry(options: MySqlConnectOptions) -> anyhow::Result<MySq
         attempt += 1;
         match MySqlPoolOptions::new()
             .max_connections(5)
-            .min_connections(0)
+            // Keep at least one connection warm so requests don't pay the full
+            // connect + `SET sql_mode` init round-trip (~1s on a remote DB) each time.
+            .min_connections(1)
             .acquire_timeout(Duration::from_secs(30))
-            .idle_timeout(Duration::from_secs(60))
+            .idle_timeout(Duration::from_secs(600))
+            .max_lifetime(Duration::from_secs(1800))
+            // Skip the per-checkout COM_PING; it adds a full round-trip to every query.
+            .test_before_acquire(false)
             .connect_with(options.clone())
             .await
         {

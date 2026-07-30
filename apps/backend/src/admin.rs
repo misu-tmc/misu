@@ -12,7 +12,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, MySqlConnection};
+use sqlx::{FromRow, MySqlConnection, QueryBuilder};
 use std::collections::HashSet;
 
 use crate::auth::{AuthUser, MaybeAuthUser};
@@ -396,26 +396,33 @@ pub async fn upsert_meeting(
         }
     }
 
-    // Re-insert sessions, resolving role_slot_index to actual slot ids.
-    for s in &input.sessions {
-        let role_slot_id = match s.role_slot_index {
-            Some(i) => Some(*index_to_id.get(i).ok_or_else(|| {
-                AppError::BadRequest("session references an unknown role slot".into())
-            })?),
-            None => None,
-        };
-        sqlx::query(
+    // Re-insert sessions, resolving role_slot_index to actual slot ids. Batched into a
+    // single multi-row INSERT so a whole agenda is one round-trip, not one per session.
+    if !input.sessions.is_empty() {
+        let mut resolved: Vec<(&SessionIn, Option<i64>)> =
+            Vec::with_capacity(input.sessions.len());
+        for s in &input.sessions {
+            let role_slot_id = match s.role_slot_index {
+                Some(i) => Some(*index_to_id.get(i).ok_or_else(|| {
+                    AppError::BadRequest("session references an unknown role slot".into())
+                })?),
+                None => None,
+            };
+            resolved.push((s, role_slot_id));
+        }
+        let mut qb = QueryBuilder::new(
             "INSERT INTO `session`(meeting_id, position, group_label, name, duration_minutes, \
-             role_slot_id) VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(meeting_id)
-        .bind(s.position)
-        .bind(s.group_label.trim())
-        .bind(s.name.trim())
-        .bind(s.duration_minutes)
-        .bind(role_slot_id)
-        .execute(&mut *tx)
-        .await?;
+             role_slot_id) ",
+        );
+        qb.push_values(resolved, |mut b, (s, role_slot_id)| {
+            b.push_bind(meeting_id)
+                .push_bind(s.position)
+                .push_bind(s.group_label.trim())
+                .push_bind(s.name.trim())
+                .push_bind(s.duration_minutes)
+                .push_bind(role_slot_id);
+        });
+        qb.build().execute(&mut *tx).await?;
     }
 
     tx.commit().await?;
@@ -792,7 +799,7 @@ pub async fn put_sessions(
         .execute(&mut *tx)
         .await?;
 
-    for (idx, s) in input.sessions.iter().enumerate() {
+    for s in &input.sessions {
         if s.name.trim().is_empty() {
             return Err(AppError::BadRequest("each session needs a name".into()));
         }
@@ -803,18 +810,23 @@ pub async fn put_sessions(
                 ));
             }
         }
-        sqlx::query(
+    }
+
+    // One multi-row INSERT for the whole agenda instead of a round-trip per session.
+    if !input.sessions.is_empty() {
+        let mut qb = QueryBuilder::new(
             "INSERT INTO `session`(meeting_id, position, group_label, name, duration_minutes, \
-             role_slot_id) VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(meeting_id)
-        .bind(idx as i64)
-        .bind(s.group_label.trim())
-        .bind(s.name.trim())
-        .bind(s.duration_minutes)
-        .bind(s.role_slot_id)
-        .execute(&mut *tx)
-        .await?;
+             role_slot_id) ",
+        );
+        qb.push_values(input.sessions.iter().enumerate(), |mut b, (idx, s)| {
+            b.push_bind(meeting_id)
+                .push_bind(idx as i64)
+                .push_bind(s.group_label.trim())
+                .push_bind(s.name.trim())
+                .push_bind(s.duration_minutes)
+                .push_bind(s.role_slot_id);
+        });
+        qb.build().execute(&mut *tx).await?;
     }
 
     tx.commit().await?;

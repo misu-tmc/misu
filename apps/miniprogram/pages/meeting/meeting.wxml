@@ -9,11 +9,22 @@
         <text class="title-line">#{{meeting.number}} · {{meeting.dateLabel}} · {{meeting.timeLabel}}</text>
         <text class="edit-link" bindtap="goEdit">Edit</text>
       </view>
-      <text class="title-sub">{{meeting.theme}} · {{meeting.venue}}</text>
+      <text class="title-sub">{{meeting.venue}}</text>
       <view class="actions">
         <view class="btn {{checkedIn ? 'btn-checked' : 'btn-outline'}}" bindtap="goCheckIn">{{checkedIn ? 'Checked in' : 'Check in'}}</view>
         <view class="btn btn-outline" bindtap="comingSoon">Vote for best</view>
         <view class="btn {{timerMode ? 'btn-timer-on' : 'btn-outline'}}" bindtap="toggleTimerMode">{{timerMode ? 'Timer on' : 'Timer mode'}}</view>
+      </view>
+    </view>
+
+    <view class="card meeting-details">
+      <view class="meeting-detail">
+        <text class="meeting-detail-label">Theme</text>
+        <text class="meeting-detail-value">{{meeting.theme || '—'}}</text>
+      </view>
+      <view class="meeting-detail">
+        <text class="meeting-detail-label">Keyword</text>
+        <text class="meeting-detail-value">{{meeting.keyword || '—'}}</text>
       </view>
     </view>
 

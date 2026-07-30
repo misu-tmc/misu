@@ -59,6 +59,7 @@ Page({
           id: detail.id,
           number: detail.number,
           theme: info.theme,
+          keyword: info.keyword,
           venue: detail.venue,
           dateLabel: shortDate(detail.date),
           timeLabel: `${detail.start_time}–${detail.end_time}`

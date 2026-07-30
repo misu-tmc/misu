@@ -18,6 +18,11 @@
   color: #fff;
 }
 
+.meeting-details { display: flex; gap: 24rpx; }
+.meeting-detail { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.meeting-detail-label { color: #8a8a8f; font-size: 22rpx; font-weight: 600; text-transform: uppercase; letter-spacing: 1rpx; }
+.meeting-detail-value { font-size: 28rpx; overflow-wrap: break-word; }
+
 .agenda-row {
   display: flex;
   align-items: flex-start;

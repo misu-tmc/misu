@@ -1,6 +1,6 @@
 // pages/meeting/meeting.js
 const api = require('../../utils/api.js');
-const { shortDate, buildAgenda, meetingInfo } = require('../../utils/format.js');
+const { shortDate, buildAgenda, buildSpeeches, meetingInfo } = require('../../utils/format.js');
 
 Page({
   data: {
@@ -8,6 +8,9 @@ Page({
     hasMeeting: false,
     meeting: null,
     agenda: [],
+    speeches: [],
+    agendaOpen: true,
+    speechesOpen: false,
     checkedIn: false,
     timerMode: false,
     activeTimerKey: null
@@ -64,7 +67,10 @@ Page({
           dateLabel: shortDate(detail.date),
           timeLabel: `${detail.start_time}–${detail.end_time}`
         },
-        agenda: this.prepareAgenda(buildAgenda(detail))
+        agenda: this.prepareAgenda(buildAgenda(detail)),
+        speeches: buildSpeeches(detail),
+        agendaOpen: true,
+        speechesOpen: false
       });
     } catch (e) {
       console.error(e);
@@ -92,6 +98,14 @@ Page({
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  },
+
+  toggleAgenda() {
+    this.setData({ agendaOpen: !this.data.agendaOpen });
+  },
+
+  toggleSpeeches() {
+    this.setData({ speechesOpen: !this.data.speechesOpen });
   },
 
   clearTimer() {

@@ -29,8 +29,11 @@
     </view>
 
     <!-- Agenda -->
-    <view class="section-title">Agenda</view>
-    <view class="card">
+    <view class="section-header" bindtap="toggleAgenda">
+      <view class="fold-toggle">{{agendaOpen ? '−' : '+'}}</view>
+      <text class="section-title-inline">Agenda</text>
+    </view>
+    <view class="card" wx:if="{{agendaOpen}}">
       <view class="agenda-row {{item.running ? 'running' : ''}}" wx:for="{{agenda}}" wx:key="key">
         <text class="agenda-time">{{item.start}}</text>
         <view class="agenda-main">
@@ -46,6 +49,31 @@
         </view>
       </view>
     </view>
+
+    <!-- Prepared speeches -->
+    <block wx:if="{{speeches.length}}">
+      <view class="section-header" bindtap="toggleSpeeches">
+        <view class="fold-toggle">{{speechesOpen ? '−' : '+'}}</view>
+        <text class="section-title-inline">Speeches</text>
+      </view>
+      <view class="card" wx:if="{{speechesOpen}}">
+        <view class="speech-row" wx:for="{{speeches}}" wx:key="key">
+          <view class="speech-head">
+            <text class="speech-title">{{item.title}}</text>
+            <text wx:if="{{item.speaker}}" class="speech-speaker muted">{{item.speaker}}</text>
+          </view>
+          <text wx:if="{{item.meta}}" class="speech-meta muted">{{item.meta}}</text>
+          <view wx:if="{{item.purpose}}" class="speech-detail">
+            <text class="speech-detail-label muted">Purpose</text>
+            <text class="speech-detail-value">{{item.purpose}}</text>
+          </view>
+          <view wx:if="{{item.description}}" class="speech-detail">
+            <text class="speech-detail-label muted">Description</text>
+            <text class="speech-detail-value">{{item.description}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
   </block>
 
   <view wx:else class="empty">No upcoming meeting yet.</view>

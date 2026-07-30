@@ -55,6 +55,28 @@ function speechMeta(slot) {
   return [data.pathway, level].filter(Boolean).join(' · ');
 }
 
+function buildSpeeches(meeting) {
+  return (meeting.role_slots || [])
+    .filter(isPreparedSpeechSlot)
+    .map((slot) => {
+      const title = speechField(slot, 'title');
+      const pathway = speechField(slot, 'pathway');
+      const level = speechField(slot, 'level');
+      const purpose = speechField(slot, 'purpose');
+      const description = speechField(slot, 'description');
+      return {
+        key: `speech-${slot.id}`,
+        title: title || slot.label || slot.role_name || 'Prepared speech',
+        speaker: slot.taker_name || '',
+        meta: [pathway, level ? `L${level}` : ''].filter(Boolean).join(' · '),
+        purpose,
+        description,
+        hasContent: !!(slot.taker_name || title || pathway || level || purpose || description)
+      };
+    })
+    .filter((speech) => speech.hasContent);
+}
+
 // Drop sessions for untaken optional roles, then compute each remaining session's start
 // time from the meeting start + cumulative durations, inserting BUFFER_MINUTES between
 // sessions (not after the last one). Mirrors the web agenda derivation. Returns sessions
@@ -92,4 +114,4 @@ function buildAgenda(meeting) {
   });
 }
 
-module.exports = { BUFFER_MINUTES, shortDate, buildAgenda, meetingInfo };
+module.exports = { BUFFER_MINUTES, shortDate, buildAgenda, buildSpeeches, meetingInfo };

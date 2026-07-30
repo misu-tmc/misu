@@ -280,6 +280,54 @@ pub async fn update_user(
 }
 
 // ---------------------------------------------------------------------------
+// Check-in (presence only; see design/functionalities/check_in.md)
+// ---------------------------------------------------------------------------
+
+/// `GET /api/meetings/:id/checkin` — whether the current user has checked in.
+pub async fn checkin_status(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(meeting_id): Path<i64>,
+) -> AppResult<Json<serde_json::Value>> {
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM attendance WHERE meeting_id = ? AND user_id = ?",
+    )
+    .bind(meeting_id)
+    .bind(user.id)
+    .fetch_one(&state.pool)
+    .await?;
+    Ok(Json(json!({ "checked_in": count > 0 })))
+}
+
+/// `POST /api/meetings/:id/checkin` — record the current user's attendance (presence only).
+/// Idempotent: re-checking in just refreshes the timestamp. No role is involved.
+pub async fn checkin(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(meeting_id): Path<i64>,
+) -> AppResult<Json<serde_json::Value>> {
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
+        .bind(meeting_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    sqlx::query(
+        "INSERT INTO attendance(meeting_id, user_id, checked_in_at, source) \
+         VALUES (?, ?, UTC_TIMESTAMP(), 'self') \
+         ON DUPLICATE KEY UPDATE checked_in_at = VALUES(checked_in_at)",
+    )
+    .bind(meeting_id)
+    .bind(user.id)
+    .execute(&state.pool)
+    .await?;
+
+    Ok(Json(json!({ "checked_in": true })))
+}
+
+// ---------------------------------------------------------------------------
 // Club info (static for now)
 // ---------------------------------------------------------------------------
 

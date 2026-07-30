@@ -31,7 +31,10 @@ Page({
   async load() {
     const app = getApp();
     if (app.globalData.ready) await app.globalData.ready;
+    // Check-in requires an authenticated user; sign in first if needed.
+    if (!app.globalData.token && app.ensureLogin) await app.ensureLogin();
     if (!app.globalData.token) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
       this.setData({ loading: false });
       return;
     }
@@ -45,14 +48,16 @@ Page({
       this.meetingId = meetingId;
       const detail = await api.meeting(meetingId);
       const me = app.globalData.userId;
-      const saved = wx.getStorageSync(this.storageKey(meetingId, me));
-      const payload = {
-        ...(saved || {}),
+      try {
+        await api.checkin(meetingId);
+      } catch (e) {
+        console.error(e);
+      }
+      wx.setStorageSync(this.storageKey(meetingId, me), {
         meetingId,
         userId: me,
-        confirmedAt: saved && saved.confirmedAt ? saved.confirmedAt : new Date().toISOString()
-      };
-      wx.setStorageSync(this.storageKey(meetingId, me), payload);
+        confirmedAt: new Date().toISOString()
+      });
       app.globalData.checkinMeetingId = detail.id;
       wx.switchTab({ url: '/pages/meeting/meeting' });
     } catch (e) {

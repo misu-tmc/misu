@@ -44,7 +44,13 @@ Page({
       const meetingId = preferred && meetings.some((m) => m.id === preferred) ? preferred : meetings[0].id;
       const detail = await api.meeting(meetingId);
       const info = meetingInfo(detail);
-      const checkedIn = !!wx.getStorageSync(this.storageKey(detail.id, app.globalData.userId));
+      let checkedIn = !!wx.getStorageSync(this.storageKey(detail.id, app.globalData.userId));
+      try {
+        const status = await api.checkinStatus(detail.id);
+        checkedIn = !!status.checked_in;
+      } catch (e) {
+        // Fall back to the optimistic local cache if the status call fails.
+      }
       this.setData({
         loading: false,
         hasMeeting: true,
@@ -99,16 +105,28 @@ Page({
     wx.navigateTo({ url: `/pages/edit-meeting/edit-meeting?id=${this.data.meeting.id}` });
   },
 
-  goCheckIn() {
+  async goCheckIn() {
     if (!this.data.meeting || !this.data.meeting.id) return;
     const app = getApp();
-    wx.setStorageSync(this.storageKey(this.data.meeting.id, app.globalData.userId), {
-      meetingId: this.data.meeting.id,
-      userId: app.globalData.userId,
-      confirmedAt: new Date().toISOString()
-    });
-    this.setData({ checkedIn: true });
-    wx.showToast({ title: 'Checked in', icon: 'success' });
+    // Check-in requires an authenticated user; sign in first if needed.
+    if (!app.globalData.token && app.ensureLogin) await app.ensureLogin();
+    if (!app.globalData.token) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    try {
+      await api.checkin(this.data.meeting.id);
+      wx.setStorageSync(this.storageKey(this.data.meeting.id, app.globalData.userId), {
+        meetingId: this.data.meeting.id,
+        userId: app.globalData.userId,
+        confirmedAt: new Date().toISOString()
+      });
+      this.setData({ checkedIn: true });
+      wx.showToast({ title: 'Checked in', icon: 'success' });
+    } catch (e) {
+      console.error(e);
+      wx.showToast({ title: 'Check-in failed', icon: 'none' });
+    }
   },
 
   toggleTimerMode() {

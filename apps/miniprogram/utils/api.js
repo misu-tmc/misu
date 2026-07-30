@@ -81,6 +81,8 @@ const api = {
       method: 'POST',
       data: { meeting_id: meetingId, role_slot_id: roleSlotId, cancel }
     }),
+  checkinStatus: (meetingId) => request('/api/meetings/' + meetingId + '/checkin'),
+  checkin: (meetingId) => request('/api/meetings/' + meetingId + '/checkin', { method: 'POST' }),
   updateUser: (userId, displayName) =>
     request('/api/users/' + userId, { method: 'POST', data: { display_name: displayName } }),
   clubInfo: () => request('/api/club-info', { auth: false }),

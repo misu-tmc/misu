@@ -55,21 +55,29 @@ function speechMeta(slot) {
   return [data.pathway, level].filter(Boolean).join(' · ');
 }
 
-// Compute each session's start time from the meeting start + cumulative durations,
-// inserting BUFFER_MINUTES between sessions (not after the last one). Mirrors the web
-// derivation. Returns sessions augmented with `start` and `taker` (role taker name).
+// Drop sessions for untaken optional roles, then compute each remaining session's start
+// time from the meeting start + cumulative durations, inserting BUFFER_MINUTES between
+// sessions (not after the last one). Mirrors the web agenda derivation. Returns sessions
+// augmented with `start` and `taker` (role taker name).
 function buildAgenda(meeting) {
-  const sessions = (meeting.sessions || []).slice().sort((a, b) => a.position - b.position);
   const slotById = {};
   (meeting.role_slots || []).forEach((s) => {
     slotById[s.id] = s;
   });
+  const sessions = (meeting.sessions || [])
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .filter((session) => {
+      const slot = session.role_slot_id ? slotById[session.role_slot_id] : null;
+      return !(slot && slot.is_optional && !slot.taker_id);
+    });
   let cursor = toMinutes(meeting.start_time);
   return sessions.map((s, idx) => {
     const start = toHHMM(cursor);
     cursor += s.duration_minutes;
     if (idx < sessions.length - 1) cursor += BUFFER_MINUTES;
     const slot = s.role_slot_id ? slotById[s.role_slot_id] : null;
+    const taker = slot ? (slot.taker_name || '') : 'All';
     return {
       id: s.id,
       start,
@@ -78,7 +86,7 @@ function buildAgenda(meeting) {
       session_name: s.name,
       group_label: s.group_label,
       duration_minutes: s.duration_minutes,
-      taker: slot && slot.taker_name ? slot.taker_name : '',
+      taker,
       prepMeta: speechMeta(slot)
     };
   });

@@ -76,6 +76,9 @@ unset. Sign in at `/login`; the session is an HttpOnly cookie.
 | GET  | `/api/meetings/:id` | Session | one meeting's detail (drafts included; shared with the editor) |
 | POST | `/api/book` | Session | `{ meeting_id, role_slot_id, user_id?, cancel? }` book/release a role; `user_id` assigns on behalf |
 | POST | `/api/users/:id` | Session | `{ display_name }` update profile (self) |
+| GET | `/api/meetings/:id/attendees` | Session | list users checked into the meeting |
+| POST | `/api/meetings/:id/attendees` | Session | create an identity-less walk-in user and check them in |
+| PUT | `/api/meetings/:id/table-topics` | Session | synchronize checked-in Table Topics participants and assignments |
 | GET  | `/api/club-info` | — | static club introduction |
 
 The acting user is always taken from the session (bearer token or `misu_session` cookie),

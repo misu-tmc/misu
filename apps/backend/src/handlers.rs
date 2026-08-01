@@ -421,7 +421,8 @@ pub async fn vote_state(
          LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          LEFT JOIN user u ON u.id = ra.taker_id \
          WHERE rs.meeting_id = ? AND COALESCE(r.voting_group, '') <> '' \
-                     AND ra.taker_id IS NOT NULL \
+           AND (ra.taker_id IS NOT NULL \
+                OR (r.is_bookable = 0 AND NULLIF(TRIM(rs.label), '') IS NOT NULL)) \
          ORDER BY r.voting_group, rs.position, rs.id",
     )
     .bind(meeting_id)
@@ -495,11 +496,12 @@ pub async fn vote_result(
             COUNT(mv.id) AS votes \
          FROM role_slot rs \
          JOIN `role` r ON r.id = rs.role_id \
-         JOIN role_assignment ra ON ra.role_slot_id = rs.id \
+         LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
          LEFT JOIN user u ON u.id = ra.taker_id \
          LEFT JOIN meeting_vote mv ON mv.meeting_id = rs.meeting_id AND mv.role_slot_id = rs.id \
          WHERE rs.meeting_id = ? AND COALESCE(r.voting_group, '') <> '' \
-           AND ra.taker_id IS NOT NULL \
+           AND (ra.taker_id IS NOT NULL \
+            OR (r.is_bookable = 0 AND NULLIF(TRIM(rs.label), '') IS NOT NULL)) \
          GROUP BY r.voting_group, rs.id, r.name, candidate_name, rs.position \
          ORDER BY r.voting_group, votes DESC, rs.position, rs.id",
     )
@@ -569,7 +571,8 @@ pub async fn submit_votes(
              JOIN `role` r ON r.id = rs.role_id \
              LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
              WHERE rs.id = ? AND rs.meeting_id = ? AND r.voting_group = ? \
-             AND ra.taker_id IS NOT NULL",
+                             AND (ra.taker_id IS NOT NULL \
+                                        OR (r.is_bookable = 0 AND NULLIF(TRIM(rs.label), '') IS NOT NULL))",
         )
         .bind(b.role_slot_id)
         .bind(meeting_id)

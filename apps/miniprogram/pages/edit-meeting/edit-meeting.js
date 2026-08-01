@@ -9,6 +9,14 @@ const { shortDate } = require('../../utils/format.js');
 
 const BUFFER_MINUTES = 1;
 const NONE_LABEL = '— None —';
+const ATTENDEE_PLACEHOLDER = 'Select checked-in participant';
+const CREATE_WALK_IN_LABEL = '+ Create one';
+
+function attendeePickerOptions(users) {
+  return [ATTENDEE_PLACEHOLDER]
+    .concat((users || []).map((u) => u.display_name))
+    .concat([CREATE_WALK_IN_LABEL]);
+}
 
 function isPreparedSpeechRole(roleName) {
   const role = (roleName || '').toLowerCase();
@@ -56,6 +64,8 @@ Page({
     venueNames: [],
     userCatalog: [],
     userNames: [NONE_LABEL],
+    attendeeCatalog: [],
+    attendeeNames: attendeePickerOptions([]),
     slotPickerLabels: [NONE_LABEL],
     // Which row currently has its swipe actions revealed: { type:'role'|'session', index }.
     swipe: { type: '', index: -1 }
@@ -102,14 +112,15 @@ Page({
         }
         meetingId = list[0].id;
       }
-      const [detail, roles, venues, users] = await Promise.all([
+      const [detail, roles, venues, users, attendees] = await Promise.all([
         api.meeting(meetingId),
         api.roles().catch(() => []),
         api.venues().catch(() => []),
-        api.users().catch(() => [])
+        api.users().catch(() => []),
+        api.attendees(meetingId)
       ]);
       this.meetingId = meetingId;
-      this.applyMeeting(detail, roles, venues, users);
+      this.applyMeeting(detail, roles, venues, users, attendees);
     } catch (e) {
       console.error(e);
       wx.showToast({ title: 'Load failed', icon: 'none' });
@@ -119,10 +130,13 @@ Page({
 
   // Hydrate the page from a meeting DTO. Catalogs are optional; when omitted the
   // current catalogs are kept (used after a section save, which returns only the meeting).
-  applyMeeting(detail, roles, venues, users) {
-    const roleCatalog = roles || this.data.roleCatalog;
+  applyMeeting(detail, roles, venues, users, attendees) {
+    const roleCatalog = roles
+      ? roles.filter((role) => role.is_bookable !== false)
+      : this.data.roleCatalog;
     const venueCatalog = venues || this.data.venueCatalog;
     const userCatalog = users || this.data.userCatalog;
+    const attendeeCatalog = attendees || this.data.attendeeCatalog;
 
     const allSlots = (detail.role_slots || []).map((s) => ({
       role_slot_id: s.id,
@@ -142,7 +156,22 @@ Page({
     const slots = allSlots.filter((s) => s.is_bookable);
     const tableTopics = allSlots
       .filter((s) => !s.is_bookable)
-      .map((s) => ({ role_slot_id: s.role_slot_id, name: s.label || s.taker_name || '' }));
+      .map((s) => {
+        const attendeePosition = s.taker_id
+          ? attendeeCatalog.findIndex((u) => u.id === s.taker_id)
+          : -1;
+        const hasCheckedInUser = attendeePosition >= 0;
+        const attendeeIndex = hasCheckedInUser ? attendeePosition + 1 : 0;
+        const legacyName = hasCheckedInUser ? '' : (s.taker_name || s.label || '');
+        return {
+          role_slot_id: s.role_slot_id,
+          user_id: hasCheckedInUser ? s.taker_id : null,
+          name: s.taker_name || s.label || '',
+          legacy_name: legacyName,
+          attendee_index: attendeeIndex,
+          needs_mapping: !hasCheckedInUser
+        };
+      });
 
     const speeches = allSlots
       .filter((s) => isPreparedSpeechRole(s.role_name))
@@ -200,6 +229,8 @@ Page({
       venueNames: venueCatalog.map((v) => v.name),
       userCatalog,
       userNames: [NONE_LABEL].concat(userCatalog.map((u) => u.display_name)),
+      attendeeCatalog,
+      attendeeNames: attendeePickerOptions(attendeeCatalog),
       slots,
       speeches,
       sessions: this.withStarts(sessions, detail.start_time, slots),
@@ -237,7 +268,13 @@ Page({
     this.setData({ saving: true });
     return promise
       .then((detail) => {
-        this.applyMeeting(detail, this.data.roleCatalog, this.data.venueCatalog, this.data.userCatalog);
+        this.applyMeeting(
+          detail,
+          this.data.roleCatalog,
+          this.data.venueCatalog,
+          this.data.userCatalog,
+          this.data.attendeeCatalog
+        );
         wx.showToast({ title: 'Saved', icon: 'success' });
       })
       .catch((err) => wx.showToast({ title: (err && err.error) || 'Save failed', icon: 'none' }))
@@ -545,16 +582,98 @@ Page({
   },
 
   // --- Table Topics -----------------------------------------------------------
-  onTopicInput(e) {
+  onTopicPick(e) {
     const i = e.currentTarget.dataset.index;
+    const attendeeIndex = parseInt(e.detail.value, 10);
+    if (attendeeIndex === this.data.attendeeCatalog.length + 1) {
+      this.promptWalkIn(i);
+      return;
+    }
     const list = this.data.tableTopics.slice();
-    list[i] = Object.assign({}, list[i], { name: e.detail.value });
+    const current = list[i];
+    if (!attendeeIndex) {
+      list[i] = Object.assign({}, current, {
+        user_id: null,
+        name: current.legacy_name || '',
+        attendee_index: 0,
+        needs_mapping: true
+      });
+    } else {
+      const attendee = this.data.attendeeCatalog[attendeeIndex - 1];
+      if (!attendee) return;
+      list[i] = Object.assign({}, current, {
+        user_id: attendee.id,
+        name: attendee.display_name,
+        attendee_index: attendeeIndex,
+        needs_mapping: false
+      });
+    }
     this.setData({ tableTopics: list });
   },
   addTopic() {
     const list = this.data.tableTopics.slice();
-    list.push({ role_slot_id: null, name: '' });
+    list.push({
+      role_slot_id: null,
+      user_id: null,
+      name: '',
+      legacy_name: '',
+      attendee_index: 0,
+      needs_mapping: true
+    });
     this.setData({ tableTopics: list });
+  },
+  addWalkIn(e) {
+    const rawIndex = e && e.currentTarget ? e.currentTarget.dataset.index : undefined;
+    const replaceIndex = rawIndex === undefined ? -1 : Number(rawIndex);
+    this.promptWalkIn(replaceIndex);
+  },
+  promptWalkIn(replaceIndex) {
+    const current = replaceIndex >= 0 ? this.data.tableTopics[replaceIndex] : null;
+    wx.showModal({
+      title: 'Add walk-in',
+      content: '',
+      editable: true,
+      placeholderText: (current && current.name) || 'Participant name',
+      confirmText: 'Create',
+      success: (res) => {
+        if (!res.confirm) return;
+        const name = (res.content || '').trim();
+        if (!name) {
+          wx.showToast({ title: 'Name is required', icon: 'none' });
+          return;
+        }
+        this.setData({ saving: true });
+        api.createWalkIn(this.meetingId, name)
+          .then((attendee) => {
+            const attendeeCatalog = this.data.attendeeCatalog.concat([attendee]);
+            const tableTopics = this.data.tableTopics.slice();
+            const participant = {
+              role_slot_id: current ? current.role_slot_id : null,
+              user_id: attendee.id,
+              name: attendee.display_name,
+              legacy_name: '',
+              attendee_index: attendeeCatalog.length,
+              needs_mapping: false
+            };
+            if (replaceIndex >= 0) {
+              tableTopics[replaceIndex] = participant;
+            } else {
+              tableTopics.push(participant);
+            }
+            this.setData({
+              attendeeCatalog,
+              attendeeNames: attendeePickerOptions(attendeeCatalog),
+              tableTopics
+            });
+            wx.showToast({ title: 'Walk-in checked in', icon: 'success' });
+          })
+          .catch((err) => wx.showToast({
+            title: (err && err.error) || 'Could not add walk-in',
+            icon: 'none'
+          }))
+          .finally(() => this.setData({ saving: false }));
+      }
+    });
   },
   deleteTopic(e) {
     const i = e.currentTarget.dataset.index;
@@ -563,9 +682,23 @@ Page({
     this.setData({ tableTopics: list });
   },
   saveTableTopics() {
-    const names = this.data.tableTopics
-      .map((p) => (p.name || '').trim())
-      .filter(Boolean);
-    this.persist(api.saveTableTopics(this.meetingId, names));
+    const participants = [];
+    const seenUsers = {};
+    for (const participant of this.data.tableTopics) {
+      if (!participant.user_id) {
+        wx.showToast({ title: 'Select or create every participant', icon: 'none' });
+        return;
+      }
+      if (seenUsers[participant.user_id]) {
+        wx.showToast({ title: 'A participant was added twice', icon: 'none' });
+        return;
+      }
+      seenUsers[participant.user_id] = true;
+      participants.push({
+        role_slot_id: participant.role_slot_id || null,
+        user_id: participant.user_id
+      });
+    }
+    this.persist(api.saveTableTopics(this.meetingId, participants));
   }
 });

@@ -644,7 +644,20 @@ pub async fn put_slots(
     let mut role_group_updates: HashMap<i64, String> = HashMap::new();
     for slot in &input.slots {
         let role_id = match slot.role_id {
-            Some(id) => id,
+            Some(id) => {
+                let is_bookable: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) FROM `role` WHERE id = ? AND is_bookable = 1",
+                )
+                .bind(id)
+                .fetch_one(&mut *tx)
+                .await?;
+                if is_bookable == 0 {
+                    return Err(AppError::BadRequest(
+                        "the Roles section only accepts bookable roles".into(),
+                    ));
+                }
+                id
+            }
             None => {
                 let name = slot
                     .role_name
@@ -690,11 +703,14 @@ pub async fn put_slots(
             .await?;
     }
 
-    let existing_slots: Vec<i64> =
-        sqlx::query_scalar("SELECT id FROM role_slot WHERE meeting_id = ?")
-            .bind(meeting_id)
-            .fetch_all(&mut *tx)
-            .await?;
+    let existing_slots: Vec<i64> = sqlx::query_scalar(
+        "SELECT rs.id FROM role_slot rs \
+         JOIN `role` r ON r.id = rs.role_id \
+         WHERE rs.meeting_id = ? AND r.is_bookable = 1",
+    )
+    .bind(meeting_id)
+    .fetch_all(&mut *tx)
+    .await?;
     let existing_set: HashSet<i64> = existing_slots.iter().copied().collect();
 
     let mut keep: HashSet<i64> = HashSet::new();
@@ -975,13 +991,7 @@ pub async fn create_role(
 // Users
 // ---------------------------------------------------------------------------
 
-#[derive(FromRow)]
-struct UserRow {
-    id: i64,
-    display_name: String,
-}
-
-#[derive(Serialize)]
+#[derive(FromRow, Serialize)]
 pub struct UserRowDto {
     pub id: i64,
     pub display_name: String,
@@ -991,19 +1001,12 @@ pub async fn list_users(
     State(state): State<AppState>,
     _user: AuthUser,
 ) -> AppResult<Json<Vec<UserRowDto>>> {
-    let rows =
-        sqlx::query_as::<_, UserRow>("SELECT u.id, u.display_name FROM user u ORDER BY u.id")
-            .fetch_all(&state.pool)
-            .await?;
-
-    Ok(Json(
-        rows.into_iter()
-            .map(|r| UserRowDto {
-                id: r.id,
-                display_name: r.display_name,
-            })
-            .collect(),
-    ))
+    let rows = sqlx::query_as::<_, UserRowDto>(
+        "SELECT u.id, u.display_name FROM user u ORDER BY u.id",
+    )
+    .fetch_all(&state.pool)
+    .await?;
+    Ok(Json(rows))
 }
 
 #[derive(Deserialize)]
@@ -1035,22 +1038,101 @@ pub async fn create_user(
 }
 
 // ---------------------------------------------------------------------------
-// Table Topics section: replace all non-bookable role slots for a meeting
+// Meeting attendees
+// ---------------------------------------------------------------------------
+
+/// Checked-in users available for meeting-specific assignments.
+pub async fn list_attendees(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+) -> AppResult<Json<Vec<UserRowDto>>> {
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
+        .bind(meeting_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    let attendees = sqlx::query_as::<_, UserRowDto>(
+        "SELECT u.id, u.display_name \
+         FROM attendance a \
+         JOIN user u ON u.id = a.user_id \
+         WHERE a.meeting_id = ? \
+         ORDER BY a.checked_in_at, a.id",
+    )
+    .bind(meeting_id)
+    .fetch_all(&state.pool)
+    .await?;
+    Ok(Json(attendees))
+}
+
+/// Create an identity-less walk-in user and check them into this meeting.
+pub async fn create_walk_in(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Path(meeting_id): Path<i64>,
+    Json(input): Json<NewUserIn>,
+) -> AppResult<Json<UserRowDto>> {
+    let name = input.display_name.trim();
+    if name.is_empty() {
+        return Err(AppError::BadRequest("display_name is required".into()));
+    }
+
+    let mut tx = state.pool.begin().await?;
+    let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting WHERE id = ?")
+        .bind(meeting_id)
+        .fetch_one(&mut *tx)
+        .await?;
+    if exists == 0 {
+        return Err(AppError::NotFound);
+    }
+
+    let user_id = sqlx::query("INSERT INTO user(display_name) VALUES (?)")
+        .bind(name)
+        .execute(&mut *tx)
+        .await?
+        .last_insert_id() as i64;
+    sqlx::query(
+        "INSERT INTO attendance(meeting_id, user_id, checked_in_at, source) \
+         VALUES (?, ?, UTC_TIMESTAMP(), 'admin')",
+    )
+    .bind(meeting_id)
+    .bind(user_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+
+    Ok(Json(UserRowDto {
+        id: user_id,
+        display_name: name.to_string(),
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// Table Topics section: checked-in users assigned to non-bookable role slots
 // ---------------------------------------------------------------------------
 
 #[derive(Deserialize)]
-pub struct TableTopicsIn {
-    /// Ordered list of participant names.
+pub struct TableTopicParticipantIn {
     #[serde(default)]
-    pub participants: Vec<String>,
+    pub role_slot_id: Option<i64>,
+    pub user_id: i64,
+}
+
+#[derive(Deserialize)]
+pub struct TableTopicsIn {
+    /// Ordered list of checked-in users and their stable slots, when already saved.
+    #[serde(default)]
+    pub participants: Vec<TableTopicParticipantIn>,
 }
 
 const TABLE_TOPICS_SPEAKER_ROLE: &str = "Table Topics Speaker";
 
 /// `PUT /api/meetings/:id/table-topics`
-/// Replaces all non-bookable role slots (Table Topics participants) for the meeting.
-/// Each participant is stored as a role_slot with `role.is_bookable = 0` and the
-/// participant name in `role_slot.label`.
+/// Synchronizes non-bookable Table Topics slots while preserving existing slot IDs.
+/// Every participant must be checked in and is stored as a role assignment.
 pub async fn put_table_topics(
     State(state): State<AppState>,
     _user: AuthUser,
@@ -1080,7 +1162,52 @@ pub async fn put_table_topics(
             .fetch_one(&mut *tx)
             .await?;
 
-    // Delete existing non-bookable slots for this meeting (and their assignments).
+    let mut seen_users: HashSet<i64> = HashSet::new();
+    let mut seen_slots: HashSet<i64> = HashSet::new();
+    for participant in &input.participants {
+        if !seen_users.insert(participant.user_id) {
+            return Err(AppError::BadRequest(
+                "a Table Topics participant can only be added once".into(),
+            ));
+        }
+        let checked_in: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM attendance WHERE meeting_id = ? AND user_id = ?",
+        )
+        .bind(meeting_id)
+        .bind(participant.user_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if checked_in == 0 {
+            return Err(AppError::BadRequest(
+                "all Table Topics participants must be checked in".into(),
+            ));
+        }
+
+        if let Some(slot_id) = participant.role_slot_id {
+            if !seen_slots.insert(slot_id) {
+                return Err(AppError::BadRequest(
+                    "a Table Topics role slot can only be used once".into(),
+                ));
+            }
+            let valid_slot: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM role_slot rs \
+                 JOIN `role` r ON r.id = rs.role_id \
+                 WHERE rs.id = ? AND rs.meeting_id = ? AND r.is_bookable = 0",
+            )
+            .bind(slot_id)
+            .bind(meeting_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            if valid_slot == 0 {
+                return Err(AppError::BadRequest(
+                    "Table Topics role slot does not belong to this meeting".into(),
+                ));
+            }
+        }
+    }
+
+    // Track current slots so removed participants can be deleted after retained slots
+    // are updated. Votes attached to retained slots therefore keep stable references.
     let old_ids: Vec<i64> =
         sqlx::query_scalar(
             "SELECT rs.id FROM role_slot rs \
@@ -1091,18 +1218,6 @@ pub async fn put_table_topics(
         .fetch_all(&mut *tx)
         .await?;
 
-    for old_id in &old_ids {
-        sqlx::query("DELETE FROM role_assignment WHERE role_slot_id = ?")
-            .bind(old_id)
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query("DELETE FROM role_slot WHERE id = ?")
-            .bind(old_id)
-            .execute(&mut *tx)
-            .await?;
-    }
-
-    // Insert new slots, one per participant name.
     // Get current max position for bookable slots so TT slots follow them.
     let base_position: i64 = sqlx::query_scalar(
         "SELECT COALESCE(MAX(rs.position), -1) FROM role_slot rs \
@@ -1113,22 +1228,72 @@ pub async fn put_table_topics(
     .fetch_one(&mut *tx)
     .await?;
 
-    for (idx, name) in input.participants.iter().enumerate() {
-        let name = name.trim();
-        if name.is_empty() {
-            continue;
-        }
+    let mut keep_ids: HashSet<i64> = HashSet::new();
+    for (idx, participant) in input.participants.iter().enumerate() {
         let position = base_position + 1 + idx as i64;
+        let slot_id = if let Some(slot_id) = participant.role_slot_id {
+            let old_taker: Option<i64> = sqlx::query_scalar(
+                "SELECT ra.taker_id FROM role_slot rs \
+                 LEFT JOIN role_assignment ra ON ra.role_slot_id = rs.id \
+                 WHERE rs.id = ?",
+            )
+            .bind(slot_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            if old_taker != Some(participant.user_id) {
+                // Never carry votes over when an existing slot changes candidate.
+                sqlx::query("DELETE FROM meeting_vote WHERE meeting_id = ? AND role_slot_id = ?")
+                    .bind(meeting_id)
+                    .bind(slot_id)
+                    .execute(&mut *tx)
+                    .await?;
+            }
+            sqlx::query(
+                "UPDATE role_slot SET role_id = ?, label = NULL, is_optional = 0, position = ? \
+                 WHERE id = ?",
+            )
+            .bind(role_id)
+            .bind(position)
+            .bind(slot_id)
+            .execute(&mut *tx)
+            .await?;
+            slot_id
+        } else {
+            sqlx::query(
+                "INSERT INTO role_slot(meeting_id, role_id, label, is_optional, position) \
+                 VALUES (?, ?, NULL, 0, ?)",
+            )
+            .bind(meeting_id)
+            .bind(role_id)
+            .bind(position)
+            .execute(&mut *tx)
+            .await?
+            .last_insert_id() as i64
+        };
+
         sqlx::query(
-            "INSERT INTO role_slot(meeting_id, role_id, label, is_optional, position) \
-             VALUES (?, ?, ?, 0, ?)",
+            "INSERT INTO role_assignment(role_slot_id, taker_id) VALUES (?, ?) \
+             ON DUPLICATE KEY UPDATE taker_id = VALUES(taker_id)",
         )
-        .bind(meeting_id)
-        .bind(role_id)
-        .bind(name)
-        .bind(position)
+        .bind(slot_id)
+        .bind(participant.user_id)
         .execute(&mut *tx)
         .await?;
+        keep_ids.insert(slot_id);
+    }
+
+    for old_id in old_ids {
+        if keep_ids.contains(&old_id) {
+            continue;
+        }
+        sqlx::query("UPDATE `session` SET role_slot_id = NULL WHERE role_slot_id = ?")
+            .bind(old_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM role_slot WHERE id = ?")
+            .bind(old_id)
+            .execute(&mut *tx)
+            .await?;
     }
 
     tx.commit().await?;

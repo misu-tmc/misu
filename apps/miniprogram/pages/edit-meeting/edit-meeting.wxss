@@ -141,7 +141,10 @@
 .tt-row { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 0; border-top: 1rpx solid #f0f0f2; }
 .tt-row:first-child { border-top: none; }
 .tt-num { width: 44rpx; flex-shrink: 0; font-size: 26rpx; text-align: right; }
-.tt-input { flex: 1; font-size: 28rpx; min-width: 0; }
+.tt-participant { flex: 1; min-width: 0; }
+.tt-picker { padding: 12rpx 0; font-size: 28rpx; border-bottom: 1rpx solid #ececee; }
+.tt-picker.missing { color: #9a6700; border-bottom-color: #d8a100; }
+.tt-migrate { margin-top: 8rpx; color: #5b2a86; font-size: 23rpx; }
 .tt-empty { padding: 16rpx 0; font-size: 28rpx; }
 
 @media (max-width: 360px) {

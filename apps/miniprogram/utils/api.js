@@ -132,6 +132,12 @@ const api = {
   roles: () => request('/api/roles'),
   venues: () => request('/api/venues'),
   users: () => request('/api/users'),
+  attendees: (meetingId) => request('/api/meetings/' + meetingId + '/attendees'),
+  createWalkIn: (meetingId, displayName) =>
+    request('/api/meetings/' + meetingId + '/attendees', {
+      method: 'POST',
+      data: { display_name: displayName }
+    }),
   saveMeetingInfo: (id, info) =>
     request('/api/meetings/' + id + '/info', { method: 'PUT', data: info }),
   saveSlots: (id, slots) =>

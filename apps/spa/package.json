@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate": "npm run test && npm run build"
+    "validate:dist": "node scripts/validate-dist.mjs",
+    "validate": "npm run test && npm run build && npm run validate:dist"
   },
   "dependencies": {
     "preact": "^10.26.9",

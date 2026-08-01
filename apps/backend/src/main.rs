@@ -129,16 +129,25 @@ async fn main() -> anyhow::Result<()> {
             "/",
             get(|| async { axum::response::Redirect::to("/app/booking") }),
         )
-        // Web admin pages (require a web session; redirect to /login otherwise).
+        // Login is part of the SPA. Legacy management URLs redirect to SPA equivalents.
         .route("/login", get(admin::page_login))
-        .route("/meetings", get(admin::page_meetings))
-        .route("/meetings/new", get(admin::page_editor))
-        .route("/meetings/:meeting_id/edit", get(admin::page_editor))
+        .route(
+            "/meetings",
+            get(|| async { axum::response::Redirect::to("/app/meetings") }),
+        )
+        .route(
+            "/meetings/new",
+            get(|| async { axum::response::Redirect::to("/app/meetings/new") }),
+        )
+        .route("/meetings/:meeting_id/edit", get(admin::redirect_editor))
         .route(
             "/meetings/:meeting_id/agenda",
             get(admin::page_agenda_print),
         )
-        .route("/users", get(admin::page_users))
+        .route(
+            "/users",
+            get(|| async { axum::response::Redirect::to("/app/users") }),
+        )
         // Management JSON APIs (require an authenticated session).
         .route(
             "/api/meetings",

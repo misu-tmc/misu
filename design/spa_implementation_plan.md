@@ -148,14 +148,14 @@ Progressive enhancement (not hard dependency):
 
 ## 8) Implementation milestones
 
-Milestone 1: foundation
+Milestone 1: foundation — **completed**
 
 - SPA scaffold and build setup.
 - Router and auth guard.
 - Shared API client and error model.
 - Shared responsive layout shell.
 
-Milestone 2: attendee parity
+Milestone 2: attendee parity — **completed**
 
 - Booking page.
 - Meeting page.
@@ -164,24 +164,24 @@ Milestone 2: attendee parity
 - Me page.
 - MISU page.
 
-Milestone 3: management parity
+Milestone 3: management parity — **completed**
 
 - Meetings list.
 - Meeting editor.
 - Users list.
 - Agenda page.
 
-Milestone 4: PWA hardening
+Milestone 4: PWA hardening — **completed**
 
 - Manifest + service worker.
 - Update strategy and cache invalidation rules.
 - Capability/fallback checks for WeChat embedded browser.
 
-Milestone 5: rollout
+Milestone 5: rollout — **completed**
 
-- Keep existing web pages as fallback while validating SPA parity.
-- Switch navigation entry to SPA (`/app`).
-- Retire server-served web pages after acceptance.
+- The backend serves the Vite build under `/app` and serves `/login` from the same SPA shell.
+- Legacy management URLs redirect to their SPA equivalents; the branded agenda remains available for printing.
+- The production Docker image builds and embeds the SPA output.
 
 ## 9) Acceptance criteria
 

@@ -18,6 +18,19 @@ The server listens on `http://127.0.0.1:8080`. SQLx applies the files under
 `migrations/` and seeds the role catalog plus two sample published meetings when the
 database is empty.
 
+Build and validate the Preact SPA before running the integrated server:
+
+```sh
+cd apps/spa
+npm ci
+npm run validate
+```
+
+For frontend development, run `npm run dev` in `apps/spa`; Vite serves the app under
+`http://127.0.0.1:5173/app/` and proxies `/api` plus `/static` to the backend. The
+production backend serves `apps/spa/dist` under `/app` and serves the same shell at
+`/login`.
+
 ### MySQL configuration
 
 | Variable | Default | Purpose |
@@ -98,22 +111,33 @@ the previous records.
 The acting user is always taken from the session (bearer token or `misu_session` cookie),
 never from the request body.
 
-## Web admin pages
+## Web SPA/PWA
 
-Server-served HTML admin pages (simple HTML/CSS/JS, one self-contained file each under
-`web/`). Pages require an authenticated session and redirect to `/login` when absent;
-their JSON APIs share the canonical `/api/*` paths. `MISU_WEB_DIR`
-(default `web`) sets where the HTML files are read from. `MISU_STATIC_DIR` (default
-`static`) serves logos, QR codes and other print assets under `/static/*`.
+The responsive Preact SPA under `apps/spa` mirrors attendee and management functionality.
+All feature routes require an authenticated cookie session and redirect to the device-key
+flow at `/login` when absent. `MISU_SPA_DIR` points to Vite's production output (default
+`../spa/dist` when the backend runs from `apps/backend`). The branded agenda print page
+remains server-served from `web/agenda-print.html`; `MISU_WEB_DIR` configures that legacy
+asset and `MISU_STATIC_DIR` serves logos, QR codes, and print images under `/static/*`.
 
 | Page | Purpose |
 | ---- | ------- |
 | `/login` | device challenge, account creation, and migration |
-| `/meetings` | overview of open meetings (today onward) with an Archived tab + Create button |
-| `/meetings/new` | meeting editor (start-from template, sessions grid, roles, save/publish) |
-| `/meetings/:id/edit` | edit an existing meeting |
-| `/meetings/:id/agenda/print` | single-sided A4 printable agenda preview |
-| `/users` | user list |
+| `/app/booking` | upcoming role booking and preparation links |
+| `/app/meeting` | active meeting, agenda, check-in, voting and timer mode |
+| `/app/checkin?meetingId=:id` | authenticated QR/deep-link check-in redirector |
+| `/app/vote/:id` and `/app/vote-result/:id` | ballot and aggregated results |
+| `/app/misu` | club introduction and contact details |
+| `/app/me` | profile, bookings, and device migration code |
+| `/app/meetings` | overview of open/archived/all meetings + create action |
+| `/app/meetings/new` | meeting editor initialized from blank, last meeting, or template |
+| `/app/meetings/:id/edit` | edit information, roles, sessions, speeches, and Table Topics |
+| `/app/meetings/:id/agenda` | responsive/printable agenda view |
+| `/app/users` | user catalog and identity-less user creation |
+| `/meetings/:id/agenda` | branded two-page printable agenda |
+
+Legacy `/meetings`, `/meetings/new`, `/meetings/:id/edit`, and `/users` URLs redirect to
+their SPA equivalents. The actual branded print route is `/meetings/:id/agenda`.
 
 Web admin JSON APIs (require an authenticated session):
 
@@ -134,5 +158,6 @@ Web admin JSON APIs (require an authenticated session):
 - `src/admin.rs` — web admin pages + admin-scoped `/api/*` handlers.
 - `src/error.rs` — error → HTTP mapping.
 - `src/main.rs` — router wiring.
-- `web/` — static web access and admin HTML pages.
+- `../spa/` — Preact SPA/PWA source, tests, and Vite build.
+- `web/` — legacy branded agenda HTML and transitional pages.
 - `static/` — image/static assets served under `/static/*`.

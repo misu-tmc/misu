@@ -50,20 +50,12 @@ pub async fn page_login(State(s): State<AppState>) -> Response {
     spa_index(State(s)).await
 }
 
-pub async fn page_meetings(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
-    serve_admin(&s, m, "meetings.html").await
-}
-
-pub async fn page_users(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
-    serve_admin(&s, m, "users.html").await
-}
-
-pub async fn page_editor(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
-    serve_admin(&s, m, "editor.html").await
-}
-
 pub async fn page_agenda_print(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
     serve_admin(&s, m, "agenda-print.html").await
+}
+
+pub async fn redirect_editor(Path(meeting_id): Path<i64>) -> Redirect {
+    Redirect::to(&format!("/app/meetings/{meeting_id}/edit"))
 }
 
 /// Serve static assets used by the print agenda and web pages.
@@ -98,7 +90,14 @@ pub async fn static_asset(State(s): State<AppState>, Path(path): Path<String>) -
 pub async fn spa_index(State(s): State<AppState>) -> Response {
     let path = std::path::Path::new(&s.config.spa_dir).join("index.html");
     match tokio::fs::read_to_string(&path).await {
-        Ok(content) => Html(content).into_response(),
+        Ok(content) => (
+            [
+                (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                (header::CACHE_CONTROL, "no-cache"),
+            ],
+            content,
+        )
+            .into_response(),
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
 }
@@ -123,7 +122,21 @@ async fn read_spa_asset(state: &AppState, path: &str) -> Response {
                 "ico" => "image/x-icon",
                 _ => "application/octet-stream",
             };
-            ([(header::CONTENT_TYPE, content_type)], bytes).into_response()
+            let cache_control = if path == "sw.js" || path == "manifest.webmanifest" {
+                "no-cache"
+            } else if path.starts_with("assets/") {
+                "public, max-age=31536000, immutable"
+            } else {
+                "public, max-age=3600"
+            };
+            (
+                [
+                    (header::CONTENT_TYPE, content_type),
+                    (header::CACHE_CONTROL, cache_control),
+                ],
+                bytes,
+            )
+                .into_response()
         }
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }

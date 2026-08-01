@@ -130,8 +130,11 @@ const api = {
 
   // Meeting editor: per-section batch saves. Each returns the full updated meeting.
   roles: () => request('/api/roles'),
+  createRole: (name) => request('/api/roles', { method: 'POST', data: { name } }),
   venues: () => request('/api/venues'),
   users: () => request('/api/users'),
+  createUser: (displayName) =>
+    request('/api/users', { method: 'POST', data: { display_name: displayName } }),
   attendees: (meetingId) => request('/api/meetings/' + meetingId + '/attendees'),
   createWalkIn: (meetingId, displayName) =>
     request('/api/meetings/' + meetingId + '/attendees', {

@@ -65,7 +65,6 @@
               <view class="field">
                 <text class="field-label muted">Role</text>
                 <picker range="{{roleNames}}" data-index="{{index}}" bindchange="onSlotRolePick"><view class="picker-value">{{slot.role_name || 'Pick role'}}</view></picker>
-                <input class="field-input sub-input" placeholder="or type a new role" value="{{slot.role_name}}" data-index="{{index}}" bindinput="onSlotRoleInput" />
               </view>
               <view class="field">
                 <text class="field-label muted">Custom label (optional)</text>

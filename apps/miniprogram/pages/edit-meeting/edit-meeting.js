@@ -10,12 +10,22 @@ const { shortDate } = require('../../utils/format.js');
 const BUFFER_MINUTES = 1;
 const NONE_LABEL = '— None —';
 const ATTENDEE_PLACEHOLDER = 'Select checked-in participant';
-const CREATE_WALK_IN_LABEL = '+ Create one';
+const CREATE_ONE_LABEL = '+ Create one';
 
 function attendeePickerOptions(users) {
   return [ATTENDEE_PLACEHOLDER]
     .concat((users || []).map((u) => u.display_name))
-    .concat([CREATE_WALK_IN_LABEL]);
+    .concat([CREATE_ONE_LABEL]);
+}
+
+function rolePickerOptions(roles) {
+  return (roles || []).map((role) => role.name).concat([CREATE_ONE_LABEL]);
+}
+
+function userPickerOptions(users) {
+  return [NONE_LABEL]
+    .concat((users || []).map((user) => user.display_name))
+    .concat([CREATE_ONE_LABEL]);
 }
 
 function isPreparedSpeechRole(roleName) {
@@ -59,11 +69,11 @@ Page({
     speeches: [],
     tableTopics: [],
     roleCatalog: [],
-    roleNames: [],
+    roleNames: rolePickerOptions([]),
     venueCatalog: [],
     venueNames: [],
     userCatalog: [],
-    userNames: [NONE_LABEL],
+    userNames: userPickerOptions([]),
     attendeeCatalog: [],
     attendeeNames: attendeePickerOptions([]),
     slotPickerLabels: [NONE_LABEL],
@@ -224,11 +234,11 @@ Page({
         venue: detail.venue
       },
       roleCatalog,
-      roleNames: roleCatalog.map((r) => r.name),
+      roleNames: rolePickerOptions(roleCatalog),
       venueCatalog,
       venueNames: venueCatalog.map((v) => v.name),
       userCatalog,
-      userNames: [NONE_LABEL].concat(userCatalog.map((u) => u.display_name)),
+      userNames: userPickerOptions(userCatalog),
       attendeeCatalog,
       attendeeNames: attendeePickerOptions(attendeeCatalog),
       slots,
@@ -393,7 +403,12 @@ Page({
   },
   onSlotRolePick(e) {
     const i = e.currentTarget.dataset.index;
-    const role = this.data.roleCatalog[e.detail.value];
+    const roleIndex = parseInt(e.detail.value, 10);
+    if (roleIndex === this.data.roleCatalog.length) {
+      this.promptRole(i);
+      return;
+    }
+    const role = this.data.roleCatalog[roleIndex];
     if (!role) return;
     this.setData({
       [`slots[${i}].role_id`]: role.id,
@@ -401,10 +416,42 @@ Page({
       [`slots[${i}].voting_group`]: role.voting_group || ''
     });
   },
-  onSlotRoleInput(e) {
-    // Typing a name creates/looks up a role by name on save; clear any picked id.
-    const i = e.currentTarget.dataset.index;
-    this.setData({ [`slots[${i}].role_name`]: e.detail.value, [`slots[${i}].role_id`]: null });
+  promptRole(slotIndex) {
+    wx.showModal({
+      title: 'Create role',
+      content: '',
+      editable: true,
+      placeholderText: 'Role name',
+      confirmText: 'Create',
+      success: (res) => {
+        if (!res.confirm) return;
+        const name = (res.content || '').trim();
+        if (!name) {
+          wx.showToast({ title: 'Role name is required', icon: 'none' });
+          return;
+        }
+        this.setData({ saving: true });
+        api.createRole(name)
+          .then((role) => {
+            const existingIndex = this.data.roleCatalog.findIndex((item) => item.id === role.id);
+            const roleCatalog = this.data.roleCatalog.slice();
+            if (existingIndex < 0) roleCatalog.push(role);
+            this.setData({
+              roleCatalog,
+              roleNames: rolePickerOptions(roleCatalog),
+              [`slots[${slotIndex}].role_id`]: role.id,
+              [`slots[${slotIndex}].role_name`]: role.name,
+              [`slots[${slotIndex}].voting_group`]: role.voting_group || ''
+            });
+            wx.showToast({ title: 'Role created', icon: 'success' });
+          })
+          .catch((err) => wx.showToast({
+            title: (err && err.error) || 'Could not create role',
+            icon: 'none'
+          }))
+          .finally(() => this.setData({ saving: false }));
+      }
+    });
   },
   onSlotLabelInput(e) {
     const i = e.currentTarget.dataset.index;
@@ -421,8 +468,49 @@ Page({
       this.setData({ [`slots[${i}].taker_id`]: null, [`slots[${i}].taker_name`]: '' });
       return;
     }
+    if (idx === this.data.userCatalog.length + 1) {
+      this.promptAssignee(i);
+      return;
+    }
     const u = this.data.userCatalog[idx - 1];
+    if (!u) return;
     this.setData({ [`slots[${i}].taker_id`]: u.id, [`slots[${i}].taker_name`]: u.display_name });
+  },
+  promptAssignee(slotIndex) {
+    wx.showModal({
+      title: 'Create user',
+      content: '',
+      editable: true,
+      placeholderText: 'Display name',
+      confirmText: 'Create',
+      success: (res) => {
+        if (!res.confirm) return;
+        const displayName = (res.content || '').trim();
+        if (!displayName) {
+          wx.showToast({ title: 'Name is required', icon: 'none' });
+          return;
+        }
+        this.setData({ saving: true });
+        api.createUser(displayName)
+          .then((user) => {
+            const existingIndex = this.data.userCatalog.findIndex((item) => item.id === user.id);
+            const userCatalog = this.data.userCatalog.slice();
+            if (existingIndex < 0) userCatalog.push(user);
+            this.setData({
+              userCatalog,
+              userNames: userPickerOptions(userCatalog),
+              [`slots[${slotIndex}].taker_id`]: user.id,
+              [`slots[${slotIndex}].taker_name`]: user.display_name
+            });
+            wx.showToast({ title: 'User created', icon: 'success' });
+          })
+          .catch((err) => wx.showToast({
+            title: (err && err.error) || 'Could not create user',
+            icon: 'none'
+          }))
+          .finally(() => this.setData({ saving: false }));
+      }
+    });
   },
   addSlot(e) {
     const i = e && e.currentTarget ? e.currentTarget.dataset.index : undefined;

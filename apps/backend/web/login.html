@@ -2,55 +2,385 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MISU Admin · Sign in</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <title>MISU · Sign in</title>
   <style>
-    :root { --purple: #5b2a86; --ink: #1c1c1e; --muted: #8a8a8f; --line: #ececee; --bg: #f5f5f7; }
+    :root {
+      --purple: #5b2a86;
+      --purple-dark: #452066;
+      --purple-soft: #f2ebf8;
+      --ink: #1c1720;
+      --muted: #706a74;
+      --line: #e8e3eb;
+      --bg: #f6f3f8;
+      --danger: #a8213a;
+      --success: #237a4b;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-           font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); }
-    .card { background: #fff; border-radius: 14px; padding: 32px; width: 340px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
-    .brand { font-weight: 700; font-size: 20px; color: var(--purple); margin-bottom: 4px; }
-    .sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
-    label { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 5px; }
-    input { width: 100%; font-size: 14px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; }
-    input:focus { outline: none; border-color: var(--purple); }
-    button { width: 100%; margin-top: 22px; padding: 11px; border: none; border-radius: 8px; background: var(--purple);
-             color: #fff; font-size: 15px; cursor: pointer; }
-    .err { color: #b00020; font-size: 13px; margin-top: 14px; min-height: 18px; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+      display: grid;
+      place-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 4%, rgba(91,42,134,.14), transparent 34%),
+        radial-gradient(circle at 95% 95%, rgba(154,104,194,.12), transparent 30%),
+        var(--bg);
+    }
+    main { width: min(100%, 430px); }
+    .brand { display: flex; align-items: center; gap: 11px; margin: 0 0 16px 4px; color: var(--purple); }
+    .mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px;
+            background: var(--purple); color: #fff; font-weight: 800; box-shadow: 0 8px 22px rgba(91,42,134,.25); }
+    .brand strong { font-size: 20px; letter-spacing: -.3px; }
+    .card { background: rgba(255,255,255,.96); border: 1px solid rgba(255,255,255,.8); border-radius: 22px;
+            padding: 26px; box-shadow: 0 18px 50px rgba(48,30,59,.11); }
+    h1 { margin: 0 0 8px; font-size: 25px; letter-spacing: -.6px; }
+    h2 { margin: 0 0 8px; font-size: 20px; }
+    p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .stack { display: grid; gap: 12px; margin-top: 22px; }
+    button, .button {
+      width: 100%; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 12px;
+      display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
+      font: inherit; font-weight: 650; cursor: pointer; transition: transform .12s ease, background .12s ease;
+    }
+    button:active, .button:active { transform: scale(.985); }
+    .primary { background: var(--purple); color: #fff; }
+    .primary:hover { background: var(--purple-dark); }
+    .secondary { background: var(--purple-soft); color: var(--purple-dark); }
+    .ghost { background: transparent; color: var(--purple); border: 1px solid var(--line); }
+    button:disabled { cursor: wait; opacity: .6; }
+    label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 13px; font-weight: 650; }
+    input { width: 100%; min-height: 48px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 11px;
+            background: #fff; color: var(--ink); font: inherit; }
+    input:focus { outline: 3px solid rgba(91,42,134,.13); border-color: var(--purple); }
+    .code-input { text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
+    .code { margin: 18px 0 8px; padding: 17px 12px; border-radius: 12px; background: var(--purple-soft);
+            color: var(--purple-dark); text-align: center; font: 750 24px ui-monospace, SFMono-Regular, Menlo, monospace;
+            letter-spacing: 1.5px; overflow-wrap: anywhere; }
+    .notice { margin-top: 18px; padding: 13px 14px; border-radius: 11px; background: #fff8e7;
+              color: #715212; font-size: 13px; line-height: 1.45; }
+    .error { min-height: 20px; margin-top: 14px; color: var(--danger); font-size: 13px; }
+    .success { color: var(--success); font-weight: 650; }
+    .loading { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+    .spinner { width: 22px; height: 22px; border: 3px solid var(--line); border-top-color: var(--purple);
+               border-radius: 50%; animation: spin .8s linear infinite; }
+    .eyebrow { margin-bottom: 8px; color: var(--purple); font-size: 12px; font-weight: 750; letter-spacing: .7px; text-transform: uppercase; }
+    .hidden { display: none !important; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (min-width: 700px) { .card { padding: 32px; } }
   </style>
 </head>
 <body>
-  <form class="card" onsubmit="return signIn(event)">
-    <div class="brand">MISU Admin</div>
-    <div class="sub">Sign in to manage meetings and roles.</div>
-    <label for="username">Username</label>
-    <input id="username" autocomplete="username" autofocus />
-    <label for="password">Password</label>
-    <input id="password" type="password" autocomplete="current-password" />
-    <button type="submit">Sign in</button>
-    <div class="err" id="err"></div>
-  </form>
+  <main>
+    <div class="brand"><span class="mark">M</span><strong>MISU</strong></div>
+    <section class="card" id="view-loading">
+      <div class="loading"><span class="spinner" aria-hidden="true"></span><span>Checking this device…</span></div>
+    </section>
+
+    <section class="card hidden" id="view-choice">
+      <div class="eyebrow">Device access</div>
+      <h1>Welcome to MISU</h1>
+      <p id="choice-message">This browser is not connected to an account yet.</p>
+      <div class="stack">
+        <button class="primary" type="button" onclick="showCreate()">Create an account</button>
+        <button class="secondary" type="button" onclick="showMigrate()">I have a migration code</button>
+      </div>
+      <div class="notice">Lost access to an existing account on every device? Create a new account, then contact a club administrator to reconnect your previous records.</div>
+    </section>
+
+    <section class="card hidden" id="view-create">
+      <div class="eyebrow">New account</div>
+      <h2>Create your account</h2>
+      <p>A private sign-in key will be kept only in this browser.</p>
+      <form class="stack" onsubmit="return createAccount(event)">
+        <div><label for="display-name">Your display name</label><input id="display-name" maxlength="255" autocomplete="name" required /></div>
+        <button class="primary" type="submit">Create account</button>
+        <button class="ghost" type="button" onclick="showChoice()">Back</button>
+      </form>
+      <div class="error" id="create-error" role="alert"></div>
+    </section>
+
+    <section class="card hidden" id="view-migrate">
+      <div class="eyebrow">Connect this device</div>
+      <h2>Enter migration code</h2>
+      <p>Generate this code from a device where you are already signed in.</p>
+      <form class="stack" onsubmit="return migrateAccount(event)">
+        <div><label for="migration-code">Migration code</label><input class="code-input" id="migration-code" inputmode="text" autocomplete="one-time-code" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" required /></div>
+        <button class="primary" type="submit">Connect device</button>
+        <button class="ghost" type="button" onclick="showChoice()">Back</button>
+      </form>
+      <div class="error" id="migrate-error" role="alert"></div>
+    </section>
+
+    <section class="card hidden" id="view-account">
+      <div class="eyebrow success">Device connected</div>
+      <h1 id="welcome-name">Welcome</h1>
+      <p>This browser can securely sign in to your MISU account.</p>
+      <div class="notice hidden" id="recovery-notice">If this replaces an account you can no longer access, contact a club administrator to reconnect your previous bookings and records.</div>
+      <div class="stack">
+        <a class="button primary hidden" id="continue-link" href="/">Continue</a>
+        <button class="secondary" type="button" onclick="createMigrationCode()">Connect another device</button>
+      </div>
+      <div class="hidden" id="migration-result">
+        <div class="code" id="generated-code"></div>
+        <p>Enter this on the other device within 10 minutes. It works once.</p>
+        <button class="ghost" type="button" onclick="copyMigrationCode()">Copy code</button>
+      </div>
+      <div class="error" id="account-error" role="alert"></div>
+    </section>
+  </main>
 
   <script>
-    async function signIn(e) {
-      e.preventDefault();
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
-      const err = document.getElementById('err');
-      err.textContent = '';
-      const res = await fetch('/api/auth/login', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      if (!res.ok) {
-        err.textContent = res.status === 401 ? 'Invalid username or password.' : 'Sign in failed.';
-        return false;
+    const DB_NAME = 'misu-device-auth';
+    const STORE_NAME = 'credentials';
+    const CURRENT_KEY = 'current';
+    const views = ['loading', 'choice', 'create', 'migrate', 'account'];
+    let currentUser = null;
+    let generatedMigrationCode = '';
+
+    class ApiError extends Error {
+      constructor(status, message) { super(message); this.status = status; }
+    }
+
+    function showView(name) {
+      views.forEach(view => document.getElementById(`view-${view}`).classList.toggle('hidden', view !== name));
+    }
+    function showChoice(message) {
+      if (message) document.getElementById('choice-message').textContent = message;
+      showView('choice');
+    }
+    function showCreate() { document.getElementById('create-error').textContent = ''; showView('create'); }
+    function showMigrate() { document.getElementById('migrate-error').textContent = ''; showView('migrate'); }
+
+    function safeNextPath() {
+      const value = new URLSearchParams(location.search).get('next');
+      return value && value.startsWith('/') && !value.startsWith('//') ? value : '';
+    }
+
+    async function request(path, options = {}) {
+      let response;
+      try {
+        response = await fetch(path, {
+          ...options,
+          headers: { 'content-type': 'application/json', ...(options.headers || {}) }
+        });
+      } catch (_) {
+        throw new ApiError(0, 'Cannot reach MISU. Check your connection and try again.');
       }
-      const params = new URLSearchParams(location.search);
-      location.href = params.get('next') || '/meetings';
+      let body = {};
+      try { body = await response.json(); } catch (_) {}
+      if (!response.ok) throw new ApiError(response.status, body.error || 'Request failed.');
+      return body;
+    }
+
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        const opening = indexedDB.open(DB_NAME, 1);
+        opening.onupgradeneeded = () => opening.result.createObjectStore(STORE_NAME);
+        opening.onsuccess = () => resolve(opening.result);
+        opening.onerror = () => reject(opening.error);
+      });
+    }
+
+    async function storedCredential() {
+      const database = await openDatabase();
+      return new Promise((resolve, reject) => {
+        const request = database.transaction(STORE_NAME).objectStore(STORE_NAME).get(CURRENT_KEY);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+      }).finally(() => database.close());
+    }
+
+    async function storeCredential(credential) {
+      const database = await openDatabase();
+      return new Promise((resolve, reject) => {
+        const transaction = database.transaction(STORE_NAME, 'readwrite');
+        transaction.objectStore(STORE_NAME).put(credential, CURRENT_KEY);
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error);
+      }).finally(() => database.close());
+    }
+
+    async function clearCredential() {
+      const database = await openDatabase();
+      return new Promise((resolve, reject) => {
+        const transaction = database.transaction(STORE_NAME, 'readwrite');
+        transaction.objectStore(STORE_NAME).delete(CURRENT_KEY);
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error);
+      }).finally(() => database.close());
+    }
+
+    function bytesToBase64(value) {
+      const bytes = new Uint8Array(value);
+      let binary = '';
+      for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+      }
+      return btoa(binary);
+    }
+
+    function deviceName() {
+      const agent = navigator.userAgent;
+      const host = /MicroMessenger/i.test(agent) ? 'WeChat' :
+        /Edg\//.test(agent) ? 'Edge' : /Chrome\//.test(agent) ? 'Chrome' :
+        /Safari\//.test(agent) ? 'Safari' : /Firefox\//.test(agent) ? 'Firefox' : 'Browser';
+      const platform = navigator.userAgentData?.platform || navigator.platform || 'device';
+      return `${host} on ${platform}`.slice(0, 191);
+    }
+
+    async function generateCredential() {
+      if (!window.isSecureContext || !crypto?.subtle || !window.indexedDB) {
+        throw new Error('Secure device access is unavailable in this browser. Open the HTTPS site in a current browser.');
+      }
+      const keyPair = await crypto.subtle.generateKey(
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false,
+        ['sign', 'verify']
+      );
+      const publicKey = await crypto.subtle.exportKey('raw', keyPair.publicKey);
+      const credential = {
+        credentialId: crypto.randomUUID(),
+        privateKey: keyPair.privateKey,
+        deviceName: deviceName()
+      };
+      await storeCredential(credential);
+      return {
+        local: credential,
+        request: {
+          credential_id: credential.credentialId,
+          public_key: bytesToBase64(publicKey),
+          device_name: credential.deviceName
+        }
+      };
+    }
+
+    async function tryDeviceLogin(credential) {
+      const challenge = await request('/api/auth/device/challenge', {
+        method: 'POST', body: JSON.stringify({ credential_id: credential.credentialId })
+      });
+      const signature = await crypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        credential.privateKey,
+        new TextEncoder().encode(challenge.challenge)
+      );
+      return request('/api/auth/device/verify', {
+        method: 'POST',
+        body: JSON.stringify({ challenge_id: challenge.challenge_id, signature: bytesToBase64(signature) })
+      });
+    }
+
+    function showAccount(user, recovery = false) {
+      currentUser = user;
+      document.getElementById('welcome-name').textContent = `Welcome, ${user.display_name || 'friend'}`;
+      document.getElementById('recovery-notice').classList.toggle('hidden', !recovery);
+      const next = safeNextPath();
+      const link = document.getElementById('continue-link');
+      link.classList.remove('hidden');
+      link.href = next || '/meetings';
+      showView('account');
+    }
+
+    async function initialize() {
+      try {
+        const current = await request('/api/auth/me');
+        showAccount(current.user);
+        return;
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 401) {
+          showChoice(error.message || 'MISU is temporarily unavailable.');
+          return;
+        }
+      }
+
+      let credential;
+      try { credential = await storedCredential(); }
+      catch (_) {
+        showChoice('This browser cannot access its saved device key.');
+        return;
+      }
+      if (!credential) { showChoice(); return; }
+
+      try {
+        const result = await tryDeviceLogin(credential);
+        showAccount(result.user);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          await clearCredential().catch(() => {});
+          showChoice('The saved key on this device is no longer valid.');
+        } else {
+          showChoice(error.message || 'Could not verify this device. Please try again.');
+        }
+      }
+    }
+
+    async function createAccount(event) {
+      event.preventDefault();
+      const button = event.submitter;
+      const error = document.getElementById('create-error');
+      error.textContent = '';
+      button.disabled = true;
+      try {
+        const generated = await generateCredential();
+        const result = await request('/api/auth/device/register', {
+          method: 'POST',
+          body: JSON.stringify({ display_name: document.getElementById('display-name').value.trim(), ...generated.request })
+        });
+        showAccount(result.user, true);
+      } catch (failure) {
+        error.textContent = failure.message || 'Could not create the account.';
+      } finally {
+        button.disabled = false;
+      }
       return false;
     }
+
+    async function migrateAccount(event) {
+      event.preventDefault();
+      const button = event.submitter;
+      const error = document.getElementById('migrate-error');
+      error.textContent = '';
+      button.disabled = true;
+      try {
+        const generated = await generateCredential();
+        const result = await request('/api/auth/device/migrate', {
+          method: 'POST',
+          body: JSON.stringify({ code: document.getElementById('migration-code').value, ...generated.request })
+        });
+        showAccount(result.user);
+      } catch (failure) {
+        if (failure instanceof ApiError && failure.status === 400) await clearCredential().catch(() => {});
+        error.textContent = failure.message || 'Could not connect this device.';
+      } finally {
+        button.disabled = false;
+      }
+      return false;
+    }
+
+    async function createMigrationCode() {
+      const error = document.getElementById('account-error');
+      error.textContent = '';
+      try {
+        const result = await request('/api/auth/device/migration-code', { method: 'POST', body: '{}' });
+        generatedMigrationCode = result.code;
+        document.getElementById('generated-code').textContent = result.code;
+        document.getElementById('migration-result').classList.remove('hidden');
+      } catch (failure) {
+        error.textContent = failure.message || 'Could not create a migration code.';
+      }
+    }
+
+    async function copyMigrationCode() {
+      try { await navigator.clipboard.writeText(generatedMigrationCode); }
+      catch (_) { document.getElementById('account-error').textContent = 'Select and copy the code manually.'; }
+    }
+
+    initialize();
   </script>
 </body>
 </html>

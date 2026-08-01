@@ -57,12 +57,20 @@ protocol use the gateway-injected `X-WX-OPENID` and do not call `jscode2session`
 `WECHAT_APPID` / `WECHAT_SECRET` remain necessary for direct HTTP mini program requests.
 Never include the app secret in application logs or commit it to the repository.
 
-### Web admin login
+### Deprecated password provider
 
-The web surface uses a **username/password** provider (bcrypt-hashed, stored in
-`web_credential`). Set `MISU_WEB_ADMIN_USER` / `MISU_WEB_ADMIN_PASSWORD` to seed a
-web login on startup. In DEV mode it defaults to `admin` / `admin` if
-unset. Sign in at `/login`; the session is an HttpOnly cookie.
+The older **username/password** provider remains temporarily in the backend while the
+user and management model is revisited. Passwords are bcrypt-hashed in `web_credential`,
+but `/login` no longer exposes a password form. New web authentication uses device keys.
+
+### Device-bound web login
+
+All web authentication starts at `/login`. A first-time visitor can create an account and a local
+ECDSA P-256 key; later visits sign a one-time challenge and recover the normal HttpOnly
+session without a password. An authenticated browser can create a ten-minute,
+single-use migration code that connects another browser to the same user. If every
+device key is lost, the user creates a new account and asks an administrator to reconnect
+the previous records.
 
 ## Endpoints
 
@@ -70,8 +78,14 @@ unset. Sign in at `/login`; the session is an HttpOnly cookie.
 | ------ | ---- | ---- | ------- |
 | GET  | `/healthz` | — | liveness |
 | POST | `/api/auth/wechat` | — | `{ code }` → `{ token, user }` (mini program) |
-| POST | `/api/auth/login` | — | `{ username, password }` → sets session cookie (web) |
+| POST | `/api/auth/login` | — | deprecated password compatibility endpoint |
 | POST | `/api/auth/logout` | Session | clear the web session + cookie |
+| GET | `/api/auth/me` | Session | current web identity |
+| POST | `/api/auth/device/register` | — | create an account and bind its first browser key |
+| POST | `/api/auth/device/challenge` | — | issue a one-time challenge for a known browser key |
+| POST | `/api/auth/device/verify` | — | verify the challenge signature and set a session cookie |
+| POST | `/api/auth/device/migration-code` | Session | create a ten-minute, single-use migration code |
+| POST | `/api/auth/device/migrate` | — | consume a migration code and bind a new browser key |
 | GET  | `/api/meetings/upcoming` | Session | upcoming published meetings (sessions + role slots + takers) |
 | GET  | `/api/meetings/:id` | Session | one meeting's detail (drafts included; shared with the editor) |
 | POST | `/api/book` | Session | `{ meeting_id, role_slot_id, user_id?, cancel? }` book/release a role; `user_id` assigns on behalf |
@@ -87,21 +101,21 @@ never from the request body.
 ## Web admin pages
 
 Server-served HTML admin pages (simple HTML/CSS/JS, one self-contained file each under
-`web/`). Pages require a **web session** and redirect to `/login` when absent; their JSON
-APIs share the canonical `/api/*` paths. `MISU_WEB_DIR`
+`web/`). Pages require an authenticated session and redirect to `/login` when absent;
+their JSON APIs share the canonical `/api/*` paths. `MISU_WEB_DIR`
 (default `web`) sets where the HTML files are read from. `MISU_STATIC_DIR` (default
 `static`) serves logos, QR codes and other print assets under `/static/*`.
 
 | Page | Purpose |
 | ---- | ------- |
-| `/login` | username/password sign-in (no session required) |
+| `/login` | device challenge, account creation, and migration |
 | `/meetings` | overview of open meetings (today onward) with an Archived tab + Create button |
 | `/meetings/new` | meeting editor (start-from template, sessions grid, roles, save/publish) |
 | `/meetings/:id/edit` | edit an existing meeting |
 | `/meetings/:id/agenda/print` | single-sided A4 printable agenda preview |
 | `/users` | user list |
 
-Web admin JSON APIs (require a web session):
+Web admin JSON APIs (require an authenticated session):
 
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
@@ -115,10 +129,10 @@ Web admin JSON APIs (require a web session):
 - `src/config.rs` — env-based configuration.
 - `migrations/` — versioned MySQL schema.
 - `src/db.rs` — MySQL pool, migration runner, and seed data.
-- `src/auth.rs` — WeChat code exchange, sessions, the `AuthUser` extractor, permissions.
+- `src/auth.rs` — WeChat, password and device credentials, sessions, and the `AuthUser` extractor.
 - `src/handlers.rs` — app route handlers and JSON DTOs.
 - `src/admin.rs` — web admin pages + admin-scoped `/api/*` handlers.
 - `src/error.rs` — error → HTTP mapping.
 - `src/main.rs` — router wiring.
-- `web/` — static admin HTML pages.
+- `web/` — static web access and admin HTML pages.
 - `static/` — image/static assets served under `/static/*`.

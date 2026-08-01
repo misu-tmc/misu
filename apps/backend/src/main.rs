@@ -60,6 +60,27 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/auth/wechat", post(auth::auth_wechat))
         .route("/api/auth/login", post(auth::auth_login))
         .route("/api/auth/logout", post(auth::auth_logout))
+        .route("/api/auth/me", get(auth::auth_me))
+        .route(
+            "/api/auth/device/register",
+            post(auth::auth_device_register),
+        )
+        .route(
+            "/api/auth/device/challenge",
+            post(auth::auth_device_challenge),
+        )
+        .route(
+            "/api/auth/device/verify",
+            post(auth::auth_device_verify),
+        )
+        .route(
+            "/api/auth/device/migration-code",
+            post(auth::auth_device_migration_code),
+        )
+        .route(
+            "/api/auth/device/migrate",
+            post(auth::auth_device_migrate),
+        )
         .route("/api/meetings/upcoming", get(handlers::meetings_upcoming))
         .route("/api/meetings/:meeting_id", get(handlers::meeting_detail))
         // Mini program editor: per-section batch saves.

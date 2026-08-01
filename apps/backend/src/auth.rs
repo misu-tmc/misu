@@ -6,8 +6,11 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use sqlx::MySqlPool;
 
 use crate::config::Config;
@@ -89,9 +92,8 @@ fn bearer_token(parts: &Parts) -> Option<String> {
     }
 }
 
-/// Optional variant of [`AuthUser`]: resolves the caller if a valid session is present,
-/// otherwise yields `None` instead of rejecting. Used where the web admin surface (still
-/// unauthenticated for now) and the authenticated mini program share one endpoint.
+/// Optional variant of [`AuthUser`] used by server-served pages so they can redirect to
+/// login instead of returning a JSON 401 response.
 pub struct MaybeAuthUser(pub Option<AuthUser>);
 
 #[async_trait]
@@ -241,6 +243,342 @@ pub async fn auth_logout(
         cleared_cookie(state.config.dev_mode()).parse().unwrap(),
     );
     Ok(resp)
+}
+
+// ---------------------------------------------------------------------------
+// Device-bound web provider
+// ---------------------------------------------------------------------------
+
+const DEVICE_CHALLENGE_MINUTES: i64 = 5;
+const MIGRATION_CODE_MINUTES: i64 = 10;
+
+#[derive(Serialize)]
+pub struct CurrentUserResp {
+    pub user: UserResponse,
+}
+
+/// Return the current web identity. The login page uses this before attempting a
+/// device challenge because a valid HttpOnly session needs no additional work.
+pub async fn auth_me(user: AuthUser) -> Json<CurrentUserResp> {
+    Json(CurrentUserResp {
+        user: UserResponse {
+            id: user.id,
+            display_name: user.display_name,
+        },
+    })
+}
+
+#[derive(Deserialize)]
+pub struct DeviceCredentialReq {
+    pub credential_id: String,
+    pub public_key: String,
+    pub device_name: String,
+}
+
+#[derive(Deserialize)]
+pub struct RegisterDeviceReq {
+    pub display_name: String,
+    #[serde(flatten)]
+    pub credential: DeviceCredentialReq,
+}
+
+#[derive(Deserialize)]
+pub struct DeviceChallengeReq {
+    pub credential_id: String,
+}
+
+#[derive(Serialize)]
+pub struct DeviceChallengeResp {
+    pub challenge_id: String,
+    pub challenge: String,
+    pub expires_at: String,
+}
+
+#[derive(Deserialize)]
+pub struct DeviceVerifyReq {
+    pub challenge_id: String,
+    pub signature: String,
+}
+
+#[derive(Serialize)]
+pub struct MigrationCodeResp {
+    pub code: String,
+    pub expires_at: String,
+}
+
+#[derive(Deserialize)]
+pub struct MigrateDeviceReq {
+    pub code: String,
+    #[serde(flatten)]
+    pub credential: DeviceCredentialReq,
+}
+
+fn validated_credential_id(value: &str) -> Result<String, AppError> {
+    uuid::Uuid::parse_str(value.trim())
+        .map(|id| id.to_string())
+        .map_err(|_| AppError::BadRequest("invalid credential id".into()))
+}
+
+fn validated_device_name(value: &str) -> Result<String, AppError> {
+    let value = value.trim();
+    if value.is_empty() || value.chars().count() > 191 {
+        return Err(AppError::BadRequest(
+            "device name must contain 1 to 191 characters".into(),
+        ));
+    }
+    Ok(value.to_string())
+}
+
+fn decode_public_key(value: &str) -> Result<Vec<u8>, AppError> {
+    let bytes = BASE64
+        .decode(value.trim())
+        .map_err(|_| AppError::BadRequest("invalid device public key".into()))?;
+    VerifyingKey::from_sec1_bytes(&bytes)
+        .map_err(|_| AppError::BadRequest("invalid device public key".into()))?;
+    Ok(bytes)
+}
+
+fn migration_code_hash(code: &str) -> String {
+    format!("{:x}", Sha256::digest(code.as_bytes()))
+}
+
+fn normalize_migration_code(code: &str) -> Result<String, AppError> {
+    let normalized: String = code
+        .chars()
+        .filter(|character| !character.is_ascii_whitespace() && *character != '-')
+        .flat_map(char::to_uppercase)
+        .collect();
+    if normalized.len() != 16
+        || !normalized
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
+    {
+        return Err(AppError::BadRequest("invalid migration code".into()));
+    }
+    Ok(normalized)
+}
+
+async fn device_login_response(
+    state: &AppState,
+    user_id: i64,
+    display_name: String,
+) -> AppResult<Response> {
+    let token = create_session(&state.pool, user_id).await?;
+    let mut response = Json(json!({
+        "user": { "id": user_id, "display_name": display_name }
+    }))
+    .into_response();
+    response.headers_mut().insert(
+        SET_COOKIE,
+        session_cookie(&token, state.config.dev_mode())
+            .parse()
+            .unwrap(),
+    );
+    Ok(response)
+}
+
+/// Create an account and bind its first browser key. Account creation is intentionally
+/// open; membership and permissions remain separate from authentication.
+pub async fn auth_device_register(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    Json(req): Json<RegisterDeviceReq>,
+) -> AppResult<Response> {
+    let display_name = req.display_name.trim();
+    if display_name.is_empty() || display_name.chars().count() > 255 {
+        return Err(AppError::BadRequest(
+            "display name must contain 1 to 255 characters".into(),
+        ));
+    }
+    let credential_id = validated_credential_id(&req.credential.credential_id)?;
+    let device_name = validated_device_name(&req.credential.device_name)?;
+    let public_key = decode_public_key(&req.credential.public_key)?;
+
+    let mut transaction = state.pool.begin().await?;
+    let user_id = sqlx::query("INSERT INTO user(display_name) VALUES (?)")
+        .bind(display_name)
+        .execute(&mut *transaction)
+        .await?
+        .last_insert_id() as i64;
+    sqlx::query(
+        "INSERT INTO device_credential(id, user_id, public_key, device_name) VALUES (?, ?, ?, ?)",
+    )
+    .bind(&credential_id)
+    .bind(user_id)
+    .bind(public_key)
+    .bind(device_name)
+    .execute(&mut *transaction)
+    .await?;
+    transaction.commit().await?;
+
+    device_login_response(&state, user_id, display_name.to_string()).await
+}
+
+/// Start a one-time challenge for a known, non-revoked browser key.
+pub async fn auth_device_challenge(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    Json(req): Json<DeviceChallengeReq>,
+) -> AppResult<Json<DeviceChallengeResp>> {
+    let credential_id = validated_credential_id(&req.credential_id)?;
+    let exists: Option<i64> = sqlx::query_scalar(
+        "SELECT user_id FROM device_credential WHERE id = ? AND revoked_at IS NULL",
+    )
+    .bind(&credential_id)
+    .fetch_optional(&state.pool)
+    .await?;
+    if exists.is_none() {
+        return Err(AppError::Unauthorized);
+    }
+
+    sqlx::query("DELETE FROM device_auth_challenge WHERE expires_at <= UTC_TIMESTAMP(6)")
+        .execute(&state.pool)
+        .await?;
+
+    let challenge_id = uuid::Uuid::new_v4().to_string();
+    let challenge = uuid::Uuid::new_v4().simple().to_string();
+    let expires_at = chrono::Utc::now() + chrono::Duration::minutes(DEVICE_CHALLENGE_MINUTES);
+    sqlx::query(
+        "INSERT INTO device_auth_challenge(id, credential_id, challenge, expires_at) \
+         VALUES (?, ?, ?, ?)",
+    )
+    .bind(&challenge_id)
+    .bind(&credential_id)
+    .bind(&challenge)
+    .bind(expires_at.naive_utc())
+    .execute(&state.pool)
+    .await?;
+
+    Ok(Json(DeviceChallengeResp {
+        challenge_id,
+        challenge,
+        expires_at: expires_at.to_rfc3339(),
+    }))
+}
+
+/// Verify the browser's ECDSA signature and establish the normal HttpOnly web session.
+pub async fn auth_device_verify(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    Json(req): Json<DeviceVerifyReq>,
+) -> AppResult<Response> {
+    let challenge_id = uuid::Uuid::parse_str(req.challenge_id.trim())
+        .map(|id| id.to_string())
+        .map_err(|_| AppError::BadRequest("invalid challenge id".into()))?;
+    let signature_bytes = BASE64
+        .decode(req.signature.trim())
+        .map_err(|_| AppError::Unauthorized)?;
+
+    let mut transaction = state.pool.begin().await?;
+    let row = sqlx::query_as::<_, (String, Vec<u8>, String, i64, String)>(
+        "SELECT c.challenge, d.public_key, d.id, u.id, u.display_name \
+         FROM device_auth_challenge c \
+         JOIN device_credential d ON d.id = c.credential_id \
+         JOIN user u ON u.id = d.user_id \
+         WHERE c.id = ? AND c.consumed_at IS NULL AND c.expires_at > UTC_TIMESTAMP(6) \
+           AND d.revoked_at IS NULL FOR UPDATE",
+    )
+    .bind(&challenge_id)
+    .fetch_optional(&mut *transaction)
+    .await?
+    .ok_or(AppError::Unauthorized)?;
+    let (challenge, public_key, credential_id, user_id, display_name) = row;
+
+    let verifying_key =
+        VerifyingKey::from_sec1_bytes(&public_key).map_err(|_| AppError::Unauthorized)?;
+    let signature = Signature::from_slice(&signature_bytes).map_err(|_| AppError::Unauthorized)?;
+    verifying_key
+        .verify(challenge.as_bytes(), &signature)
+        .map_err(|_| AppError::Unauthorized)?;
+
+    sqlx::query("UPDATE device_auth_challenge SET consumed_at = UTC_TIMESTAMP(6) WHERE id = ?")
+        .bind(&challenge_id)
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query("UPDATE device_credential SET last_used_at = UTC_TIMESTAMP(6) WHERE id = ?")
+        .bind(&credential_id)
+        .execute(&mut *transaction)
+        .await?;
+    transaction.commit().await?;
+
+    device_login_response(&state, user_id, display_name).await
+}
+
+/// Issue a short-lived code from an authenticated device. Redeeming it adds, rather
+/// than replaces, a credential so both devices can continue to sign in.
+pub async fn auth_device_migration_code(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<MigrationCodeResp>> {
+    sqlx::query(
+        "DELETE FROM device_migration_code \
+         WHERE expires_at <= UTC_TIMESTAMP(6) OR consumed_at IS NOT NULL",
+    )
+    .execute(&state.pool)
+    .await?;
+
+    let normalized = uuid::Uuid::new_v4().simple().to_string()[..16].to_ascii_uppercase();
+    let code = format!(
+        "{}-{}-{}-{}",
+        &normalized[0..4],
+        &normalized[4..8],
+        &normalized[8..12],
+        &normalized[12..16]
+    );
+    let expires_at = chrono::Utc::now() + chrono::Duration::minutes(MIGRATION_CODE_MINUTES);
+    sqlx::query(
+        "INSERT INTO device_migration_code(code_hash, user_id, expires_at) VALUES (?, ?, ?)",
+    )
+    .bind(migration_code_hash(&normalized))
+    .bind(user.id)
+    .bind(expires_at.naive_utc())
+    .execute(&state.pool)
+    .await?;
+
+    Ok(Json(MigrationCodeResp {
+        code,
+        expires_at: expires_at.to_rfc3339(),
+    }))
+}
+
+/// Consume a migration code and bind a newly generated key to the code owner's account.
+pub async fn auth_device_migrate(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    Json(req): Json<MigrateDeviceReq>,
+) -> AppResult<Response> {
+    let normalized_code = normalize_migration_code(&req.code)?;
+    let code_hash = migration_code_hash(&normalized_code);
+    let credential_id = validated_credential_id(&req.credential.credential_id)?;
+    let device_name = validated_device_name(&req.credential.device_name)?;
+    let public_key = decode_public_key(&req.credential.public_key)?;
+
+    let mut transaction = state.pool.begin().await?;
+    let user = sqlx::query_as::<_, (i64, String)>(
+        "SELECT u.id, u.display_name FROM device_migration_code m \
+         JOIN user u ON u.id = m.user_id \
+         WHERE m.code_hash = ? AND m.consumed_at IS NULL \
+           AND m.expires_at > UTC_TIMESTAMP(6) FOR UPDATE",
+    )
+    .bind(&code_hash)
+    .fetch_optional(&mut *transaction)
+    .await?
+    .ok_or_else(|| AppError::BadRequest("invalid or expired migration code".into()))?;
+
+    sqlx::query(
+        "INSERT INTO device_credential(id, user_id, public_key, device_name) VALUES (?, ?, ?, ?)",
+    )
+    .bind(&credential_id)
+    .bind(user.0)
+    .bind(public_key)
+    .bind(device_name)
+    .execute(&mut *transaction)
+    .await?;
+    sqlx::query(
+        "UPDATE device_migration_code SET consumed_at = UTC_TIMESTAMP(6) WHERE code_hash = ?",
+    )
+    .bind(&code_hash)
+    .execute(&mut *transaction)
+    .await?;
+    transaction.commit().await?;
+
+    device_login_response(&state, user.0, user.1).await
 }
 
 // ---------------------------------------------------------------------------

@@ -2,8 +2,8 @@
 // (meeting list/upsert, roles catalog, user management) served on the shared
 // `/api/*` paths.
 //
-// The pages require a web session and redirect to `/login` when absent; the JSON APIs
-// require an authenticated session (the `AuthUser` extractor).
+// The pages require an authenticated session and redirect to `/login` when absent;
+// management JSON APIs use the same `AuthUser` guard.
 
 use axum::{
     extract::{Path, Query, State},
@@ -119,9 +119,7 @@ const SUMMARY_FROM: &str = "meeting m \
 
 fn default_voting_group_for_role(name: &str) -> Option<&'static str> {
     match name.trim().to_ascii_lowercase().as_str() {
-        "saa" | "ah-counter" | "timer" | "grammarian" | "photographer" => {
-            Some("Best meeting role")
-        }
+        "saa" | "ah-counter" | "timer" | "grammarian" | "photographer" => Some("Best meeting role"),
         "individual evaluator"
         | "table topic evaluator"
         | "table topics evaluator"
@@ -263,10 +261,10 @@ pub async fn upsert_meeting(
                 sqlx::query(
                     "INSERT IGNORE INTO `role`(name, is_bookable, voting_group) VALUES (?, 1, ?)",
                 )
-                    .bind(name)
-                    .bind(voting_group)
-                    .execute(&mut *tx)
-                    .await?;
+                .bind(name)
+                .bind(voting_group)
+                .execute(&mut *tx)
+                .await?;
                 sqlx::query_scalar::<_, i64>("SELECT id FROM `role` WHERE name = ?")
                     .bind(name)
                     .fetch_one(&mut *tx)
@@ -367,7 +365,12 @@ pub async fn upsert_meeting(
     // order is the intended display order, so persist each slot's index as `position`.
     let mut index_to_id: Vec<i64> = Vec::with_capacity(input.role_slots.len());
     let mut keep: HashSet<i64> = HashSet::new();
-    for (index, (slot, role_id)) in input.role_slots.iter().zip(slot_role_ids.iter()).enumerate() {
+    for (index, (slot, role_id)) in input
+        .role_slots
+        .iter()
+        .zip(slot_role_ids.iter())
+        .enumerate()
+    {
         let position = index as i64;
         let label = slot
             .label
@@ -419,8 +422,7 @@ pub async fn upsert_meeting(
     // Re-insert sessions, resolving role_slot_index to actual slot ids. Batched into a
     // single multi-row INSERT so a whole agenda is one round-trip, not one per session.
     if !input.sessions.is_empty() {
-        let mut resolved: Vec<(&SessionIn, Option<i64>)> =
-            Vec::with_capacity(input.sessions.len());
+        let mut resolved: Vec<(&SessionIn, Option<i64>)> = Vec::with_capacity(input.sessions.len());
         for s in &input.sessions {
             let role_slot_id = match s.role_slot_index {
                 Some(i) => Some(*index_to_id.get(i).ok_or_else(|| {
@@ -666,11 +668,13 @@ pub async fn put_slots(
                     .filter(|s| !s.is_empty())
                     .ok_or_else(|| AppError::BadRequest("each role slot needs a role".into()))?;
                 let voting_group = default_voting_group_for_role(name).unwrap_or("");
-                sqlx::query("INSERT IGNORE INTO `role`(name, is_bookable, voting_group) VALUES (?, 1, ?)")
-                    .bind(name)
-                    .bind(voting_group)
-                    .execute(&mut *tx)
-                    .await?;
+                sqlx::query(
+                    "INSERT IGNORE INTO `role`(name, is_bookable, voting_group) VALUES (?, 1, ?)",
+                )
+                .bind(name)
+                .bind(voting_group)
+                .execute(&mut *tx)
+                .await?;
                 sqlx::query_scalar::<_, i64>("SELECT id FROM `role` WHERE name = ?")
                     .bind(name)
                     .fetch_one(&mut *tx)
@@ -953,8 +957,8 @@ pub async fn list_roles(
     let rows = sqlx::query_as::<_, RoleDto>(
         "SELECT id, name, is_bookable, voting_group FROM `role` ORDER BY name",
     )
-        .fetch_all(&state.pool)
-        .await?;
+    .fetch_all(&state.pool)
+    .await?;
     Ok(Json(rows))
 }
 
@@ -981,9 +985,9 @@ pub async fn create_role(
     let row = sqlx::query_as::<_, RoleDto>(
         "SELECT id, name, is_bookable, voting_group FROM `role` WHERE name = ?",
     )
-        .bind(name)
-        .fetch_one(&state.pool)
-        .await?;
+    .bind(name)
+    .fetch_one(&state.pool)
+    .await?;
     Ok(Json(row))
 }
 
@@ -1001,11 +1005,10 @@ pub async fn list_users(
     State(state): State<AppState>,
     _user: AuthUser,
 ) -> AppResult<Json<Vec<UserRowDto>>> {
-    let rows = sqlx::query_as::<_, UserRowDto>(
-        "SELECT u.id, u.display_name FROM user u ORDER BY u.id",
-    )
-    .fetch_all(&state.pool)
-    .await?;
+    let rows =
+        sqlx::query_as::<_, UserRowDto>("SELECT u.id, u.display_name FROM user u ORDER BY u.id")
+            .fetch_all(&state.pool)
+            .await?;
     Ok(Json(rows))
 }
 
@@ -1156,11 +1159,10 @@ pub async fn put_table_topics(
         .bind(TABLE_TOPICS_SPEAKER_ROLE)
         .execute(&mut *tx)
         .await?;
-    let role_id: i64 =
-        sqlx::query_scalar("SELECT id FROM `role` WHERE name = ?")
-            .bind(TABLE_TOPICS_SPEAKER_ROLE)
-            .fetch_one(&mut *tx)
-            .await?;
+    let role_id: i64 = sqlx::query_scalar("SELECT id FROM `role` WHERE name = ?")
+        .bind(TABLE_TOPICS_SPEAKER_ROLE)
+        .fetch_one(&mut *tx)
+        .await?;
 
     let mut seen_users: HashSet<i64> = HashSet::new();
     let mut seen_slots: HashSet<i64> = HashSet::new();
@@ -1208,15 +1210,14 @@ pub async fn put_table_topics(
 
     // Track current slots so removed participants can be deleted after retained slots
     // are updated. Votes attached to retained slots therefore keep stable references.
-    let old_ids: Vec<i64> =
-        sqlx::query_scalar(
-            "SELECT rs.id FROM role_slot rs \
+    let old_ids: Vec<i64> = sqlx::query_scalar(
+        "SELECT rs.id FROM role_slot rs \
              JOIN `role` r ON r.id = rs.role_id \
              WHERE rs.meeting_id = ? AND r.is_bookable = 0",
-        )
-        .bind(meeting_id)
-        .fetch_all(&mut *tx)
-        .await?;
+    )
+    .bind(meeting_id)
+    .fetch_all(&mut *tx)
+    .await?;
 
     // Get current max position for bookable slots so TT slots follow them.
     let base_position: i64 = sqlx::query_scalar(

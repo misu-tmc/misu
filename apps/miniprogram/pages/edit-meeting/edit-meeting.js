@@ -13,8 +13,7 @@ const ATTENDEE_PLACEHOLDER = 'Select checked-in participant';
 const CREATE_ONE_LABEL = '+ Create one';
 
 function attendeePickerOptions(users) {
-  return [ATTENDEE_PLACEHOLDER]
-    .concat((users || []).map((u) => u.display_name))
+  return (users || []).map((u) => u.display_name)
     .concat([CREATE_ONE_LABEL]);
 }
 
@@ -171,7 +170,7 @@ Page({
           ? attendeeCatalog.findIndex((u) => u.id === s.taker_id)
           : -1;
         const hasCheckedInUser = attendeePosition >= 0;
-        const attendeeIndex = hasCheckedInUser ? attendeePosition + 1 : 0;
+        const attendeeIndex = hasCheckedInUser ? attendeePosition : 0;
         const legacyName = hasCheckedInUser ? '' : (s.taker_name || s.label || '');
         return {
           role_slot_id: s.role_slot_id,
@@ -673,29 +672,20 @@ Page({
   onTopicPick(e) {
     const i = e.currentTarget.dataset.index;
     const attendeeIndex = parseInt(e.detail.value, 10);
-    if (attendeeIndex === this.data.attendeeCatalog.length + 1) {
+    if (attendeeIndex === this.data.attendeeCatalog.length) {
       this.promptWalkIn(i);
       return;
     }
     const list = this.data.tableTopics.slice();
     const current = list[i];
-    if (!attendeeIndex) {
-      list[i] = Object.assign({}, current, {
-        user_id: null,
-        name: current.legacy_name || '',
-        attendee_index: 0,
-        needs_mapping: true
-      });
-    } else {
-      const attendee = this.data.attendeeCatalog[attendeeIndex - 1];
-      if (!attendee) return;
-      list[i] = Object.assign({}, current, {
-        user_id: attendee.id,
-        name: attendee.display_name,
-        attendee_index: attendeeIndex,
-        needs_mapping: false
-      });
-    }
+    const attendee = this.data.attendeeCatalog[attendeeIndex];
+    if (!attendee) return;
+    list[i] = Object.assign({}, current, {
+      user_id: attendee.id,
+      name: attendee.display_name,
+      attendee_index: attendeeIndex,
+      needs_mapping: false
+    });
     this.setData({ tableTopics: list });
   },
   addTopic() {
@@ -740,7 +730,7 @@ Page({
               user_id: attendee.id,
               name: attendee.display_name,
               legacy_name: '',
-              attendee_index: attendeeCatalog.length,
+              attendee_index: attendeeCatalog.length - 1,
               needs_mapping: false
             };
             if (replaceIndex >= 0) {

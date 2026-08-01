@@ -29,6 +29,7 @@
             rustfmt
             clippy
             rust-analyzer
+            nodejs_22
             pkg-config
             mariadb.client # MySQL-compatible client
           ];
@@ -37,6 +38,7 @@
 
           shellHook = ''
             echo "MISU dev shell — $(cargo --version)"
+            echo "Run the SPA with: (cd apps/spa && npm run dev)"
             echo "Run the backend with: (cd apps/backend && cargo run)"
           '';
         };

@@ -47,7 +47,7 @@ async fn serve_admin(state: &AppState, maybe: MaybeAuthUser, file: &str) -> Resp
 
 /// The login page is always reachable (it is how you get a session).
 pub async fn page_login(State(s): State<AppState>) -> Response {
-    read_page(&s, "login.html").await
+    spa_index(State(s)).await
 }
 
 pub async fn page_meetings(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
@@ -87,6 +87,71 @@ pub async fn static_asset(State(s): State<AppState>, Path(path): Path<String>) -
         }
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
+}
+
+// ---------------------------------------------------------------------------
+// SPA: serve the standalone frontend from the configured spa_dir.
+// All navigation paths (deep links, refreshes) serve index.html.
+// Asset paths (*.js, *.css, sw.js, manifest.json, …) are served directly.
+// ---------------------------------------------------------------------------
+
+pub async fn spa_index(State(s): State<AppState>) -> Response {
+    let path = std::path::Path::new(&s.config.spa_dir).join("index.html");
+    match tokio::fs::read_to_string(&path).await {
+        Ok(content) => Html(content).into_response(),
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+async fn read_spa_asset(state: &AppState, path: &str) -> Response {
+    if path.contains("..") || path.starts_with('/') {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+    let full = std::path::Path::new(&state.config.spa_dir).join(path);
+    let ext = full.extension().and_then(|e| e.to_str()).unwrap_or("");
+    match tokio::fs::read(&full).await {
+        Ok(bytes) => {
+            let content_type = match ext {
+                "html" => "text/html; charset=utf-8",
+                "js" | "mjs" => "application/javascript; charset=utf-8",
+                "css" => "text/css; charset=utf-8",
+                "json" | "webmanifest" => "application/manifest+json; charset=utf-8",
+                "png" => "image/png",
+                "jpg" | "jpeg" => "image/jpeg",
+                "svg" => "image/svg+xml",
+                "webp" => "image/webp",
+                "ico" => "image/x-icon",
+                _ => "application/octet-stream",
+            };
+            ([(header::CONTENT_TYPE, content_type)], bytes).into_response()
+        }
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+pub async fn spa_service_worker(State(s): State<AppState>) -> Response {
+    read_spa_asset(&s, "sw.js").await
+}
+
+pub async fn spa_manifest(State(s): State<AppState>) -> Response {
+    read_spa_asset(&s, "manifest.webmanifest").await
+}
+
+pub async fn spa_asset(State(s): State<AppState>, Path(path): Path<String>) -> Response {
+    // Reject path traversal.
+    if path.contains("..") || path.starts_with('/') {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let full = std::path::Path::new(&s.config.spa_dir).join(&path);
+    let ext = full.extension().and_then(|e| e.to_str()).unwrap_or("");
+
+    // For any path without a file extension (SPA navigation deep-link), serve index.html.
+    if ext.is_empty() {
+        return spa_index(State(s)).await;
+    }
+
+    read_spa_asset(&s, &path).await
 }
 
 // ---------------------------------------------------------------------------

@@ -1,2 +1,6 @@
 # Brainstorming visual-companion scratch files
 .superpowers/
+
+# Frontend dependencies and build output
+apps/spa/node_modules/
+apps/spa/dist/

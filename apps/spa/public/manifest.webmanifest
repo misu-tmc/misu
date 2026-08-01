@@ -1,0 +1,19 @@
+{
+  "name": "MISU Toastmasters",
+  "short_name": "MISU",
+  "description": "Microsoft Suzhou Toastmasters Club meetings, roles and tools",
+  "start_url": "/app/booking",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f3f8",
+  "theme_color": "#5b2a86",
+  "icons": [
+    {
+      "src": "/app/icons/misu.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

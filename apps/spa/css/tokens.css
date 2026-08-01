@@ -1,0 +1,54 @@
+/* Design tokens — keep in sync with the backend login.html colour palette */
+:root {
+  /* Brand */
+  --purple:       #5b2a86;
+  --purple-dark:  #452066;
+  --purple-soft:  #f2ebf8;
+  --purple-mid:   #9a68c2;
+
+  /* Neutral */
+  --ink:          #1c1720;
+  --muted:        #706a74;
+  --line:         #e8e3eb;
+  --bg:           #f6f3f8;
+  --surface:      #ffffff;
+
+  /* Semantic */
+  --danger:       #a8213a;
+  --success:      #237a4b;
+  --warning-bg:   #fff8e7;
+  --warning-ink:  #715212;
+
+  /* Typography */
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Spacing */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+
+  /* Radius */
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  18px;
+  --radius-xl:  22px;
+
+  /* Shadow */
+  --shadow-card: 0 8px 32px rgba(48,30,59,.10);
+  --shadow-sm:   0 2px 8px rgba(48,30,59,.07);
+
+  /* Transition */
+  --ease: .14s ease;
+
+  /* Layout */
+  --content-max:  900px;
+  --sidebar-w:    220px;
+  --topbar-h:     52px;
+  --bottombar-h:  58px;
+}

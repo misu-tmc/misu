@@ -1,0 +1,26 @@
+{
+  "name": "misu-spa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate": "npm run test && npm run build"
+  },
+  "dependencies": {
+    "preact": "^10.26.9",
+    "@preact/signals": "^2.2.1",
+    "wouter-preact": "^3.7.1"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.2",
+    "@testing-library/preact": "^3.2.4",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4",
+    "vite": "^7.1.2"
+  }
+}

@@ -69,18 +69,12 @@ async fn main() -> anyhow::Result<()> {
             "/api/auth/device/challenge",
             post(auth::auth_device_challenge),
         )
-        .route(
-            "/api/auth/device/verify",
-            post(auth::auth_device_verify),
-        )
+        .route("/api/auth/device/verify", post(auth::auth_device_verify))
         .route(
             "/api/auth/device/migration-code",
             post(auth::auth_device_migration_code),
         )
-        .route(
-            "/api/auth/device/migrate",
-            post(auth::auth_device_migrate),
-        )
+        .route("/api/auth/device/migrate", post(auth::auth_device_migrate))
         .route("/api/meetings/upcoming", get(handlers::meetings_upcoming))
         .route("/api/meetings/:meeting_id", get(handlers::meeting_detail))
         // Mini program editor: per-section batch saves.
@@ -101,7 +95,10 @@ async fn main() -> anyhow::Result<()> {
             "/api/meetings/:meeting_id/table-topics",
             put(admin::put_table_topics),
         )
-        .route("/api/meetings/:meeting_id/speech", put(handlers::update_speech))
+        .route(
+            "/api/meetings/:meeting_id/speech",
+            put(handlers::update_speech),
+        )
         .route(
             "/api/meetings/:meeting_id/checkin",
             get(handlers::checkin_status).post(handlers::checkin),
@@ -122,9 +119,15 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/users/:user_id", post(handlers::update_user))
         .route("/api/club-info", get(handlers::club_info))
         .route("/static/*path", get(admin::static_asset))
+        .route("/sw.js", get(admin::spa_service_worker))
+        .route("/manifest.webmanifest", get(admin::spa_manifest))
+        // SPA: serve index.html for all /app/* navigation paths, and raw files for assets.
+        .route("/app", get(admin::spa_index))
+        .route("/app/", get(admin::spa_index))
+        .route("/app/*path", get(admin::spa_asset))
         .route(
             "/",
-            get(|| async { axum::response::Redirect::to("/meetings") }),
+            get(|| async { axum::response::Redirect::to("/app/booking") }),
         )
         // Web admin pages (require a web session; redirect to /login otherwise).
         .route("/login", get(admin::page_login))

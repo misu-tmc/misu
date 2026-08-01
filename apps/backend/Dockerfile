@@ -1,17 +1,27 @@
 # syntax=docker/dockerfile:1
 
+FROM node:22-alpine AS frontend
+WORKDIR /build/spa
+COPY apps/spa/package.json apps/spa/package-lock.json ./
+RUN npm ci
+COPY apps/spa/index.html apps/spa/vite.config.js ./
+COPY apps/spa/css ./css
+COPY apps/spa/public ./public
+COPY apps/spa/src ./src
+RUN npm run build
+
 FROM rust:1.97.1-slim-trixie AS builder
 WORKDIR /build
 
 # Cache dependency compilation until the manifest or lockfile changes.
-COPY Cargo.toml Cargo.lock ./
+COPY apps/backend/Cargo.toml apps/backend/Cargo.lock ./
 RUN mkdir src \
     && printf 'fn main() {}\n' > src/main.rs \
     && cargo build --release --locked \
     && rm -rf src
 
-COPY src ./src
-COPY migrations ./migrations
+COPY apps/backend/src ./src
+COPY apps/backend/migrations ./migrations
 RUN touch src/main.rs \
     && cargo build --release --locked \
     && strip target/release/misu-backend
@@ -28,12 +38,14 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=builder --chown=misu:misu /build/target/release/misu-backend /usr/local/bin/misu-backend
-COPY --chown=misu:misu web ./web
-COPY --chown=misu:misu static ./static
+COPY --chown=misu:misu apps/backend/web ./web
+COPY --chown=misu:misu apps/backend/static ./static
+COPY --from=frontend --chown=misu:misu /build/spa/dist ./spa
 
 ENV MISU_BIND=0.0.0.0:8080 \
     MISU_WEB_DIR=/app/web \
     MISU_STATIC_DIR=/app/static \
+    MISU_SPA_DIR=/app/spa \
     RUST_LOG=info
 
 EXPOSE 8080

@@ -35,6 +35,7 @@ export function BookingPage() {
   }, [meetings, authUser.value?.id]);
 
   async function changeBooking(meetingId, slotId, cancel) {
+    if (cancel && !window.confirm('Cancel this booking? The role will become available again.')) return;
     const key = `${meetingId}:${slotId}`;
     setBusy(key);
     try {
@@ -69,7 +70,7 @@ export function BookingPage() {
           {bookings.map(({ meeting, slot, target }) => (
             <div class="slot-row" key={`${meeting.id}:${slot.id}`}>
               <span class="role-label">#{meeting.number} · {shortDate(meeting.date)} · {slot.label || slot.role_name}</span>
-              <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meeting.id}/edit?tab=${target.tab}`}>Prepare</a>
+              <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meeting.id}/edit?tab=${target.tab}${target.field ? `&field=${target.field}` : ''}&slotId=${slot.id}`}>Prepare</a>
               <button
                 class="btn btn-ghost btn-sm"
                 type="button"

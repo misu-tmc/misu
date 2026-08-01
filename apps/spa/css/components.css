@@ -354,6 +354,64 @@ tbody tr:hover { background: var(--bg); }
 .result-option.winner .result-bar { background: var(--success); }
 
 /* ============================================================
+   ATTENDEE PAGES
+   ============================================================ */
+.narrow-page { max-width: 680px; margin: 0 auto; }
+.page-heading, .meeting-title-row, .result-heading {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.page-heading h1, .meeting-title-row h1 { margin-bottom: var(--space-1); }
+.action-row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-5); }
+.meeting-time { margin-top: var(--space-1); font-size: 13px; }
+.section-card { margin-top: var(--space-4); }
+.section-card summary { cursor: pointer; font-size: 17px; font-weight: 750; }
+.agenda-list, .speech-list { margin-top: var(--space-3); }
+.agenda-name { min-width: 0; }
+.agenda-name small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.agenda-sub { padding-left: var(--space-4); background: var(--purple-soft); }
+.timer-controls {
+  grid-column: 3 / -1;
+  display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 5px;
+}
+.timer-controls strong { min-width: 52px; font-family: var(--mono); color: var(--purple); }
+.timer-button {
+  min-height: 30px; padding: 4px 8px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: var(--surface); color: var(--purple); font: inherit; font-size: 11px; cursor: pointer;
+}
+.speech-item { padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
+.speech-item:last-child { border-bottom: 0; }
+.speech-item small { display: block; color: var(--muted); margin-top: 3px; }
+.speech-item p { margin-top: 5px; }
+.success-notice { margin-bottom: var(--space-4); color: var(--success); background: #eaf7f0; }
+.vote-option { width: 100%; text-align: left; background: var(--surface); font: inherit; }
+.result-group { margin-bottom: var(--space-4); }
+.result-heading { align-items: baseline; margin-bottom: var(--space-4); }
+.result-heading span { color: var(--muted); font-size: 13px; }
+.result-option { margin-top: var(--space-3); }
+.result-label { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: 5px; }
+.result-label span { font-weight: 650; }
+.result-label small { margin-left: 7px; color: var(--muted); font-weight: 400; }
+.profile-layout { display: grid; gap: var(--space-4); max-width: 680px; margin: 0 auto; }
+.profile-header { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-5); }
+.avatar {
+  width: 56px; height: 56px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  border-radius: 50%; background: var(--purple); color: #fff; font-size: 22px; font-weight: 800;
+}
+.profile-card form { display: flex; align-items: flex-end; gap: var(--space-3); }
+.profile-card form .field { flex: 1; }
+.form-message { margin-top: var(--space-3); }
+.profile-layout .card h2, .club-page .card h2 { margin-bottom: var(--space-3); }
+.profile-layout .card > .btn { margin-top: var(--space-4); }
+.club-page { display: grid; gap: var(--space-4); max-width: 680px; margin: 0 auto; }
+.club-hero { text-align: center; padding-block: var(--space-8); }
+.club-hero img { width: min(260px, 75%); margin: 0 auto var(--space-6); }
+.club-motto { margin-top: var(--space-3); font-size: 17px; }
+.contact-qr { width: min(240px, 80%); margin: var(--space-5) auto 0; border-radius: var(--radius-md); }
+
+/* ============================================================
    RESPONSIVE HELPERS
    ============================================================ */
 @media (min-width: 701px) {
@@ -361,4 +419,14 @@ tbody tr:hover { background: var(--bg); }
   .card { padding: var(--space-8); }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
   .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+}
+
+@media (max-width: 540px) {
+  .card { padding: var(--space-4); border-radius: var(--radius-lg); }
+  .page-heading, .meeting-title-row { align-items: flex-start; }
+  .agenda-row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: var(--space-2); }
+  .agenda-row .taker { grid-column: 2; }
+  .timer-controls { grid-column: 2 / -1; justify-content: flex-start; }
+  .profile-card form { align-items: stretch; flex-direction: column; }
+  .profile-card form .btn { width: 100%; }
 }

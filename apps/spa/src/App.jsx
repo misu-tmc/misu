@@ -6,7 +6,13 @@ import { authApi } from './lib/api.js';
 import { trySilentLogin } from './lib/authDevice.js';
 import { authReady, authUser } from './state/auth.js';
 import { BookingPage } from './pages/BookingPage.jsx';
+import { CheckinPage } from './pages/CheckinPage.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
+import { MeetingPage } from './pages/MeetingPage.jsx';
+import { MePage } from './pages/MePage.jsx';
+import { MisuPage } from './pages/MisuPage.jsx';
+import { VotePage } from './pages/VotePage.jsx';
+import { VoteResultPage } from './pages/VoteResultPage.jsx';
 
 function LoginRedirect({ location }) {
   useEffect(() => {
@@ -55,6 +61,12 @@ function ProtectedApp() {
     <AppShell>
       <Switch>
         <Route path="/app/booking" component={BookingPage} />
+        <Route path="/app/meeting" component={MeetingPage} />
+        <Route path="/app/checkin" component={CheckinPage} />
+        <Route path="/app/vote/:meetingId" component={VotePage} />
+        <Route path="/app/vote-result/:meetingId" component={VoteResultPage} />
+        <Route path="/app/me" component={MePage} />
+        <Route path="/app/misu" component={MisuPage} />
         <Route component={MigrationPending} />
       </Switch>
     </AppShell>

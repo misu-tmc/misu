@@ -1,8 +1,8 @@
 use axum::{
     async_trait,
     extract::{FromRef, FromRequestParts},
-    http::header::SET_COOKIE,
     http::request::Parts,
+    http::{header::SET_COOKIE, HeaderMap},
     response::{IntoResponse, Response},
     Json,
 };
@@ -137,12 +137,18 @@ pub struct LoginResp {
 
 pub async fn auth_wechat(
     axum::extract::State(state): axum::extract::State<AppState>,
+    headers: HeaderMap,
     Json(req): Json<WechatLoginReq>,
 ) -> AppResult<Json<LoginResp>> {
     if req.code.trim().is_empty() {
         return Err(AppError::BadRequest("missing code".into()));
     }
-    let openid = resolve_openid(&state.config, req.code.trim()).await?;
+    // callContainer's private protocol injects a gateway-authenticated OpenID. Direct
+    // HTTP/local requests do not have it and retain the jscode2session fallback.
+    let openid = match cloud_openid(&headers) {
+        Some(openid) => openid,
+        None => resolve_openid(&state.config, req.code.trim()).await?,
+    };
     let (user_id, display_name, _created) = upsert_wechat_user(&state.pool, &openid).await?;
 
     let token = create_session(&state.pool, user_id).await?;
@@ -153,6 +159,15 @@ pub async fn auth_wechat(
             display_name,
         },
     }))
+}
+
+fn cloud_openid(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("x-wx-openid")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
 }
 
 #[derive(Deserialize)]
@@ -354,10 +369,6 @@ pub async fn resolve_openid(config: &Config, code: &str) -> Result<String, AppEr
             )))
         }
     };
-    let url = format!(
-        "https://api.weixin.qq.com/sns/jscode2session?appid={appid}&secret={secret}&js_code={code}&grant_type=authorization_code"
-    );
-
     #[derive(Deserialize)]
     struct Code2Session {
         openid: Option<String>,
@@ -365,7 +376,24 @@ pub async fn resolve_openid(config: &Config, code: &str) -> Result<String, AppEr
         errmsg: Option<String>,
     }
 
-    let resp: Code2Session = reqwest::get(&url).await?.json().await?;
+    // Build the query through reqwest and deliberately sanitize transport/decoding
+    // errors: reqwest error values retain the request URL, whose query contains the
+    // app secret and must never be written to logs.
+    let response = reqwest::Client::new()
+        .get("https://api.weixin.qq.com/sns/jscode2session")
+        .query(&[
+            ("appid", appid.as_str()),
+            ("secret", secret.as_str()),
+            ("js_code", code),
+            ("grant_type", "authorization_code"),
+        ])
+        .send()
+        .await
+        .map_err(|error| sanitized_wechat_error("request", &error))?;
+    let resp: Code2Session = response
+        .json()
+        .await
+        .map_err(|error| sanitized_wechat_error("response decoding", &error))?;
     match resp.openid {
         Some(openid) if resp.errcode.unwrap_or(0) == 0 => Ok(openid),
         _ => Err(AppError::BadRequest(format!(
@@ -374,6 +402,21 @@ pub async fn resolve_openid(config: &Config, code: &str) -> Result<String, AppEr
             resp.errcode.unwrap_or(-1)
         ))),
     }
+}
+
+fn sanitized_wechat_error(operation: &str, error: &reqwest::Error) -> AppError {
+    let reason = if error.is_timeout() {
+        "timeout"
+    } else if error.is_connect() {
+        "connection error"
+    } else if error.is_decode() {
+        "invalid response"
+    } else {
+        "HTTP client error"
+    };
+    AppError::Internal(anyhow::anyhow!(
+        "wechat jscode2session {operation} failed: {reason}"
+    ))
 }
 
 /// Look up the user for an openid, creating a thin user + identity row on first login.

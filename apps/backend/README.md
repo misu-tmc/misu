@@ -52,6 +52,11 @@ DEV mode is an explicit opt-in and is **never** inferred — leave it unset (and
 `WECHAT_APPID` / `WECHAT_SECRET`) to call WeChat's `jscode2session` for real logins.
 Never enable it in production.
 
+Requests from a mini program through WeChat Cloud Hosting's `callContainer` private
+protocol use the gateway-injected `X-WX-OPENID` and do not call `jscode2session`.
+`WECHAT_APPID` / `WECHAT_SECRET` remain necessary for direct HTTP mini program requests.
+Never include the app secret in application logs or commit it to the repository.
+
 ### Web admin login
 
 The web surface uses a **username/password** provider (bcrypt-hashed, stored in

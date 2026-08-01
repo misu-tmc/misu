@@ -1,11 +1,18 @@
 // app.js — establishes the WeChat identity session on launch.
-const { login, updateUser } = require('./utils/api.js');
+const { login, updateUser, resolveTransport } = require('./utils/api.js');
 
 App({
   globalData: {
-    // Backend base URL. In WeChat DevTools, enable
-    // "Details > Local settings > Do not verify legal domain names" for http/localhost.
+    // "auto": DevTools uses request; real devices, trial and release use cloud.
+    // Set "request" or "cloud" to override runtime detection.
+    apiTransport: 'auto',
+    // Used by the request transport. In WeChat DevTools, enable "Do not verify legal
+    // domain names" for local HTTP; production wx.request requires an HTTPS legal domain.
     apiBase: 'http://127.0.0.1:8080',
+    // Used by the cloud transport. cloudEnv is the environment ID, while cloudService
+    // is the Cloud Hosting service name sent as X-WX-SERVICE.
+    cloudEnv: 'prod-d3g3mkrg99c537861',
+    cloudService: 'misu-tmc',
     token: '',
     userId: 0,
     displayName: '',
@@ -16,7 +23,24 @@ App({
   },
 
   onLaunch() {
+    this.initApiTransport();
     this.globalData.ready = this.ensureLogin();
+  },
+
+  initApiTransport() {
+    if (resolveTransport(this.globalData) !== 'cloud') return;
+    if (!this.globalData.cloudEnv || !this.globalData.cloudService) {
+      console.error('cloud transport requires cloudEnv and cloudService');
+      return;
+    }
+    if (!wx.cloud || typeof wx.cloud.init !== 'function') {
+      console.error('wx.cloud is unavailable; update the mini program base library');
+      return;
+    }
+    wx.cloud.init({
+      env: this.globalData.cloudEnv,
+      traceUser: true
+    });
   },
 
   // Runs wx.login -> POST /api/auth/wechat, storing the session token + user.

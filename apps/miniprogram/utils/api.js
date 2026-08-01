@@ -1,8 +1,58 @@
-// utils/api.js — thin request wrapper around wx.request.
-// Attaches the session token and points at the configured backend base URL.
+// utils/api.js — thin request wrapper around wx.request / wx.cloud.callContainer.
+// Attaches the session token and selects the transport configured in app.js.
 
-function base() {
-  return getApp().globalData.apiBase;
+function resolveTransport(config) {
+  const configured = config.apiTransport || 'request';
+  if (configured !== 'auto') return configured;
+
+  try {
+    const device = typeof wx.getDeviceInfo === 'function'
+      ? wx.getDeviceInfo()
+      : wx.getSystemInfoSync();
+    return device.platform === 'devtools' ? 'request' : 'cloud';
+  } catch (err) {
+    // Prefer the deploy-safe transport if runtime detection is unavailable.
+    return 'cloud';
+  }
+}
+
+function send(path, { method, data, header }) {
+  const config = getApp().globalData;
+  const transport = resolveTransport(config);
+
+  if (transport === 'cloud') {
+    if (!wx.cloud || typeof wx.cloud.callContainer !== 'function') {
+      return Promise.reject({ error: 'wx.cloud.callContainer is unavailable' });
+    }
+    if (!config.cloudEnv || !config.cloudService) {
+      return Promise.reject({ error: 'cloudEnv and cloudService are required' });
+    }
+
+    return wx.cloud.callContainer({
+      config: { env: config.cloudEnv },
+      path,
+      method,
+      data,
+      header: Object.assign({}, header, {
+        'X-WX-SERVICE': config.cloudService
+      })
+    });
+  }
+
+  if (transport !== 'request') {
+    return Promise.reject({ error: 'unsupported apiTransport: ' + transport });
+  }
+
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: config.apiBase.replace(/\/$/, '') + path,
+      method,
+      data,
+      header,
+      success: resolve,
+      fail: reject
+    });
+  });
 }
 
 function refreshLogin() {
@@ -43,26 +93,16 @@ function request(path, { method = 'GET', data, auth = true, retryAuth = true } =
       header['Authorization'] = 'Bearer ' + token;
     }
   }
-  return new Promise((resolve, reject) => {
-    wx.request({
-      url: base() + path,
-      method,
-      data,
-      header,
-      success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(res.data);
-        } else if (auth && retryAuth && res.statusCode === 401) {
-          refreshLogin()
-            .then(() => request(path, { method, data, auth, retryAuth: false }))
-            .then(resolve)
-            .catch((err) => reject(err || res.data || { error: 'unauthorized' }));
-        } else {
-          reject(res.data || { error: 'request failed' });
-        }
-      },
-      fail: reject
-    });
+  return send(path, { method, data, header }).then((res) => {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return res.data;
+    }
+    if (auth && retryAuth && res.statusCode === 401) {
+      return refreshLogin()
+        .then(() => request(path, { method, data, auth, retryAuth: false }))
+        .catch((err) => Promise.reject(err || res.data || { error: 'unauthorized' }));
+    }
+    return Promise.reject(res.data || { error: 'request failed' });
   });
 }
 
@@ -72,6 +112,7 @@ function login(code) {
 }
 
 const api = {
+  resolveTransport,
   request,
   login,
   upcomingMeetings: () => request('/api/meetings/upcoming'),

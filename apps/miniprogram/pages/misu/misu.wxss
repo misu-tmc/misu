@@ -13,6 +13,6 @@
   letter-spacing: 2rpx;
 }
 .club-name { font-size: 34rpx; font-weight: 600; margin-top: 24rpx; text-align: center; }
-.motto { color: #8a8a8f; margin-top: 8rpx; }
+.motto { color: #8a8a8f; margin-top: 8rpx; text-align: center; overflow-wrap: break-word; }
 .body { display: block; line-height: 1.6; }
 .body.muted { margin-top: 6rpx; }

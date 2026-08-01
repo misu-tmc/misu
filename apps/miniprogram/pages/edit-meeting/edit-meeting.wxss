@@ -4,12 +4,14 @@
 .head-top {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16rpx;
 }
 .head-main { flex: 1; min-width: 0; }
 .head-title { display: block; font-size: 32rpx; font-weight: 600; }
 .head-sub { display: block; margin-top: 6rpx; font-size: 24rpx; }
 .status-pill {
+  flex: 0 0 auto;
   padding: 4rpx 16rpx;
   border-radius: 999rpx;
   font-size: 22rpx;
@@ -22,7 +24,7 @@
 
 /* Tab strip */
 .tabwrap { position: relative; background: #fff; border-bottom: 1rpx solid #ececee; }
-.tabs { white-space: nowrap; }
+.tabs { width: 100%; white-space: nowrap; }
 .tab {
   display: inline-block;
   padding: 22rpx 22rpx 18rpx;
@@ -30,6 +32,7 @@
   font-weight: 600;
   color: #8a8a8f;
   border-bottom: 5rpx solid transparent;
+  white-space: nowrap;
 }
 .tab.active { color: #5b2a86; border-bottom-color: #5b2a86; }
 .edge {
@@ -51,7 +54,7 @@
 .field:first-child { margin-top: 0; }
 .field-row { display: flex; gap: 24rpx; margin-top: 24rpx; }
 .field-row .field { margin-top: 0; }
-.field-row .half { flex: 1; }
+.field-row .half { flex: 1; min-width: 0; }
 .field-label { display: block; font-size: 24rpx; margin-bottom: 8rpx; }
 .field-input {
   font-size: 30rpx;
@@ -106,15 +109,16 @@
 
 /* Fixed per-section save bar */
 .savebar {
-  position: fixed; left: 0; right: 0; bottom: 0;
+  position: fixed; left: 50%; bottom: 0;
+  width: 100%; max-width: 600px; transform: translateX(-50%);
   display: flex; align-items: center; gap: 16rpx;
   padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
   background: #fff; border-top: 1rpx solid #ececee;
   z-index: 20;
   box-shadow: 0 -6rpx 20rpx rgba(0, 0, 0, 0.05);
 }
-.save-hint { flex: 1; font-size: 24rpx; }
-.save-btn { padding: 20rpx 44rpx; }
+.save-hint { flex: 1; min-width: 0; font-size: 24rpx; overflow-wrap: break-word; }
+.save-btn { flex: 0 0 auto; padding: 20rpx 44rpx; }
 .save-btn.disabled { opacity: 0.5; }
 
 /* Empty / stub tabs */
@@ -123,6 +127,9 @@
 .speech-card { margin-bottom: 20rpx; }
 .speech-card.hl-card { border: 2rpx solid #5b2a86; box-shadow: 0 0 0 4rpx #f0ecf6; }
 .speech-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
+.speech-head text { min-width: 0; overflow-wrap: break-word; }
+.speech-head text:first-child { flex: 1; }
+.speech-head text:last-child { flex: 0 1 42%; text-align: right; }
 .textarea { min-height: 150rpx; line-height: 1.5; }
 .speech-textarea {
   height: 56rpx;
@@ -136,3 +143,11 @@
 .tt-num { width: 44rpx; flex-shrink: 0; font-size: 26rpx; text-align: right; }
 .tt-input { flex: 1; font-size: 28rpx; min-width: 0; }
 .tt-empty { padding: 16rpx 0; font-size: 28rpx; }
+
+@media (max-width: 360px) {
+  .head-main { flex-basis: calc(100% - 130rpx); }
+  .head-top > .btn { margin-left: auto; }
+  .tab { padding-left: 18rpx; padding-right: 18rpx; }
+  .body { padding-left: 18rpx; padding-right: 18rpx; }
+  .field-row { gap: 16rpx; }
+}

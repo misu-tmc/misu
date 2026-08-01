@@ -38,15 +38,17 @@
 }
 .dot-inner-active { background: #5b2a86; }
 
-.candidate-main { display: flex; flex-direction: column; min-width: 0; }
-.candidate-name { font-size: 30rpx; }
+.candidate-main { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.candidate-name { font-size: 30rpx; overflow-wrap: break-word; }
 .candidate-role { font-size: 24rpx; margin-top: 2rpx; }
 
 .savebar {
   position: fixed;
-  left: 0;
-  right: 0;
+  left: 50%;
   bottom: 0;
+  width: 100%;
+  max-width: 600px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 16rpx;
@@ -55,12 +57,20 @@
   border-top: 1rpx solid #ececee;
   z-index: 20;
 }
-.save-hint { flex: 1; font-size: 22rpx; }
-.save-btn { padding: 20rpx 34rpx; }
+.save-hint { flex: 1; min-width: 0; font-size: 22rpx; overflow-wrap: break-word; }
+.save-btn { flex: 0 0 auto; padding: 20rpx 34rpx; }
 .result-btn {
+  flex: 0 0 auto;
   background: #fff;
   color: #5b2a86;
   border: 2rpx solid #5b2a86;
   padding: 18rpx 28rpx;
 }
 .save-btn.disabled { opacity: 0.5; }
+
+@media (max-width: 360px) {
+  .save-hint { display: none; }
+  .savebar { justify-content: flex-end; gap: 10rpx; }
+  .save-btn { padding-left: 24rpx; padding-right: 24rpx; }
+  .result-btn { padding-left: 20rpx; padding-right: 20rpx; }
+}

@@ -4,9 +4,17 @@ page {
   color: #1c1c1e;
   font-family: -apple-system, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 30rpx;
+  overflow-x: hidden;
+}
+
+view, text, image, button, scroll-view {
+  box-sizing: border-box;
 }
 
 .container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
   padding: 24rpx;
 }
 
@@ -37,6 +45,7 @@ page {
   border-radius: 999rpx;
   font-size: 26rpx;
   line-height: 1.4;
+  text-align: center;
   background: #5b2a86;
   color: #ffffff;
 }
@@ -60,4 +69,10 @@ page {
   text-align: center;
   color: #8a8a8f;
   padding: 80rpx 0;
+}
+
+@media (max-width: 360px) {
+  .container { padding-left: 18rpx; padding-right: 18rpx; }
+  .card { padding-left: 24rpx; padding-right: 24rpx; }
+  .btn { padding-left: 22rpx; padding-right: 22rpx; }
 }

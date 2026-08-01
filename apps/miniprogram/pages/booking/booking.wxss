@@ -2,16 +2,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16rpx;
   padding: 10rpx 0;
   border-bottom: 1rpx solid #f0f0f2;
 }
 .booking-row:last-child { border-bottom: none; }
-.booking-info { display: flex; flex-direction: column; }
-.booking-title { font-size: 30rpx; font-weight: 500; }
+.booking-info { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.booking-title { font-size: 30rpx; font-weight: 500; overflow-wrap: break-word; }
 .booking-date { font-size: 24rpx; margin-top: 4rpx; }
-.booking-actions { display: flex; align-items: center; }
+.booking-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 12rpx; }
 .cancel-x {
-  margin-left: 20rpx;
+  flex: 0 0 auto;
   width: 56rpx;
   height: 56rpx;
   line-height: 52rpx;
@@ -44,12 +45,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16rpx;
   padding: 10rpx 0;
   border-top: 1rpx solid #f0f0f2;
 }
-.role-label { color: #3a3a3c; }
-.role-taker { color: #6b6b70; }
+.role-label { flex: 1; min-width: 0; color: #3a3a3c; overflow-wrap: break-word; }
+.role-taker { flex: 0 1 48%; min-width: 0; color: #6b6b70; text-align: right; overflow-wrap: break-word; }
 .role-taker.mine { color: #5b2a86; font-weight: 600; }
 
 /* Shrink the Take! button so a bookable row matches the height of a taken (text) row. */
-.role-row .btn { padding-top: 4rpx; padding-bottom: 4rpx; }
+.role-row .btn { flex: 0 0 auto; padding-top: 4rpx; padding-bottom: 4rpx; }
+
+@media (max-width: 360px) {
+  .booking-row { align-items: flex-start; }
+  .booking-actions { gap: 8rpx; }
+  .booking-actions .btn { padding-left: 18rpx; padding-right: 18rpx; }
+  .role-row { gap: 12rpx; }
+}

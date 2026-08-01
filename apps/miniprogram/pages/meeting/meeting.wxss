@@ -1,14 +1,15 @@
 .title-card { display: flex; flex-direction: column; }
 .title-head { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
-.title-line { flex: 1; font-size: 32rpx; font-weight: 600; }
+.title-line { flex: 1; min-width: 0; font-size: 32rpx; font-weight: 600; overflow-wrap: break-word; }
 .edit-link { color: #5b2a86; font-size: 26rpx; font-weight: 600; white-space: nowrap; }
 .title-sub { color: #6b6b70; font-size: 26rpx; margin-top: 6rpx; }
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: 12rpx;
   margin-top: 24rpx;
 }
+.actions .btn { flex: 1 1 180rpx; min-width: 0; padding-left: 16rpx; padding-right: 16rpx; }
 .btn-checked {
   background: #2e7d32;
   color: #fff;
@@ -48,15 +49,15 @@
 .agenda-row:first-child { border-top: none; }
 .agenda-row.running { background: #f4f9ff; margin: 0 -12rpx; padding-left: 12rpx; padding-right: 12rpx; border-radius: 12rpx; }
 .agenda-time {
-  width: 110rpx;
+  flex: 0 0 110rpx;
   color: #5b2a86;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.agenda-main { display: flex; flex-direction: column; flex: 1; }
-.agenda-name { font-size: 30rpx; }
+.agenda-main { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.agenda-name { font-size: 30rpx; overflow-wrap: break-word; }
 .agenda-meta { font-size: 24rpx; margin-top: 4rpx; }
-.timer-actions { display: flex; align-items: center; gap: 10rpx; margin-left: 12rpx; }
+.timer-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 10rpx; margin-left: 12rpx; }
 .timer-btn {
   width: 52rpx;
   height: 52rpx;
@@ -76,8 +77,15 @@
 .speech-row:last-child { padding-bottom: 0; }
 .speech-head { display: flex; align-items: baseline; justify-content: space-between; gap: 20rpx; }
 .speech-title { flex: 1; min-width: 0; font-size: 30rpx; font-weight: 600; overflow-wrap: break-word; }
-.speech-speaker { flex-shrink: 0; font-size: 24rpx; }
+.speech-speaker { flex: 0 1 42%; min-width: 0; font-size: 24rpx; text-align: right; overflow-wrap: break-word; }
 .speech-meta { display: block; margin-top: 4rpx; font-size: 24rpx; }
 .speech-detail { display: flex; flex-direction: column; gap: 4rpx; margin-top: 16rpx; }
 .speech-detail-label { font-size: 22rpx; font-weight: 600; text-transform: uppercase; letter-spacing: 1rpx; }
 .speech-detail-value { font-size: 26rpx; line-height: 1.5; overflow-wrap: break-word; }
+
+@media (max-width: 360px) {
+  .meeting-details { gap: 16rpx; }
+  .agenda-time { flex-basis: 96rpx; }
+  .timer-actions { gap: 6rpx; margin-left: 8rpx; }
+  .timer-btn { width: 48rpx; height: 48rpx; line-height: 44rpx; }
+}

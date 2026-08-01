@@ -1,5 +1,6 @@
 .profile { display: flex; align-items: center; }
 .avatar {
+  flex: 0 0 auto;
   width: 112rpx;
   height: 112rpx;
   border-radius: 50%;
@@ -14,15 +15,19 @@
   font-weight: 600;
   text-transform: uppercase;
 }
-.profile-main { display: flex; flex-direction: column; margin-left: 24rpx; }
-.name { font-size: 34rpx; font-weight: 600; }
+.profile-main { display: flex; flex: 1; min-width: 0; flex-direction: column; margin-left: 24rpx; }
+.name { font-size: 34rpx; font-weight: 600; overflow-wrap: break-word; }
 .edit { font-size: 26rpx; margin-top: 6rpx; }
 
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16rpx;
   padding: 18rpx 0;
   border-top: 1rpx solid #f0f0f2;
 }
 .row:first-child { border-top: none; }
+.row text { min-width: 0; overflow-wrap: break-word; }
+.row text:first-child { flex: 1; }
+.row text:last-child { flex: 0 1 42%; text-align: right; }

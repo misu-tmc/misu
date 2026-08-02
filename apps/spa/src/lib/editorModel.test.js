@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSessionsPayload, buildUpsertPayload, cloneAsTemplate, splitMeeting } from './editorModel.js';
+import { buildSessionsPayload, buildUpsertPayload, cloneAsTemplate, reorderItem, splitMeeting } from './editorModel.js';
 
 const meeting = {
   id: 9, number: 10, title: 'Meeting', theme: '', keyword: '', date: '2026-08-01',
@@ -33,5 +33,12 @@ describe('editor model', () => {
     const result = splitMeeting({ ...meeting, role_slots: [...meeting.role_slots, { id: 102, role_name: 'Table Topics Speaker', label: 'Alice', is_bookable: false, taker_id: 3, taker_name: 'Alice' }] }, [{ id: 3, display_name: 'Alice' }]);
     expect(result.meeting.role_slots).toHaveLength(2);
     expect(result.tableTopics).toEqual([{ role_slot_id: 102, user_id: 3, name: 'Alice' }]);
+  });
+
+  it('moves one row without changing the row objects', () => {
+    const rows = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    const reordered = reorderItem(rows, 0, 2);
+    expect(reordered.map((row) => row.id)).toEqual([2, 3, 1]);
+    expect(reordered[2]).toBe(rows[0]);
   });
 });

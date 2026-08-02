@@ -569,14 +569,42 @@ tbody tr:hover { background: var(--bg); }
 .check-field { display: flex; align-items: center; gap: var(--space-2); font-size: 14px; cursor: pointer; }
 .check-field input { width: 17px; height: 17px; accent-color: var(--purple); }
 .check-field.compact { align-self: end; min-height: 40px; }
+.editor-list-hint { margin-bottom: var(--space-3); color: var(--muted); font-size: 12px; }
 .editor-list { display: grid; gap: var(--space-3); }
 .editor-row {
-  display: grid; align-items: end; gap: var(--space-3);
-  padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff;
+  display: block; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff;
+  transition: border-color var(--ease), box-shadow var(--ease), opacity var(--ease), transform var(--ease);
 }
-.role-editor-row { grid-template-columns: 28px minmax(130px, 1.1fr) minmax(120px, 1fr) minmax(130px, 1fr) minmax(140px, 1fr) auto auto; }
-.session-editor-row { grid-template-columns: 50px minmax(100px, .8fr) minmax(150px, 1.5fr) 84px minmax(130px, 1fr) auto; }
-.row-order, .session-start { align-self: center; color: var(--muted); font-size: 13px; font-weight: 700; }
+.editor-row.expanded { border-color: rgba(91,42,134,.35); box-shadow: 0 5px 16px rgba(48,30,59,.07); }
+.editor-row.dragging { position: relative; z-index: 10; opacity: .82; border-color: var(--purple); box-shadow: 0 12px 28px rgba(48,30,59,.2); transform: scale(.995); }
+.editor-row-summary { min-height: 66px; display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: stretch; }
+.drag-handle {
+  width: 42px; padding: 0; border: 0; border-right: 1px solid var(--line);
+  background: var(--bg); color: var(--muted); font: 800 17px var(--font);
+  letter-spacing: -4px; cursor: grab; touch-action: none; user-select: none;
+}
+.drag-handle:active { cursor: grabbing; color: var(--purple); background: var(--purple-soft); }
+.row-expand-button {
+  min-width: 0; width: 100%; padding: 10px var(--space-3);
+  display: grid; grid-template-columns: 42px minmax(0, 1fr) 24px; align-items: center; gap: var(--space-2);
+  border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.row-expand-button:hover { background: rgba(242,235,248,.35); }
+.row-order, .session-start { align-self: center; color: var(--muted); font-size: 12px; font-weight: 750; }
+.row-summary-copy { min-width: 0; }
+.row-summary-copy strong, .row-summary-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-summary-copy strong { font-size: 15px; }
+.row-summary-copy small { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.row-chevron { color: var(--muted); font-size: 16px; text-align: center; }
+.editor-row-body {
+  display: grid; gap: var(--space-3); padding: var(--space-4);
+  border-top: 1px solid var(--line); background: rgba(246,243,248,.45);
+}
+.role-editor-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.session-editor-body { grid-template-columns: minmax(110px,.8fr) minmax(160px,1.5fr) 90px minmax(140px,1fr); }
+.editor-row-body .field + .field { margin-top: 0; }
+.editor-row-body .row-tools { grid-column: 1 / -1; }
 .row-tools { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .row-tools button, .row-delete {
   min-width: 32px; height: 32px; padding: 4px 7px;
@@ -670,8 +698,11 @@ tbody tr:hover { background: var(--bg); }
   .editor-heading-actions { justify-content: flex-start; }
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .span-2 { grid-column: auto; }
-  .role-editor-row, .session-editor-row { grid-template-columns: 28px 1fr; align-items: stretch; }
-  .role-editor-row > :not(.row-order), .session-editor-row > :not(.session-start) { grid-column: 2; }
+  .editor-row-summary { min-height: 64px; grid-template-columns: 38px minmax(0, 1fr); }
+  .drag-handle { width: 38px; }
+  .row-expand-button { grid-template-columns: 36px minmax(0, 1fr) 20px; padding-inline: 10px; }
+  .editor-row-body, .role-editor-body, .session-editor-body { grid-template-columns: 1fr; padding: var(--space-3); }
+  .editor-row-body .row-tools { grid-column: 1; }
   .row-tools { justify-content: flex-start; }
   .panel-actions { align-items: stretch; flex-direction: column; }
   .panel-actions > .btn { width: 100%; }

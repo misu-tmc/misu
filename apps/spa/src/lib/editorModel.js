@@ -31,9 +31,10 @@ export function cloneAsTemplate(source) {
     date: date ? date.toISOString().slice(0, 10) : '',
     status: 'draft',
     role_slots: sourceSlots.map((slot, index) => ({ ...slot, id: null, _key: `new-${index}`, taker_id: null, taker_name: null, speech: null })),
-    sessions: (source.sessions || []).map((session) => ({
+    sessions: (source.sessions || []).map((session, index) => ({
       ...session,
       id: null,
+      _key: `new-session-${index}`,
       role_slot_id: null,
       _role_slot_key: session.role_slot_id == null ? null : (keyById.get(session.role_slot_id) || null)
     }))
@@ -69,7 +70,11 @@ export function splitMeeting(detail, attendees = []) {
       sessions: (detail.sessions || [])
         .slice()
         .sort((a, b) => a.position - b.position)
-        .map((session) => ({ ...session, _role_slot_key: keyById.get(session.role_slot_id) || null }))
+        .map((session) => ({
+          ...session,
+          _key: `session-${session.id}`,
+          _role_slot_key: keyById.get(session.role_slot_id) || null
+        }))
     },
     tableTopics,
     speeches
@@ -135,4 +140,14 @@ export function buildSessionsPayload(sessions) {
     duration_minutes: Number(session.duration_minutes) || 0,
     role_slot_id: session.role_slot_id || null
   }));
+}
+
+export function reorderItem(items, fromIndex, toIndex) {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) {
+    return items;
+  }
+  const next = items.slice();
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
 }

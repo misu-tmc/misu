@@ -32,6 +32,8 @@ function TabIcon({ name }) {
 export function AppShell({ children }) {
   const [location] = useLocation();
   const attendee = attendeeRoutes.some((path) => isActive(location, path)) || isMeetingDetail(location);
+  const displayName = authUser.value?.display_name?.trim() || 'Personal info';
+  const initial = displayName.slice(0, 1).toUpperCase();
 
   useEffect(() => {
     document.body.classList.toggle('attendee-layout', attendee);
@@ -55,8 +57,10 @@ export function AppShell({ children }) {
           <NavLink href="/app/misu">MISU</NavLink>
         </nav>
         <div class="topbar-user">
-          <span class="topbar-name">{authUser.value?.display_name || ''}</span>
-          <NavLink href="/app/me">Account</NavLink>
+          <Link class="topbar-account" href="/app/me" aria-label={`Personal info for ${displayName}`}>
+            <span class="topbar-avatar" aria-hidden="true">{initial}</span>
+            <span>{displayName}</span>
+          </Link>
           <button class="topbar-logout" type="button" onClick={logout}>Sign out</button>
         </div>
       </header>

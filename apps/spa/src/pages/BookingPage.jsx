@@ -61,10 +61,6 @@ export function BookingPage() {
 
   return (
     <div class="booking-page">
-      <div class="attendee-page-heading">
-        <p class="eyebrow">Upcoming meetings</p>
-        <h1>Booking</h1>
-      </div>
       {error && <p class="error-msg" role="alert">{error}</p>}
 
       {bookings.length > 0 && (

@@ -49,8 +49,7 @@ export function MeetingListPage() {
 
   return (
     <div class="meeting-list-page">
-      <div class="attendee-page-heading meeting-list-heading">
-        <div><p class="eyebrow">Club schedule</p><h1>Meetings</h1></div>
+      <div class="meeting-list-actions">
         <Link class="btn btn-primary btn-sm" href="/app/meetings/new">+ New meeting</Link>
       </div>
 

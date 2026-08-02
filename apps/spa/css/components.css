@@ -476,7 +476,7 @@ tbody tr:hover { background: var(--bg); }
 .meeting-list-actions { display: flex; justify-content: flex-end; margin-bottom: var(--space-4); }
 .meeting-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .meeting-overview-card {
-  min-width: 0; padding: var(--space-5);
+  min-width: 0; height: 100%; padding: var(--space-5);
   display: flex; flex-direction: column;
   border: 1px solid var(--line); border-radius: var(--radius-xl);
   background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm);
@@ -606,8 +606,6 @@ tbody tr:hover { background: var(--bg); }
   .card { padding: var(--space-8); }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
   .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
-  .meeting-overview-card:first-child { grid-column: 1 / -1; }
-  .meeting-overview-card:first-child .meeting-overview-meta { max-width: 620px; }
 }
 
 @media (max-width: 540px) {

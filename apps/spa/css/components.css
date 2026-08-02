@@ -30,6 +30,19 @@
   display: grid; place-items: center;
   font-size: 14px; font-weight: 900;
 }
+.topbar-history { display: flex; align-items: center; gap: 3px; }
+.topbar-history button {
+  width: 31px; height: 31px; padding: 0;
+  display: grid; place-items: center;
+  border: 1px solid rgba(255,255,255,.22); border-radius: 9px;
+  background: transparent; color: rgba(255,255,255,.86); cursor: pointer;
+  transition: background var(--ease), color var(--ease);
+}
+.topbar-history button:hover { background: rgba(255,255,255,.13); color: #fff; }
+.topbar-history svg {
+  width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
 #topbar nav { display: flex; gap: var(--space-1); margin-left: auto; }
 #topbar nav a {
   padding: 6px 11px;
@@ -125,6 +138,7 @@ body.attendee-layout #page {
 @media (max-width: 700px) {
   #topbar nav { display: none; }
   #topbar .topbar-user { display: none; }
+  .topbar-history { margin-left: auto; }
   html.wechat-browser #topbar { display: none; }
   html.wechat-browser #page {
     margin-top: 0;

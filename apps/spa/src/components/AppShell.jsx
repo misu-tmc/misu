@@ -6,6 +6,14 @@ function isMeetingDetail(location) {
   return /^\/app\/meetings\/\d+\/?$/.test(location);
 }
 
+function isMeetingWorkspace(location) {
+  return /^\/app\/meetings\/(?:new|\d+\/(?:edit|agenda))\/?$/.test(location);
+}
+
+function belongsToMeetingTab(location) {
+  return isActive(location, '/app/meeting') || isMeetingDetail(location) || isMeetingWorkspace(location);
+}
+
 const attendeeRoutes = ['/app/booking', '/app/meeting', '/app/misu', '/app/me'];
 
 function isActive(location, href) {
@@ -30,7 +38,7 @@ function TabIcon({ name }) {
 
 export function AppShell({ children }) {
   const [location] = useLocation();
-  const attendee = attendeeRoutes.some((path) => isActive(location, path)) || isMeetingDetail(location);
+  const attendee = attendeeRoutes.some((path) => isActive(location, path)) || isMeetingDetail(location) || isMeetingWorkspace(location);
   const displayName = authUser.value?.display_name?.trim() || 'Personal info';
   const initial = displayName.slice(0, 1).toUpperCase();
 
@@ -43,9 +51,17 @@ export function AppShell({ children }) {
     <>
       <header id="topbar" aria-label="Site header">
         <Link class="brand" href="/app/booking"><span class="mark">M</span><span>MISU</span></Link>
+        <div class="topbar-history" aria-label="Page history">
+          <button type="button" aria-label="Go back" onClick={() => window.history.back()}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg>
+          </button>
+          <button type="button" aria-label="Go forward" onClick={() => window.history.forward()}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6" /></svg>
+          </button>
+        </div>
         <nav aria-label="Main navigation">
           <NavLink href="/app/booking">Booking</NavLink>
-          <NavLink href="/app/meeting" activeWhen={(path) => isActive(path, '/app/meeting') || isMeetingDetail(path)}>Meeting</NavLink>
+          <NavLink href="/app/meeting" activeWhen={belongsToMeetingTab}>Meeting</NavLink>
           <NavLink href="/app/misu">MISU</NavLink>
         </nav>
         <div class="topbar-user">
@@ -62,7 +78,7 @@ export function AppShell({ children }) {
         <nav id="bottombar" aria-label="Tab navigation">
           <ul>
             <li><NavLink href="/app/booking"><TabIcon name="booking" /><span class="tab-label">Booking</span></NavLink></li>
-            <li><NavLink href="/app/meeting" activeWhen={(path) => isActive(path, '/app/meeting') || isMeetingDetail(path)}><TabIcon name="meeting" /><span class="tab-label">Meeting</span></NavLink></li>
+            <li><NavLink href="/app/meeting" activeWhen={belongsToMeetingTab}><TabIcon name="meeting" /><span class="tab-label">Meeting</span></NavLink></li>
             <li><NavLink href="/app/misu"><TabIcon name="misu" /><span class="tab-label">MISU</span></NavLink></li>
             <li><NavLink href="/app/me"><TabIcon name="me" /><span class="tab-label">Me</span></NavLink></li>
           </ul>

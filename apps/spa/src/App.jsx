@@ -10,8 +10,8 @@ import { AgendaPage } from './pages/AgendaPage.jsx';
 import { CheckinPage } from './pages/CheckinPage.jsx';
 import { EditorPage } from './pages/EditorPage.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
+import { MeetingListPage } from './pages/MeetingListPage.jsx';
 import { MeetingPage } from './pages/MeetingPage.jsx';
-import { MeetingsPage } from './pages/MeetingsPage.jsx';
 import { MePage } from './pages/MePage.jsx';
 import { MisuPage } from './pages/MisuPage.jsx';
 import { VotePage } from './pages/VotePage.jsx';
@@ -67,7 +67,7 @@ function ProtectedApp() {
     <AppShell>
       <Switch>
         <Route path="/app/booking" component={BookingPage} />
-        <Route path="/app/meeting" component={MeetingPage} />
+        <Route path="/app/meeting" component={MeetingListPage} />
         <Route path="/app/checkin" component={CheckinPage} />
         <Route path="/app/vote/:meetingId" component={VotePage} />
         <Route path="/app/vote-result/:meetingId" component={VoteResultPage} />
@@ -76,7 +76,7 @@ function ProtectedApp() {
         <Route path="/app/meetings/new" component={EditorPage} />
         <Route path="/app/meetings/:id/edit" component={EditorPage} />
         <Route path="/app/meetings/:id/agenda" component={AgendaPage} />
-        <Route path="/app/meetings" component={MeetingsPage} />
+        <Route path="/app/meetings/:id" component={MeetingPage} />
         <Route path="/app/users" component={UsersPage} />
         <Route component={NotFoundPage} />
       </Switch>

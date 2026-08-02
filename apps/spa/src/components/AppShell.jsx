@@ -3,15 +3,20 @@ import { Link, useLocation } from 'wouter-preact';
 import { authApi } from '../lib/api.js';
 import { authUser } from '../state/auth.js';
 
+function isMeetingDetail(location) {
+  return /^\/app\/meetings\/\d+\/?$/.test(location);
+}
+
 const attendeeRoutes = ['/app/booking', '/app/meeting', '/app/misu', '/app/me'];
 
 function isActive(location, href) {
   return location === href || location.startsWith(href + '/');
 }
 
-function NavLink({ href, children, class: className = '' }) {
+function NavLink({ href, children, class: className = '', activeWhen }) {
   const [location] = useLocation();
-  return <Link class={`${className} ${isActive(location, href) ? 'active' : ''}`.trim()} href={href}>{children}</Link>;
+  const active = activeWhen ? activeWhen(location) : isActive(location, href);
+  return <Link class={`${className} ${active ? 'active' : ''}`.trim()} href={href}>{children}</Link>;
 }
 
 function TabIcon({ name }) {
@@ -26,7 +31,7 @@ function TabIcon({ name }) {
 
 export function AppShell({ children }) {
   const [location] = useLocation();
-  const attendee = attendeeRoutes.some((path) => isActive(location, path));
+  const attendee = attendeeRoutes.some((path) => isActive(location, path)) || isMeetingDetail(location);
 
   useEffect(() => {
     document.body.classList.toggle('attendee-layout', attendee);
@@ -45,8 +50,7 @@ export function AppShell({ children }) {
         <Link class="brand" href="/app/booking"><span class="mark">M</span><span>MISU</span></Link>
         <nav aria-label="Main navigation">
           <NavLink href="/app/booking">Booking</NavLink>
-          <NavLink href="/app/meeting">Meeting</NavLink>
-          <NavLink href="/app/meetings">Manage</NavLink>
+          <NavLink href="/app/meeting" activeWhen={(path) => isActive(path, '/app/meeting') || isMeetingDetail(path)}>Meeting</NavLink>
           <NavLink href="/app/users">Users</NavLink>
           <NavLink href="/app/misu">MISU</NavLink>
         </nav>
@@ -63,7 +67,7 @@ export function AppShell({ children }) {
         <nav id="bottombar" aria-label="Tab navigation">
           <ul>
             <li><NavLink href="/app/booking"><TabIcon name="booking" /><span class="tab-label">Booking</span></NavLink></li>
-            <li><NavLink href="/app/meeting"><TabIcon name="meeting" /><span class="tab-label">Meeting</span></NavLink></li>
+            <li><NavLink href="/app/meeting" activeWhen={(path) => isActive(path, '/app/meeting') || isMeetingDetail(path)}><TabIcon name="meeting" /><span class="tab-label">Meeting</span></NavLink></li>
             <li><NavLink href="/app/misu"><TabIcon name="misu" /><span class="tab-label">MISU</span></NavLink></li>
             <li><NavLink href="/app/me"><TabIcon name="me" /><span class="tab-label">Me</span></NavLink></li>
           </ul>

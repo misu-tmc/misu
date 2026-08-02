@@ -104,13 +104,13 @@ Public:
 Protected:
 
 - `/app/booking`
-- `/app/meeting`
+- `/app/meeting` (meeting cards; ongoing meeting first)
+- `/app/meetings/:id` (meeting details)
 - `/app/checkin`
 - `/app/vote/:meetingId`
 - `/app/vote-result/:meetingId`
 - `/app/me`
 - `/app/misu`
-- `/app/meetings`
 - `/app/meetings/new`
 - `/app/meetings/:id/edit`
 - `/app/meetings/:id/agenda`

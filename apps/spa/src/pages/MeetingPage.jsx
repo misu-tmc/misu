@@ -9,7 +9,7 @@ function elapsedLabel(seconds) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-export function MeetingPage() {
+export function MeetingPage({ params }) {
   const [meeting, setMeeting] = useState(null);
   const [agenda, setAgenda] = useState([]);
   const [speeches, setSpeeches] = useState([]);
@@ -24,14 +24,17 @@ export function MeetingPage() {
     setLoading(true);
     setError('');
     try {
-      const upcoming = await meetingsApi.upcoming();
-      if (!upcoming.length) {
+      const requested = Number(params?.id) || Number(new URLSearchParams(window.location.search).get('meetingId')) || Number(sessionStorage.getItem('misu:meetingId'));
+      let meetingId = requested;
+      if (!meetingId) {
+        const upcoming = await meetingsApi.upcoming();
+        meetingId = upcoming[0]?.id || null;
+      }
+      if (!meetingId) {
         setMeeting(null);
         return;
       }
-      const requested = Number(new URLSearchParams(window.location.search).get('meetingId')) || Number(sessionStorage.getItem('misu:meetingId'));
-      const selected = upcoming.find((item) => item.id === requested) || upcoming[0];
-      const detail = await meetingsApi.get(selected.id);
+      const detail = await meetingsApi.get(meetingId);
       setMeeting(detail);
       setAgenda(buildAgenda(detail).map((row) => ({ ...row, key: `session-${row.id}`, elapsed: 0, isSub: false })));
       setSpeeches(buildSpeeches(detail));
@@ -44,7 +47,7 @@ export function MeetingPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [params?.id]);
 
   useEffect(() => {
     if (!activeTimer) return undefined;
@@ -110,9 +113,10 @@ export function MeetingPage() {
   return (
     <>
       <section class="card meeting-hero">
+        <Link class="meeting-back-link" href="/app/meeting">← All meetings</Link>
         <div class="meeting-title-row">
           <div>
-            <p class="eyebrow">Current meeting</p>
+            <p class="eyebrow">Meeting details</p>
             <h1>#{meeting.number} · {shortDate(meeting.date)}</h1>
             <p>{meeting.theme || meeting.title} · {meeting.venue || 'Venue to be confirmed'}</p>
             <p class="meeting-time">{meeting.start_time}–{meeting.end_time}{meeting.keyword ? ` · Keyword: ${meeting.keyword}` : ''}</p>

@@ -133,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/login", get(admin::page_login))
         .route(
             "/meetings",
-            get(|| async { axum::response::Redirect::to("/app/meetings") }),
+            get(|| async { axum::response::Redirect::to("/app/meeting") }),
         )
         .route(
             "/meetings/new",

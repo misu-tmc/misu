@@ -19,7 +19,7 @@ export function CheckinPage() {
         if (!meetingId) throw new Error('No upcoming meeting is available.');
         await checkinApi.checkin(meetingId);
         sessionStorage.setItem('misu:meetingId', String(meetingId));
-        if (active) navigate(`/app/meeting?meetingId=${meetingId}`, { replace: true });
+        if (active) navigate(`/app/meetings/${meetingId}`, { replace: true });
       } catch (err) {
         if (active) setError(err.message || 'Check-in failed.');
       }

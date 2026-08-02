@@ -139,7 +139,9 @@ body.attendee-layout #page {
     min-height: 100vh;
     min-height: 100dvh;
   }
-  html.wechat-browser .attendee-page-heading { display: none; }
+  html.wechat-browser .booking-page > .attendee-page-heading { display: none; }
+  html.wechat-browser .meeting-list-heading { justify-content: flex-end; }
+  html.wechat-browser .meeting-list-heading > div { display: none; }
 }
 @media (min-width: 701px) {
   #bottombar { display: none !important; }
@@ -452,6 +454,34 @@ tbody tr:hover { background: var(--bg); }
 .contact-qr { width: min(240px, 80%); margin: var(--space-5) auto 0; border-radius: var(--radius-md); }
 
 /* ============================================================
+   MEETING CARDS
+   ============================================================ */
+.meeting-list-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.meeting-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.meeting-overview-card {
+  min-width: 0; padding: var(--space-5);
+  display: flex; flex-direction: column;
+  border: 1px solid var(--line); border-radius: var(--radius-xl);
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transition: transform var(--ease), border-color var(--ease), box-shadow var(--ease);
+}
+.meeting-overview-card:hover { transform: translateY(-2px); border-color: var(--purple-mid); box-shadow: var(--shadow-card); text-decoration: none; }
+.meeting-overview-card.ongoing { border: 2px solid var(--purple); background: linear-gradient(145deg, #fff 68%, var(--purple-soft)); }
+.meeting-overview-topline { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.meeting-state { color: var(--muted); font-size: 12px; font-weight: 750; letter-spacing: .45px; text-transform: uppercase; }
+.meeting-state.ongoing { color: var(--purple); }
+.meeting-state.next { color: var(--success); }
+.meeting-overview-card h2 { margin-bottom: 5px; font-size: 19px; line-height: 1.3; }
+.meeting-overview-theme { min-height: 1.5em; margin-bottom: var(--space-4); color: var(--purple-dark); font-weight: 650; }
+.meeting-overview-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: auto 0 var(--space-5); }
+.meeting-overview-meta div { min-width: 0; }
+.meeting-overview-meta dt { margin-bottom: 3px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+.meeting-overview-meta dd { margin: 0; overflow-wrap: anywhere; font-size: 13px; }
+.meeting-card-action { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-3); border-top: 1px solid var(--line); color: var(--purple); font-size: 13px; font-weight: 700; }
+.meeting-back-link { display: inline-block; margin-bottom: var(--space-4); font-size: 13px; font-weight: 700; }
+
+/* ============================================================
    MANAGEMENT
    ============================================================ */
 .segmented {
@@ -559,6 +589,8 @@ tbody tr:hover { background: var(--bg); }
   .card { padding: var(--space-8); }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
   .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+  .meeting-overview-card:first-child { grid-column: 1 / -1; }
+  .meeting-overview-card:first-child .meeting-overview-meta { max-width: 620px; }
 }
 
 @media (max-width: 540px) {
@@ -581,6 +613,12 @@ tbody tr:hover { background: var(--bg); }
   .booking-page .slot-row { min-height: 46px; gap: var(--space-2); padding: 7px 0; }
   .booking-page .slot-row .role-label { min-width: 0; overflow-wrap: anywhere; }
   .booking-page .slot-row .taker { text-align: right; }
+  .meeting-card-grid { grid-template-columns: 1fr; gap: var(--space-3); }
+  .meeting-overview-card { padding: var(--space-4); border-radius: var(--radius-lg); }
+  .meeting-overview-card h2 { font-size: 17px; }
+  .meeting-overview-theme { min-height: 0; margin-bottom: var(--space-3); }
+  .meeting-overview-meta { grid-template-columns: 1fr 1fr; margin-bottom: var(--space-4); }
+  .meeting-overview-meta div:last-child { grid-column: 1 / -1; }
   .page-heading, .meeting-title-row { align-items: flex-start; }
   .agenda-row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: var(--space-2); }
   .agenda-row .taker { grid-column: 2; }

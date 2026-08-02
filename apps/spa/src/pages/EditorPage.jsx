@@ -300,7 +300,7 @@ export function EditorPage({ params }) {
     <>
       <div class="editor-heading">
         <div>
-          <Link class="back-link" href="/app/meetings">← Meetings</Link>
+          <Link class="back-link" href="/app/meeting">← Meetings</Link>
           <h1>{meeting.id ? `Editing #${meeting.number}` : 'New meeting'}</h1>
           <p>{meeting.title}</p>
         </div>

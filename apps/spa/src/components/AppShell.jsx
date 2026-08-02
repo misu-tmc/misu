@@ -20,7 +20,7 @@ function NavLink({ href, children, class: className = '', activeWhen }) {
 
 function TabIcon({ name }) {
   const paths = {
-    booking: <><rect x="5" y="4" width="14" height="16" rx="2" /><path d="M9 4V3h6v1M8 9h8M8 13h8M8 17h5" /></>,
+    booking: <><circle cx="12" cy="12" r="9" /><path d="m7.5 12 3 3 6-6" /></>,
     meeting: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4M17 3v4M3 10h18M8 14h2M14 14h2M8 18h2" /></>,
     misu: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" /></>,
     me: <><circle cx="12" cy="8" r="4" /><path d="M4.5 21a7.5 7.5 0 0 1 15 0" /></>

@@ -19,6 +19,13 @@ export function MeetingPage({ params }) {
   const [checkingIn, setCheckingIn] = useState(false);
   const [timerMode, setTimerMode] = useState(false);
   const [activeTimer, setActiveTimer] = useState(null);
+  const [agendaOpen, setAgendaOpen] = useState(true);
+  const [speechesOpen, setSpeechesOpen] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.add('meeting-detail-layout');
+    return () => document.body.classList.remove('meeting-detail-layout');
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -38,6 +45,8 @@ export function MeetingPage({ params }) {
       setMeeting(detail);
       setAgenda(buildAgenda(detail).map((row) => ({ ...row, key: `session-${row.id}`, elapsed: 0, isSub: false })));
       setSpeeches(buildSpeeches(detail));
+      setAgendaOpen(true);
+      setSpeechesOpen(false);
       const status = await checkinApi.status(detail.id).catch(() => ({ checked_in: false }));
       setCheckedIn(!!status.checked_in);
     } catch (err) {
@@ -58,6 +67,7 @@ export function MeetingPage({ params }) {
   }, [activeTimer]);
 
   async function checkIn() {
+    if (checkedIn) return;
     setCheckingIn(true);
     setError('');
     try {
@@ -84,22 +94,27 @@ export function MeetingPage({ params }) {
     setAgenda((rows) => rows.map((row) => row.key === key ? { ...row, elapsed: 0 } : row));
   }
 
-  function addSubSession(parent) {
+  function addSubSession(source) {
     setAgenda((rows) => {
-      const parentIndex = rows.findIndex((row) => row.key === parent.key);
-      const children = rows.filter((row) => row.parentKey === parent.key).length;
-      let insertAt = parentIndex;
-      while (insertAt + 1 < rows.length && rows[insertAt + 1].parentKey === parent.key) insertAt += 1;
+      const parentKey = source.isSub ? source.parentKey : source.key;
+      const parent = rows.find((row) => row.key === parentKey) || source;
+      const children = rows.filter((row) => row.parentKey === parentKey).length;
+      const insertAt = rows.reduce(
+        (last, row, index) => row.key === parentKey || row.parentKey === parentKey ? index : last,
+        rows.findIndex((row) => row.key === source.key)
+      );
       const next = rows.slice();
       next.splice(insertAt + 1, 0, {
         ...parent,
         id: `${parent.id}-sub-${children + 1}`,
-        key: `${parent.key}-sub-${Date.now()}`,
-        parentKey: parent.key,
+        key: `${parentKey}-sub-${Date.now()}`,
+        parentKey,
         isSub: true,
-        name: `${parent.sessionName || parent.name} ${children + 1}`,
+        name: `${parent.name} ${children + 1}`,
         start: '',
         taker: '',
+        duration_minutes: 0,
+        prepMeta: '',
         elapsed: 0
       });
       return next;
@@ -111,70 +126,86 @@ export function MeetingPage({ params }) {
   if (!meeting) return <EmptyState title="No upcoming meeting" message="A published meeting will appear here when it is ready." />;
 
   return (
-    <>
+    <div class="meeting-page">
       <section class="card meeting-hero">
-        <Link class="meeting-back-link" href="/app/meeting">← All meetings</Link>
         <div class="meeting-title-row">
-          <div>
-            <p class="eyebrow">Meeting details</p>
-            <h1>#{meeting.number} · {shortDate(meeting.date)}</h1>
-            <p>{meeting.theme || meeting.title} · {meeting.venue || 'Venue to be confirmed'}</p>
-            <p class="meeting-time">{meeting.start_time}–{meeting.end_time}{meeting.keyword ? ` · Keyword: ${meeting.keyword}` : ''}</p>
-          </div>
-          <span class={`pill pill-${meeting.status}`}>{meeting.status}</span>
+          <h1>#{meeting.number} · {shortDate(meeting.date).replace(',', '')} · {meeting.start_time}–{meeting.end_time}</h1>
+          <Link class="meeting-edit-link" href={`/app/meetings/${meeting.id}/edit`}>Edit</Link>
         </div>
-        <div class="action-row">
-          <button class={`btn ${checkedIn ? 'btn-secondary' : 'btn-primary'}`} type="button" disabled={checkedIn || checkingIn} onClick={checkIn}>
-            {checkedIn ? '✓ Checked in' : checkingIn ? 'Checking in…' : 'Check in'}
+        <p class="meeting-title-sub">{meeting.venue || '—'}</p>
+        <div class="meeting-actions">
+          <button class={`btn meeting-action ${checkedIn ? 'meeting-action-checked' : 'meeting-action-outline'}`} type="button" disabled={checkingIn} onClick={checkIn}>
+            {checkedIn ? 'Checked in' : checkingIn ? 'Checking in…' : 'Check in'}
           </button>
-          <Link class="btn btn-secondary" href={`/app/vote/${meeting.id}`}>Vote</Link>
-          <button class="btn btn-ghost" type="button" onClick={toggleTimer}>{timerMode ? 'Exit timer' : 'Timer mode'}</button>
-          <Link class="btn btn-ghost" href={`/app/meetings/${meeting.id}/edit`}>Edit</Link>
+          <Link class="btn meeting-action meeting-action-outline" href={`/app/vote/${meeting.id}`}>Vote for best</Link>
+          <button class={`btn meeting-action ${timerMode ? 'meeting-action-timer-on' : 'meeting-action-outline'}`} type="button" onClick={toggleTimer}>{timerMode ? 'Timer on' : 'Timer mode'}</button>
         </div>
         {error && <p class="error-msg" role="alert">{error}</p>}
       </section>
 
-      <section class="card section-card">
-        <details open>
-          <summary>Agenda</summary>
-          <div class="agenda-list">
+      <section class="card meeting-theme-card" aria-label="Meeting theme and keyword">
+        <div>
+          <span>Theme</span>
+          <strong>{meeting.theme || '—'}</strong>
+        </div>
+        <div>
+          <span>Keyword</span>
+          <strong>{meeting.keyword || '—'}</strong>
+        </div>
+      </section>
+
+      <section class="meeting-section">
+        <button class="meeting-section-header" type="button" aria-expanded={agendaOpen} onClick={() => setAgendaOpen(!agendaOpen)}>
+          <span class="meeting-fold-toggle" aria-hidden="true">{agendaOpen ? '−' : '+'}</span>
+          <span>Agenda</span>
+        </button>
+        {agendaOpen && (
+          <div class="card meeting-section-card">
             {agenda.map((row) => (
-              <div class={`agenda-row ${row.isSub ? 'agenda-sub' : ''}`} key={row.key}>
-                <span class="start">{row.start}</span>
-                <span class="agenda-name">{row.name}{row.prepMeta && <small>{row.prepMeta}</small>}</span>
-                {timerMode ? (
-                  <span class="timer-controls">
-                    <strong>{elapsedLabel(row.elapsed)}</strong>
-                    <button class="timer-button" type="button" onClick={() => toggleRowTimer(row.key)}>{activeTimer === row.key ? 'Pause' : 'Start'}</button>
-                    <button class="timer-button" type="button" onClick={() => resetTimer(row.key)}>Reset</button>
-                    {!row.isSub && <button class="timer-button" type="button" onClick={() => addSubSession(row)}>+Sub</button>}
-                  </span>
-                ) : (
-                  <><span class="dur">{row.duration_minutes}'</span><span class="taker">{row.taker}</span></>
+              <div class={`meeting-agenda-row ${activeTimer === row.key ? 'running' : ''}`} key={row.key}>
+                <span class="meeting-agenda-time">{row.start}</span>
+                <div class="meeting-agenda-main">
+                  <span class="meeting-agenda-name">{row.name}</span>
+                  {row.prepMeta && <span class="meeting-agenda-meta">{row.prepMeta}</span>}
+                  <span class="meeting-agenda-meta">{row.duration_minutes}' · {row.taker || '—'}</span>
+                  {timerMode && <span class="meeting-agenda-meta meeting-timer-elapsed">Elapsed {elapsedLabel(row.elapsed)}</span>}
+                </div>
+                {timerMode && (
+                  <div class="meeting-timer-actions">
+                    {activeTimer === row.key && <button class="meeting-timer-button restart" type="button" aria-label={`Restart ${row.name} timer`} onClick={() => resetTimer(row.key)}>↺</button>}
+                    <button class="meeting-timer-button" type="button" aria-label={`${activeTimer === row.key ? 'Pause' : 'Start'} ${row.name} timer`} onClick={() => toggleRowTimer(row.key)}>{activeTimer === row.key ? 'Ⅱ' : '▶'}</button>
+                    <button class="meeting-timer-button add" type="button" aria-label={`Add sub-session after ${row.name}`} onClick={() => addSubSession(row)}>+</button>
+                  </div>
                 )}
               </div>
             ))}
           </div>
-        </details>
+        )}
       </section>
 
       {speeches.length > 0 && (
-        <section class="card section-card">
-          <details>
-            <summary>Prepared speeches</summary>
-            <div class="speech-list">
+        <section class="meeting-section">
+          <button class="meeting-section-header" type="button" aria-expanded={speechesOpen} onClick={() => setSpeechesOpen(!speechesOpen)}>
+            <span class="meeting-fold-toggle" aria-hidden="true">{speechesOpen ? '−' : '+'}</span>
+            <span>Speeches</span>
+          </button>
+          {speechesOpen && (
+            <div class="card meeting-section-card">
               {speeches.map((speech) => (
-                <article class="speech-item" key={speech.id}>
-                  <div><strong>{speech.title}</strong>{speech.speaker && <span> · {speech.speaker}</span>}</div>
-                  {speech.meta && <small>{speech.meta}</small>}
-                  {speech.purpose && <p>{speech.purpose}</p>}
-                  {speech.description && <p>{speech.description}</p>}
+                <article class="meeting-speech-row" key={speech.id}>
+                  <div class="meeting-speech-head">
+                    <strong>{speech.title}</strong>
+                    {speech.speaker && <span>{speech.speaker}</span>}
+                  </div>
+                  {speech.meta && <span class="meeting-speech-meta">{speech.meta}</span>}
+                  {speech.purpose && <div class="meeting-speech-detail"><span>Purpose</span><p>{speech.purpose}</p></div>}
+                  {speech.description && <div class="meeting-speech-detail"><span>Description</span><p>{speech.description}</p></div>}
                 </article>
               ))}
             </div>
-          </details>
+          )}
         </section>
       )}
-    </>
+    </div>
   );
 }

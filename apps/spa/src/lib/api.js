@@ -97,8 +97,9 @@ export const usersApi = {
 
 export const catalogApi = {
   roles: () => request('/api/roles'),
-  createRole: (name) => request('/api/roles', { method: 'POST', body: { name } }),
-  venues: () => request('/api/venues')
+  createRole: (name, votingGroup = '') => request('/api/roles', { method: 'POST', body: { name, voting_group: votingGroup } }),
+  venues: () => request('/api/venues'),
+  createVenue: (name) => request('/api/venues', { method: 'POST', body: { name } })
 };
 
 export const clubApi = {

@@ -39,6 +39,7 @@ function TabIcon({ name }) {
 export function AppShell({ children }) {
   const [location] = useLocation();
   const attendee = attendeeRoutes.some((path) => isActive(location, path)) || isMeetingDetail(location) || isMeetingWorkspace(location);
+  const meetingEditor = /^\/app\/meetings\/(?:new|\d+\/edit)\/?$/.test(location);
   const displayName = authUser.value?.display_name?.trim() || 'Personal info';
   const initial = displayName.slice(0, 1).toUpperCase();
 
@@ -49,7 +50,7 @@ export function AppShell({ children }) {
 
   return (
     <>
-      <header id="topbar" aria-label="Site header">
+      <header id="topbar" class={meetingEditor ? 'editor-topbar' : ''} aria-label="Site header">
         <Link class="brand" href="/app/booking"><span class="mark">M</span><span>MISU</span></Link>
         <div class="topbar-history" aria-label="Page history">
           <button type="button" aria-label="Go back" onClick={() => window.history.back()}>
@@ -59,6 +60,7 @@ export function AppShell({ children }) {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6" /></svg>
           </button>
         </div>
+        {meetingEditor && <strong class="topbar-page-title">Edit meeting</strong>}
         <nav aria-label="Main navigation">
           <NavLink href="/app/booking">Booking</NavLink>
           <NavLink href="/app/meeting" activeWhen={belongsToMeetingTab}>Meeting</NavLink>

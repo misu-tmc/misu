@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSessionsPayload, buildUpsertPayload, cloneAsTemplate, reorderItem, splitMeeting } from './editorModel.js';
+import { assignCatalogRole, assignRoleUser, assignTopicUser, buildSessionsPayload, buildUpsertPayload, cloneAsTemplate, reorderItem, splitMeeting } from './editorModel.js';
 
 const meeting = {
   id: 9, number: 10, title: 'Meeting', theme: '', keyword: '', date: '2026-08-01',
@@ -13,7 +13,9 @@ const meeting = {
 
 describe('editor model', () => {
   it('maps role slot IDs to positional indexes only for whole-document upserts', () => {
-    expect(buildUpsertPayload(meeting).sessions[0].role_slot_index).toBe(1);
+    const payload = buildUpsertPayload(meeting);
+    expect(payload.sessions[0].role_slot_index).toBe(1);
+    expect(payload.end_time).toBe('20:00');
   });
 
   it('keeps direct role slot IDs for section session saves', () => {
@@ -40,5 +42,26 @@ describe('editor model', () => {
     const reordered = reorderItem(rows, 0, 2);
     expect(reordered.map((row) => row.id)).toEqual([2, 3, 1]);
     expect(reordered[2]).toBe(rows[0]);
+  });
+
+  it('fills the same table-topic row with a newly created user', () => {
+    const topics = [{ role_slot_id: 7, user_id: null, name: '' }, { role_slot_id: 8, user_id: 2, name: 'Existing' }];
+    const assigned = assignTopicUser(topics, 0, { id: 9, display_name: 'New participant' });
+    expect(assigned[0]).toEqual({ role_slot_id: 7, user_id: 9, name: 'New participant' });
+    expect(assigned[1]).toBe(topics[1]);
+  });
+
+  it('assigns a newly created user to the same role slot', () => {
+    const slots = [{ id: 1, taker_id: null, taker_name: '' }, { id: 2, taker_id: 3, taker_name: 'Existing' }];
+    const assigned = assignRoleUser(slots, 0, { id: 9, display_name: 'New assignee' });
+    expect(assigned[0]).toEqual({ id: 1, taker_id: 9, taker_name: 'New assignee' });
+    expect(assigned[1]).toBe(slots[1]);
+  });
+
+  it('selects a newly created catalog role in the same role slot', () => {
+    const slots = [{ id: 1, role_id: null, role_name: '', voting_group: '' }, { id: 2, role_id: 3, role_name: 'Timer', voting_group: 'Best role' }];
+    const assigned = assignCatalogRole(slots, 0, { id: 9, name: 'Listener', voting_group: 'Best evaluator' });
+    expect(assigned[0]).toEqual({ id: 1, role_id: 9, role_name: 'Listener', voting_group: 'Best evaluator' });
+    expect(assigned[1]).toBe(slots[1]);
   });
 });

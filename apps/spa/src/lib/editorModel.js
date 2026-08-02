@@ -96,7 +96,7 @@ export function buildUpsertPayload(meeting, isTemplate = false) {
     keyword: String(meeting.keyword || '').trim(),
     date: meeting.date,
     start_time: meeting.start_time,
-    end_time: computedEndTime(meeting.start_time, meeting.sessions),
+    end_time: meeting.end_time || computedEndTime(meeting.start_time, meeting.sessions),
     venue: String(meeting.venue || '').trim(),
     status: meeting.status === 'published' ? 'published' : 'draft',
     is_template: !!isTemplate,
@@ -140,6 +140,24 @@ export function buildSessionsPayload(sessions) {
     duration_minutes: Number(session.duration_minutes) || 0,
     role_slot_id: session.role_slot_id || null
   }));
+}
+
+export function assignTopicUser(topics, topicIndex, user) {
+  return (topics || []).map((topic, index) => index === topicIndex
+    ? { ...topic, user_id: user.id, name: user.display_name }
+    : topic);
+}
+
+export function assignRoleUser(slots, slotIndex, user) {
+  return (slots || []).map((slot, index) => index === slotIndex
+    ? { ...slot, taker_id: user.id, taker_name: user.display_name }
+    : slot);
+}
+
+export function assignCatalogRole(slots, slotIndex, role) {
+  return (slots || []).map((slot, index) => index === slotIndex
+    ? { ...slot, role_id: role.id, role_name: role.name, voting_group: role.voting_group || '' }
+    : slot);
 }
 
 export function reorderItem(items, fromIndex, toIndex) {

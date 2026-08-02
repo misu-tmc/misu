@@ -589,6 +589,31 @@ pub async fn list_venues(
     Ok(Json(rows))
 }
 
+#[derive(Deserialize)]
+pub struct VenueIn {
+    pub name: String,
+}
+
+pub async fn create_venue(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    Json(input): Json<VenueIn>,
+) -> AppResult<Json<VenueDto>> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err(AppError::BadRequest("venue name is required".into()));
+    }
+    sqlx::query("INSERT IGNORE INTO venue(name) VALUES (?)")
+        .bind(name)
+        .execute(&state.pool)
+        .await?;
+    let row = sqlx::query_as::<_, VenueDto>("SELECT id, name FROM venue WHERE name = ?")
+        .bind(name)
+        .fetch_one(&state.pool)
+        .await?;
+    Ok(Json(row))
+}
+
 // ---------------------------------------------------------------------------
 // Templates catalog
 // ---------------------------------------------------------------------------
@@ -1043,6 +1068,8 @@ pub async fn list_roles(
 #[derive(Deserialize)]
 pub struct RoleIn {
     pub name: String,
+    #[serde(default)]
+    pub voting_group: String,
 }
 
 pub async fn create_role(
@@ -1054,7 +1081,12 @@ pub async fn create_role(
     if name.is_empty() {
         return Err(AppError::BadRequest("role name is required".into()));
     }
-    let voting_group = default_voting_group_for_role(name).unwrap_or("");
+    let requested_voting_group = input.voting_group.trim();
+    let voting_group = if requested_voting_group.is_empty() {
+        default_voting_group_for_role(name).unwrap_or("")
+    } else {
+        requested_voting_group
+    };
     sqlx::query("INSERT IGNORE INTO `role`(name, is_bookable, voting_group) VALUES (?, 1, ?)")
         .bind(name)
         .bind(voting_group)

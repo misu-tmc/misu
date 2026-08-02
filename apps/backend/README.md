@@ -14,7 +14,8 @@ cp .env.example .env
 cargo run
 ```
 
-The server listens on `http://127.0.0.1:8080`. SQLx applies the files under
+The server listens on `0.0.0.0:8080` by default. Open it locally at
+`http://127.0.0.1:8080`. SQLx applies the files under
 `migrations/` and seeds the role catalog plus two sample published meetings when the
 database is empty.
 

@@ -44,7 +44,7 @@ fn env_bool(key: &str) -> bool {
 impl Config {
     pub fn from_env() -> Self {
         Config {
-            bind: non_empty("MISU_BIND").unwrap_or_else(|| "127.0.0.1:8080".to_string()),
+            bind: non_empty("MISU_BIND").unwrap_or_else(|| "0.0.0.0:8080".to_string()),
             db_host: non_empty("MISU_DB_HOST").unwrap_or_else(|| "127.0.0.1".to_string()),
             db_port: non_empty("MISU_DB_PORT")
                 .and_then(|value| value.parse().ok())

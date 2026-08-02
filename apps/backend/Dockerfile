@@ -46,6 +46,7 @@ ENV MISU_BIND=0.0.0.0:8080 \
     MISU_WEB_DIR=/app/web \
     MISU_STATIC_DIR=/app/static \
     MISU_SPA_DIR=/app/spa \
+    MISU_COOKIE_SECURE=1 \
     RUST_LOG=info
 
 EXPOSE 8080

@@ -24,6 +24,8 @@ pub struct Config {
     /// Explicit DEV auth toggle (`MISU_DEV_MODE`). When on, WeChat `code` is treated as
     /// a fake openid and the fallback web admin is seeded. Never enable in production.
     dev_mode: bool,
+    /// Whether web session cookies include the `Secure` attribute.
+    secure_cookies: bool,
 }
 
 fn non_empty(key: &str) -> Option<String> {
@@ -41,8 +43,17 @@ fn env_bool(key: &str) -> bool {
     )
 }
 
+fn optional_env_bool(key: &str) -> Option<bool> {
+    match non_empty(key)?.to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
+
 impl Config {
     pub fn from_env() -> Self {
+        let dev_mode = env_bool("MISU_DEV_MODE");
         Config {
             bind: non_empty("MISU_BIND").unwrap_or_else(|| "0.0.0.0:8080".to_string()),
             db_host: non_empty("MISU_DB_HOST").unwrap_or_else(|| "127.0.0.1".to_string()),
@@ -59,7 +70,8 @@ impl Config {
             web_dir: non_empty("MISU_WEB_DIR").unwrap_or_else(|| "web".to_string()),
             static_dir: non_empty("MISU_STATIC_DIR").unwrap_or_else(|| "static".to_string()),
             spa_dir: non_empty("MISU_SPA_DIR").unwrap_or_else(|| "../spa/dist".to_string()),
-            dev_mode: env_bool("MISU_DEV_MODE"),
+            secure_cookies: optional_env_bool("MISU_COOKIE_SECURE").unwrap_or(!dev_mode),
+            dev_mode,
         }
     }
 
@@ -68,5 +80,11 @@ impl Config {
     /// without a real WeChat backend. It is an explicit opt-in and never inferred.
     pub fn dev_mode(&self) -> bool {
         self.dev_mode
+    }
+
+    /// Production deployments must use secure cookies. Local plain-HTTP development can
+    /// explicitly set `MISU_COOKIE_SECURE=0` without changing the authentication provider.
+    pub fn secure_cookies(&self) -> bool {
+        self.secure_cookies
     }
 }

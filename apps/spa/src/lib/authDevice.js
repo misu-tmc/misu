@@ -69,14 +69,26 @@ function deviceName() {
   return `${host} on ${platform}`.slice(0, 191);
 }
 
+export function credentialSupportIssue(browser = window) {
+  if (!browser.isSecureContext) {
+    return 'Device sign-in requires HTTPS on iPhone and other phones. Open this site using a trusted HTTPS URL.';
+  }
+  if (!browser.crypto?.subtle) {
+    return 'This browser does not provide the Web Crypto API required for device sign-in.';
+  }
+  if (!browser.indexedDB) {
+    return 'This browser does not provide the secure local storage required for device sign-in.';
+  }
+  return null;
+}
+
 export function credentialSupported() {
-  return !!(window.isSecureContext && crypto?.subtle && window.indexedDB);
+  return credentialSupportIssue() === null;
 }
 
 export async function generateCredential() {
-  if (!credentialSupported()) {
-    throw new Error('Secure device sign-in is unavailable in this browser. Open the HTTPS site in a modern browser.');
-  }
+  const supportIssue = credentialSupportIssue();
+  if (supportIssue) throw new Error(supportIssue);
   const keyPair = await crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
@@ -111,13 +123,16 @@ export async function signChallenge(cred, challengeText) {
 export async function trySilentLogin() {
   const cred = await storedCredential();
   if (!cred) return null;
+  let deviceVerified = false;
   try {
     const challenge = await authApi.challenge(cred.credentialId);
     const signature = await signChallenge(cred, challenge.challenge);
-    const res = await authApi.verify(challenge.challenge_id, signature);
-    return res.user;
+    await authApi.verify(challenge.challenge_id, signature);
+    deviceVerified = true;
+    const current = await authApi.me();
+    return current.user ?? current;
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) {
+    if (!deviceVerified && err instanceof ApiError && err.status === 401) {
       await clearCredential().catch(() => {});
     }
     return null;

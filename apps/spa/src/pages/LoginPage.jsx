@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { authApi, ApiError } from '../lib/api.js';
 import {
   clearCredential,
-  credentialSupported,
+  credentialSupportIssue,
   generateCredential,
   signChallenge,
   storedCredential,
@@ -38,8 +38,12 @@ export function LoginPage() {
         }
       }
 
-      if (!credentialSupported()) {
-        if (active) showChoice('Secure device access is unavailable in this browser. Open the HTTPS site in a current browser.');
+      const supportIssue = credentialSupportIssue();
+      if (supportIssue) {
+        if (active) {
+          setMessage(supportIssue);
+          setView('unsupported');
+        }
         return;
       }
 
@@ -66,6 +70,15 @@ export function LoginPage() {
     setView('account');
   }
 
+  async function confirmedSession() {
+    try {
+      const current = await authApi.me();
+      return current.user ?? current;
+    } catch (_) {
+      throw new Error('Your device was connected, but Safari did not retain the session cookie. Reload after opening the site over HTTPS or enabling local HTTP cookies on the server.');
+    }
+  }
+
   async function createAccount(event) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -73,12 +86,14 @@ export function LoginPage() {
     if (!displayName) return;
     setBusy(true);
     setError('');
+    let deviceRegistered = false;
     try {
       const generated = await generateCredential();
-      const response = await authApi.register({ display_name: displayName, ...generated.request });
-      finish(response.user);
+      await authApi.register({ display_name: displayName, ...generated.request });
+      deviceRegistered = true;
+      finish(await confirmedSession());
     } catch (err) {
-      await clearCredential().catch(() => {});
+      if (!deviceRegistered) await clearCredential().catch(() => {});
       setError(err.message || 'Account creation failed.');
     } finally {
       setBusy(false);
@@ -92,12 +107,14 @@ export function LoginPage() {
     if (!code) return;
     setBusy(true);
     setError('');
+    let deviceRegistered = false;
     try {
       const generated = await generateCredential();
-      const response = await authApi.migrate({ migration_code: code, ...generated.request });
-      finish(response.user);
+      await authApi.migrate({ migration_code: code, ...generated.request });
+      deviceRegistered = true;
+      finish(await confirmedSession());
     } catch (err) {
-      await clearCredential().catch(() => {});
+      if (!deviceRegistered) await clearCredential().catch(() => {});
       setError(err.message || 'Migration failed. Check the code and try again.');
     } finally {
       setBusy(false);
@@ -136,6 +153,17 @@ export function LoginPage() {
               <button class="btn btn-secondary btn-wide" type="button" onClick={() => { setError(''); setView('migrate'); }}>I have a migration code</button>
             </div>
             <div class="notice">Lost access on every device? Create a new account, then contact an administrator to reconnect your records.</div>
+          </section>
+        )}
+
+        {view === 'unsupported' && (
+          <section class="card login-card">
+            <div class="eyebrow">HTTPS required</div>
+            <h1>Secure connection needed</h1>
+            <p>{message}</p>
+            <div class="notice">
+              Safari supports device sign-in, but only from HTTPS origins (or localhost on the same device). A phone opening this Mac by LAN IP must use a trusted HTTPS certificate.
+            </div>
           </section>
         )}
 

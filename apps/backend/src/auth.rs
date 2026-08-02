@@ -178,28 +178,45 @@ pub struct WebLoginReq {
     pub password: String,
 }
 
-/// `Secure` is added unless running in DEV mode, so the cookie only travels over HTTPS
-/// in production while local HTTP dev still works.
-fn secure_attr(dev_mode: bool) -> &'static str {
-    if dev_mode {
-        ""
-    } else {
+fn secure_attr(secure: bool) -> &'static str {
+    if secure {
         "; Secure"
+    } else {
+        ""
     }
 }
 
-fn session_cookie(token: &str, dev_mode: bool) -> String {
+fn session_cookie(token: &str, secure: bool) -> String {
     format!(
         "{SESSION_COOKIE}={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000{}",
-        secure_attr(dev_mode)
+        secure_attr(secure)
     )
 }
 
-fn cleared_cookie(dev_mode: bool) -> String {
+fn cleared_cookie(secure: bool) -> String {
     format!(
         "{SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0{}",
-        secure_attr(dev_mode)
+        secure_attr(secure)
     )
+}
+
+#[cfg(test)]
+mod cookie_tests {
+    use super::{cleared_cookie, session_cookie};
+
+    #[test]
+    fn local_http_cookie_omits_secure_attribute() {
+        let cookie = session_cookie("token", false);
+        assert!(!cookie.contains("; Secure"));
+        assert!(cookie.contains("HttpOnly"));
+        assert!(cookie.contains("SameSite=Lax"));
+    }
+
+    #[test]
+    fn production_cookie_requires_https() {
+        assert!(session_cookie("token", true).contains("; Secure"));
+        assert!(cleared_cookie(true).contains("; Secure"));
+    }
 }
 
 pub async fn auth_login(
@@ -223,7 +240,7 @@ pub async fn auth_login(
     .into_response();
     resp.headers_mut().insert(
         SET_COOKIE,
-        session_cookie(&token, state.config.dev_mode())
+        session_cookie(&token, state.config.secure_cookies())
             .parse()
             .unwrap(),
     );
@@ -240,7 +257,9 @@ pub async fn auth_logout(
     let mut resp = Json(json!({ "ok": true })).into_response();
     resp.headers_mut().insert(
         SET_COOKIE,
-        cleared_cookie(state.config.dev_mode()).parse().unwrap(),
+        cleared_cookie(state.config.secure_cookies())
+            .parse()
+            .unwrap(),
     );
     Ok(resp)
 }
@@ -370,7 +389,7 @@ async fn device_login_response(
     .into_response();
     response.headers_mut().insert(
         SET_COOKIE,
-        session_cookie(&token, state.config.dev_mode())
+        session_cookie(&token, state.config.secure_cookies())
             .parse()
             .unwrap(),
     );

@@ -32,6 +32,31 @@ For frontend development, run `npm run dev` in `apps/spa`; Vite serves the app u
 production backend serves `apps/spa/dist` under `/app` and serves the same shell at
 `/login`.
 
+### Safari and local HTTPS
+
+Device-key sign-in uses Web Crypto and IndexedDB. Safari supports both, but phones only
+expose Web Crypto to a **secure context**. Consequently:
+
+- Mac Safari may use `http://localhost:8080` with `MISU_COOKIE_SECURE=0`.
+- An iPhone opening the Mac by LAN IP must use a trusted `https://` URL. Plain
+	`http://192.168.x.x:8080` cannot support device sign-in in any browser.
+- Production must use HTTPS and `MISU_COOKIE_SECURE=1` (the Docker image sets this).
+
+For trusted local iPhone testing, install `mkcert`, generate a certificate containing the
+Mac's LAN IP, and trust the mkcert root CA on the phone. Store generated files under
+`apps/spa/.cert/` (ignored by Git), then run Vite with them:
+
+```sh
+cd apps/spa
+MISU_HTTPS_KEY=.cert/dev-key.pem \
+MISU_HTTPS_CERT=.cert/dev-cert.pem \
+npm run dev
+```
+
+Open `https://<mac-lan-ip>:5173/app/booking` on the phone. Vite terminates HTTPS and
+proxies API requests to the local backend. Set `MISU_COOKIE_SECURE=1` in the backend for
+this HTTPS workflow. Both `MISU_HTTPS_KEY` and `MISU_HTTPS_CERT` must be provided together.
+
 ### MySQL configuration
 
 | Variable | Default | Purpose |
@@ -65,6 +90,9 @@ fake openid (`dev-<code>`), so you can test the whole flow without a real WeChat
 DEV mode is an explicit opt-in and is **never** inferred — leave it unset (and set
 `WECHAT_APPID` / `WECHAT_SECRET`) to call WeChat's `jscode2session` for real logins.
 Never enable it in production.
+
+`MISU_COOKIE_SECURE` is independent from DEV auth. It controls only the web session
+cookie's `Secure` attribute; use `0` for local plain HTTP and `1` for HTTPS.
 
 Requests from a mini program through WeChat Cloud Hosting's `callContainer` private
 protocol use the gateway-injected `X-WX-OPENID` and do not call `jscode2session`.

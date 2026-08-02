@@ -6,6 +6,8 @@ import '../css/tokens.css';
 import '../css/base.css';
 import '../css/components.css';
 
+document.documentElement.classList.toggle('wechat-browser', /MicroMessenger/i.test(navigator.userAgent));
+
 render(
   <Router base="">
     <App />

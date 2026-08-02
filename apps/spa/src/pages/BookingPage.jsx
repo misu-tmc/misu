@@ -60,26 +60,36 @@ export function BookingPage() {
   if (loading) return <div class="page-loading"><span class="spinner" /><span>Loading meetings…</span></div>;
 
   return (
-    <>
-      <h2 style="margin-bottom:16px">Booking</h2>
+    <div class="booking-page">
+      <div class="attendee-page-heading">
+        <p class="eyebrow">Upcoming meetings</p>
+        <h1>Booking</h1>
+      </div>
       {error && <p class="error-msg" role="alert">{error}</p>}
 
       {bookings.length > 0 && (
-        <section class="card" style="margin-bottom:20px">
-          <h3 style="margin-bottom:12px">Your bookings</h3>
-          {bookings.map(({ meeting, slot, target }) => (
-            <div class="slot-row" key={`${meeting.id}:${slot.id}`}>
-              <span class="role-label">#{meeting.number} · {shortDate(meeting.date)} · {slot.label || slot.role_name}</span>
-              <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meeting.id}/edit?tab=${target.tab}${target.field ? `&field=${target.field}` : ''}&slotId=${slot.id}`}>Prepare</a>
-              <button
-                class="btn btn-ghost btn-sm"
-                type="button"
-                disabled={busy === `${meeting.id}:${slot.id}`}
-                onClick={() => changeBooking(meeting.id, slot.id, true)}
-                aria-label={`Cancel ${slot.label || slot.role_name}`}
-              >×</button>
+        <section class="card booking-summary">
+          <details open>
+            <summary><span>Your bookings</span><span class="booking-count">{bookings.length}</span></summary>
+            <div class="booking-summary-list">
+              {bookings.map(({ meeting, slot, target }) => (
+                <div class="booking-summary-row" key={`${meeting.id}:${slot.id}`}>
+                  <span class="booking-summary-meeting">#{meeting.number} · {shortDate(meeting.date)}</span>
+                  <strong>{slot.label || slot.role_name}</strong>
+                  <span class="booking-summary-actions">
+                    <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meeting.id}/edit?tab=${target.tab}${target.field ? `&field=${target.field}` : ''}&slotId=${slot.id}`}>Prepare</a>
+                    <button
+                      class="btn btn-ghost btn-sm cancel-booking"
+                      type="button"
+                      disabled={busy === `${meeting.id}:${slot.id}`}
+                      onClick={() => changeBooking(meeting.id, slot.id, true)}
+                      aria-label={`Cancel ${slot.label || slot.role_name}`}
+                    >×</button>
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </details>
         </section>
       )}
 
@@ -114,6 +124,6 @@ export function BookingPage() {
           </section>
         );
       })}
-    </>
+    </div>
   );
 }

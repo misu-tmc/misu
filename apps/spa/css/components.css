@@ -7,7 +7,7 @@
 /* Top bar */
 #topbar {
   position: fixed; top: 0; left: 0; right: 0;
-  height: var(--topbar-h);
+  height: calc(var(--topbar-h) + env(safe-area-inset-top));
   background: var(--purple);
   color: #fff;
   display: flex;
@@ -74,15 +74,16 @@
 /* Bottom tab bar (mobile attendee pages) */
 #bottombar {
   position: fixed; bottom: 0; left: 0; right: 0;
-  height: var(--bottombar-h);
+  height: calc(var(--bottombar-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--surface);
   border-top: 1px solid var(--line);
   display: none;        /* hidden on wide screens */
   z-index: 100;
+  box-shadow: 0 -8px 24px rgba(48,30,59,.08);
 }
 #bottombar ul {
-  display: flex; height: 100%;
+  display: flex; height: var(--bottombar-h);
 }
 #bottombar li { flex: 1; }
 #bottombar a {
@@ -90,7 +91,7 @@
   justify-content: center; gap: 3px;
   height: 100%; width: 100%;
   color: var(--muted);
-  font-size: 11px; font-weight: 600;
+  font-size: 11px; font-weight: 650; line-height: 1;
   text-decoration: none;
   transition: color var(--ease);
 }
@@ -102,11 +103,12 @@
   font-size: 10px; font-weight: 800;
 }
 #bottombar a.active { color: var(--purple); }
+#bottombar a.active .tab-icon { background: var(--purple); border-color: var(--purple); color: #fff; }
 
 /* Page wrapper */
 #page {
-  margin-top: var(--topbar-h);
-  min-height: calc(100vh - var(--topbar-h));
+  margin-top: calc(var(--topbar-h) + env(safe-area-inset-top));
+  min-height: calc(100vh - var(--topbar-h) - env(safe-area-inset-top));
   padding: var(--space-6) var(--space-4);
   max-width: var(--content-max);
   margin-left: auto;
@@ -123,6 +125,13 @@ body.attendee-layout #page {
   #topbar nav { display: none; }
   #topbar .topbar-name, #topbar .topbar-logout { display: none; }
   #topbar .topbar-user { margin-left: auto; }
+  html.wechat-browser #topbar { display: none; }
+  html.wechat-browser #page {
+    margin-top: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  html.wechat-browser .attendee-page-heading { display: none; }
 }
 @media (min-width: 701px) {
   #bottombar { display: none !important; }
@@ -305,6 +314,29 @@ tbody tr:hover { background: var(--bg); }
 .slot-row:last-child { border-bottom: 0; }
 .slot-row .role-label { flex: 1; font-size: 14px; }
 .slot-row .taker { flex: 1; font-size: 14px; color: var(--muted); }
+
+.attendee-page-heading { margin-bottom: var(--space-5); }
+.attendee-page-heading .eyebrow { margin-bottom: var(--space-1); }
+.booking-summary { margin-bottom: var(--space-5); }
+.booking-summary summary {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  cursor: pointer; list-style: none; font-weight: 750;
+}
+.booking-summary summary::-webkit-details-marker { display: none; }
+.booking-count {
+  min-width: 25px; height: 25px; display: grid; place-items: center;
+  border-radius: 99px; background: var(--purple-soft); color: var(--purple); font-size: 12px;
+}
+.booking-summary-list { max-height: 240px; margin-top: var(--space-3); overflow-y: auto; overscroll-behavior: contain; }
+.booking-summary-row {
+  display: grid; grid-template-columns: minmax(150px, 1fr) minmax(120px, .7fr) auto;
+  align-items: center; gap: var(--space-3);
+  padding: var(--space-3) 0; border-bottom: 1px solid var(--line);
+}
+.booking-summary-row:last-child { border-bottom: 0; }
+.booking-summary-meeting { color: var(--muted); font-size: 13px; }
+.booking-summary-actions { display: flex; gap: var(--space-2); }
+.cancel-booking { min-width: 36px; padding-inline: 10px; color: var(--danger); }
 
 /* ============================================================
    AGENDA
@@ -522,7 +554,25 @@ tbody tr:hover { background: var(--bg); }
 }
 
 @media (max-width: 540px) {
-  .card { padding: var(--space-4); border-radius: var(--radius-lg); }
+  #page { padding: var(--space-4) var(--space-3); }
+  .card { padding: var(--space-4); border-radius: var(--radius-lg); box-shadow: 0 5px 18px rgba(48,30,59,.07); }
+  .attendee-page-heading { margin: var(--space-1) var(--space-1) var(--space-4); }
+  .booking-summary { margin-bottom: var(--space-4); }
+  .booking-summary-row { grid-template-columns: minmax(0, 1fr) auto; gap: 3px var(--space-2); }
+  .booking-summary-row > strong { grid-column: 1; font-size: 14px; }
+  .booking-summary-actions { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+  .booking-summary-actions .btn { min-height: 38px; }
+  .booking-page .meeting-card { margin-bottom: var(--space-3); }
+  .booking-page .meeting-card-header {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px var(--space-2);
+    align-items: center;
+  }
+  .booking-page .meeting-card-header h3 { min-width: 0; font-size: 16px; }
+  .booking-page .meeting-card-header .date { grid-column: 1; grid-row: 2; }
+  .booking-page .meeting-card-header > :last-child { grid-column: 2; grid-row: 1 / span 2; }
+  .booking-page .slot-row { min-height: 46px; gap: var(--space-2); padding: 7px 0; }
+  .booking-page .slot-row .role-label { min-width: 0; overflow-wrap: anywhere; }
+  .booking-page .slot-row .taker { text-align: right; }
   .page-heading, .meeting-title-row { align-items: flex-start; }
   .agenda-row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: var(--space-2); }
   .agenda-row .taker { grid-column: 2; }

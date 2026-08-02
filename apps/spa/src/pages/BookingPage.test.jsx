@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { upcoming, book } = vi.hoisted(() => ({
@@ -37,7 +37,9 @@ describe('BookingPage', () => {
 
   it('renders upcoming roles and the current user summary', async () => {
     render(<BookingPage />);
-    expect(await screen.findByText('#142 · Sat, Aug 8 · Grammarian')).toBeTruthy();
+    const summary = (await screen.findByText('Your bookings')).closest('section');
+    expect(within(summary).getByText('#142 · Sat, Aug 8')).toBeTruthy();
+    expect(within(summary).getByText('Grammarian')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Take!' })).toBeTruthy();
   });
 

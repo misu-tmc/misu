@@ -1,30 +1,49 @@
-import { useEffect, useState } from 'preact/hooks';
-import { clubApi } from '../lib/api.js';
-import { PageError, PageLoading } from '../components/PageState.jsx';
+import { Link } from 'wouter-preact';
+
+const tools = [
+  {
+    href: '/app/misu/users',
+    label: 'Users',
+    description: 'Review people records and create users for role assignments.',
+    tone: 'users'
+  },
+  {
+    href: '/app/meeting',
+    label: 'Meetings',
+    description: 'Review upcoming meetings and open meeting details.',
+    tone: 'meetings'
+  },
+  {
+    href: '/app/meetings/new',
+    label: 'New meeting',
+    description: 'Create a meeting from the latest meeting, a template, or blank.',
+    tone: 'create'
+  }
+];
 
 export function MisuPage() {
-  const [info, setInfo] = useState(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    clubApi.info().then(setInfo).catch((err) => setError(err.message || 'Could not load club information.'));
-  }, []);
-
-  if (error) return <PageError message={error} />;
-  if (!info) return <PageLoading label="Loading club information…" />;
-
   return (
-    <div class="club-page">
-      <section class="card club-hero">
-        <img src="/static/Toastmasters_2011.png" alt="Toastmasters International" />
-        <p class="eyebrow">Microsoft Suzhou</p>
-        <h1>{info.name}</h1>
-        <p class="club-motto">“{info.motto}”</p>
+    <div class="misu-tools-page">
+      <section class="card tool-panel">
+        <p class="eyebrow">Data management</p>
+        <div class="tool-list">
+          {tools.map((tool) => (
+            <Link class="tool-row" href={tool.href} key={tool.href}>
+              <span class={`tool-mark ${tool.tone}`} aria-hidden="true">{tool.label.slice(0, 1)}</span>
+              <span class="tool-copy"><strong>{tool.label}</strong><small>{tool.description}</small></span>
+              <span class="tool-arrow" aria-hidden="true">→</span>
+            </Link>
+          ))}
+        </div>
       </section>
-      <section class="card"><h2>About</h2><p>{info.about}</p></section>
-      <section class="card"><h2>Meetings</h2><p><strong>{info.meetings?.cadence}</strong></p><p>{info.meetings?.venue}</p></section>
-      <section class="card"><h2>Join us</h2><p>{info.join}</p></section>
-      <section class="card"><h2>Contact</h2><p>{info.contact}</p><img class="contact-qr" src="/static/VPM%20QR%20code.jpg" alt="MISU WeChat contact QR code" /></section>
+
+      <section class="card tool-panel about-tool-panel">
+        <Link class="tool-row" href="/app/misu/about">
+          <span class="tool-mark about" aria-hidden="true">i</span>
+          <span class="tool-copy"><strong>About</strong><small>MISU introduction, meeting information, joining, and contact.</small></span>
+          <span class="tool-arrow" aria-hidden="true">→</span>
+        </Link>
+      </section>
     </div>
   );
 }

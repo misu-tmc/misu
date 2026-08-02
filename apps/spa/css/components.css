@@ -64,19 +64,6 @@
   border-radius: 7px; background: rgba(255,255,255,.2); color: #fff;
   font-size: 11px; font-weight: 800;
 }
-#topbar .topbar-logout {
-  min-height: 32px;
-  padding: 5px 10px;
-  border: 1px solid rgba(255,255,255,.22);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: rgba(255,255,255,.8);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-#topbar .topbar-logout:hover { background: rgba(255,255,255,.12); color: #fff; }
-
 /* Bottom tab bar (mobile attendee pages) */
 #bottombar {
   position: fixed; bottom: 0; left: 0; right: 0;
@@ -452,6 +439,36 @@ tbody tr:hover { background: var(--bg); }
 .club-hero img { width: min(260px, 75%); margin: 0 auto var(--space-6); }
 .club-motto { margin-top: var(--space-3); font-size: 17px; }
 .contact-qr { width: min(240px, 80%); margin: var(--space-5) auto 0; border-radius: var(--radius-md); }
+.misu-tools-page { display: grid; gap: var(--space-4); max-width: 720px; margin: 0 auto; }
+.tool-panel { padding: var(--space-5); }
+.tool-panel > .eyebrow { margin-bottom: var(--space-2); }
+.tool-list { display: grid; }
+.tool-row {
+  min-width: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr) 24px;
+  align-items: center; gap: var(--space-3); padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none;
+}
+.tool-row:last-child { border-bottom: 0; }
+.tool-row:hover { text-decoration: none; }
+.tool-mark {
+  width: 42px; height: 42px; display: grid; place-items: center;
+  border-radius: 13px; background: var(--purple-soft); color: var(--purple);
+  font-size: 15px; font-weight: 800;
+}
+.tool-mark.meetings { background: #e9f5ef; color: var(--success); }
+.tool-mark.create { background: #fff2de; color: #925d0d; }
+.tool-mark.about { background: #e9effb; color: #345c9c; }
+.tool-copy { min-width: 0; }
+.tool-copy strong, .tool-copy small { display: block; }
+.tool-copy strong { margin-bottom: 3px; font-size: 16px; }
+.tool-copy small { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.tool-arrow { color: var(--purple); font-size: 20px; text-align: right; transition: transform var(--ease); }
+.tool-row:hover .tool-arrow { transform: translateX(3px); }
+.about-tool-panel { padding-block: var(--space-2); }
+.signout-card { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.profile-layout .signout-card > .btn { margin-top: 0; }
+.signout-button { color: var(--danger); border-color: rgba(168,33,58,.28); }
+.signout-button:hover { background: rgba(168,33,58,.07); }
 
 /* ============================================================
    MEETING CARDS
@@ -624,6 +641,11 @@ tbody tr:hover { background: var(--bg); }
   .timer-controls { grid-column: 2 / -1; justify-content: flex-start; }
   .profile-card form { align-items: stretch; flex-direction: column; }
   .profile-card form .btn { width: 100%; }
+  .tool-panel { padding: var(--space-4); }
+  .tool-row { grid-template-columns: 40px minmax(0, 1fr) 20px; padding: var(--space-3) 0; }
+  .tool-mark { width: 40px; height: 40px; }
+  .signout-card { align-items: stretch; flex-direction: column; }
+  .signout-card .btn { width: 100%; }
   .page-heading { align-items: center; }
   .create-user-card form { align-items: stretch; flex-direction: column; }
   .meeting-table thead { display: none; }

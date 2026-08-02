@@ -157,17 +157,18 @@ asset and `MISU_STATIC_DIR` serves logos, QR codes, and print images under `/sta
 | `/app/meetings/:id` | meeting details, agenda, check-in, voting and timer mode |
 | `/app/checkin?meetingId=:id` | authenticated QR/deep-link check-in redirector |
 | `/app/vote/:id` and `/app/vote-result/:id` | ballot and aggregated results |
-| `/app/misu` | club introduction and contact details |
+| `/app/misu` | data-management tool list |
+| `/app/misu/users` | user catalog and identity-less user creation |
+| `/app/misu/about` | club introduction, meeting cadence, joining, and contact |
 | `/app/me` | profile, bookings, and device migration code |
 | `/app/meetings/new` | meeting editor initialized from blank, last meeting, or template |
 | `/app/meetings/:id/edit` | edit information, roles, sessions, speeches, and Table Topics |
 | `/app/meetings/:id/agenda` | responsive/printable agenda view |
-| `/app/users` | user catalog and identity-less user creation |
 | `/meetings/:id/agenda` | branded two-page printable agenda |
 
 Legacy `/meetings`, `/meetings/new`, `/meetings/:id/edit`, and `/users` URLs redirect to
-their SPA equivalents. `/meetings` opens the unified Meeting tab. The actual branded
-print route is `/meetings/:id/agenda`.
+their SPA equivalents. `/meetings` opens the unified Meeting tab and `/users` opens the
+Users tool nested under MISU. The actual branded print route is `/meetings/:id/agenda`.
 
 Web admin JSON APIs (require an authenticated session):
 

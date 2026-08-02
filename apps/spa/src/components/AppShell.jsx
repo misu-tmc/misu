@@ -1,6 +1,5 @@
 import { useEffect } from 'preact/hooks';
 import { Link, useLocation } from 'wouter-preact';
-import { authApi } from '../lib/api.js';
 import { authUser } from '../state/auth.js';
 
 function isMeetingDetail(location) {
@@ -40,12 +39,6 @@ export function AppShell({ children }) {
     return () => document.body.classList.remove('attendee-layout');
   }, [attendee]);
 
-  async function logout() {
-    await authApi.logout().catch(() => {});
-    authUser.value = null;
-    window.location.assign('/login');
-  }
-
   return (
     <>
       <header id="topbar" aria-label="Site header">
@@ -53,7 +46,6 @@ export function AppShell({ children }) {
         <nav aria-label="Main navigation">
           <NavLink href="/app/booking">Booking</NavLink>
           <NavLink href="/app/meeting" activeWhen={(path) => isActive(path, '/app/meeting') || isMeetingDetail(path)}>Meeting</NavLink>
-          <NavLink href="/app/users">Users</NavLink>
           <NavLink href="/app/misu">MISU</NavLink>
         </nav>
         <div class="topbar-user">
@@ -61,7 +53,6 @@ export function AppShell({ children }) {
             <span class="topbar-avatar" aria-hidden="true">{initial}</span>
             <span>{displayName}</span>
           </Link>
-          <button class="topbar-logout" type="button" onClick={logout}>Sign out</button>
         </div>
       </header>
 

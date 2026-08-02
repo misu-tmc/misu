@@ -10,6 +10,7 @@ export function MePage() {
   const [name, setName] = useState(authUser.value?.display_name || '');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [message, setMessage] = useState('');
   const [code, setCode] = useState('');
 
@@ -53,6 +54,13 @@ export function MePage() {
     }
   }
 
+  async function signOut() {
+    setSigningOut(true);
+    await authApi.logout().catch(() => {});
+    authUser.value = null;
+    window.location.assign('/login');
+  }
+
   if (loading) return <PageLoading label="Loading profile…" />;
 
   return (
@@ -85,6 +93,11 @@ export function MePage() {
         <p>Generate a single-use code valid for ten minutes.</p>
         <button class="btn btn-secondary" type="button" disabled={saving} onClick={generateCode}>Generate migration code</button>
         {code && <><div class="code-display">{code}</div><button class="btn btn-ghost btn-sm" type="button" onClick={() => navigator.clipboard?.writeText(code)}>Copy code</button></>}
+      </section>
+
+      <section class="card signout-card">
+        <div><h2>Session</h2><p>Sign out of MISU on this browser.</p></div>
+        <button class="btn btn-ghost signout-button" type="button" disabled={signingOut} onClick={signOut}>{signingOut ? 'Signing out…' : 'Sign out'}</button>
       </section>
     </div>
   );

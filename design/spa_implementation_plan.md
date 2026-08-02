@@ -110,11 +110,12 @@ Protected:
 - `/app/vote/:meetingId`
 - `/app/vote-result/:meetingId`
 - `/app/me`
-- `/app/misu`
+- `/app/misu` (data-management tools)
+- `/app/misu/users`
+- `/app/misu/about`
 - `/app/meetings/new`
 - `/app/meetings/:id/edit`
 - `/app/meetings/:id/agenda`
-- `/app/users`
 
 ## 5) Auth and session strategy
 

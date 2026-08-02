@@ -146,7 +146,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .route(
             "/users",
-            get(|| async { axum::response::Redirect::to("/app/users") }),
+            get(|| async { axum::response::Redirect::to("/app/misu/users") }),
         )
         // Management JSON APIs (require an authenticated session).
         .route(

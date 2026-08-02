@@ -14,6 +14,16 @@ function NavLink({ href, children, class: className = '' }) {
   return <Link class={`${className} ${isActive(location, href) ? 'active' : ''}`.trim()} href={href}>{children}</Link>;
 }
 
+function TabIcon({ name }) {
+  const paths = {
+    booking: <><rect x="5" y="4" width="14" height="16" rx="2" /><path d="M9 4V3h6v1M8 9h8M8 13h8M8 17h5" /></>,
+    meeting: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4M17 3v4M3 10h18M8 14h2M14 14h2M8 18h2" /></>,
+    misu: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" /></>,
+    me: <><circle cx="12" cy="8" r="4" /><path d="M4.5 21a7.5 7.5 0 0 1 15 0" /></>
+  };
+  return <span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24">{paths[name]}</svg></span>;
+}
+
 export function AppShell({ children }) {
   const [location] = useLocation();
   const attendee = attendeeRoutes.some((path) => isActive(location, path));
@@ -52,10 +62,10 @@ export function AppShell({ children }) {
       {attendee && (
         <nav id="bottombar" aria-label="Tab navigation">
           <ul>
-            <li><NavLink href="/app/booking"><span class="tab-icon" aria-hidden="true">B</span>Booking</NavLink></li>
-            <li><NavLink href="/app/meeting"><span class="tab-icon" aria-hidden="true">M</span>Meeting</NavLink></li>
-            <li><NavLink href="/app/misu"><span class="tab-icon" aria-hidden="true">i</span>MISU</NavLink></li>
-            <li><NavLink href="/app/me"><span class="tab-icon" aria-hidden="true">Me</span>Me</NavLink></li>
+            <li><NavLink href="/app/booking"><TabIcon name="booking" /><span class="tab-label">Booking</span></NavLink></li>
+            <li><NavLink href="/app/meeting"><TabIcon name="meeting" /><span class="tab-label">Meeting</span></NavLink></li>
+            <li><NavLink href="/app/misu"><TabIcon name="misu" /><span class="tab-label">MISU</span></NavLink></li>
+            <li><NavLink href="/app/me"><TabIcon name="me" /><span class="tab-label">Me</span></NavLink></li>
           </ul>
         </nav>
       )}

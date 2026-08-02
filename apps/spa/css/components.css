@@ -76,16 +76,19 @@
   position: fixed; bottom: 0; left: 0; right: 0;
   height: calc(var(--bottombar-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--surface);
+  background: rgba(255,255,255,.96);
   border-top: 1px solid var(--line);
   display: none;        /* hidden on wide screens */
   z-index: 100;
   box-shadow: 0 -8px 24px rgba(48,30,59,.08);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 #bottombar ul {
-  display: flex; height: var(--bottombar-h);
+  width: 100%; height: var(--bottombar-h);
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
 }
-#bottombar li { flex: 1; }
+#bottombar li { min-width: 0; }
 #bottombar a {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 3px;
@@ -96,14 +99,19 @@
   transition: color var(--ease);
 }
 #bottombar .tab-icon {
-  min-width: 24px; height: 22px;
+  width: 38px; height: 27px;
   display: grid; place-items: center;
-  border: 1px solid currentColor;
-  border-radius: 7px;
-  font-size: 10px; font-weight: 800;
+  border-radius: 14px;
+  transition: color var(--ease), background var(--ease), transform var(--ease);
 }
+#bottombar .tab-icon svg {
+  width: 21px; height: 21px;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+#bottombar .tab-label { display: block; white-space: nowrap; }
 #bottombar a.active { color: var(--purple); }
-#bottombar a.active .tab-icon { background: var(--purple); border-color: var(--purple); color: #fff; }
+#bottombar a.active .tab-icon { background: var(--purple-soft); color: var(--purple); transform: translateY(-1px); }
 
 /* Page wrapper */
 #page {

@@ -1,9 +1,0 @@
-.git
-.gitignore
-**/.DS_Store
-**/node_modules
-**/dist
-apps/backend/target
-apps/backend/.env
-apps/backend/.env.*
-!apps/backend/.env.example

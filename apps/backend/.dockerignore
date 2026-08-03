@@ -1,8 +1,0 @@
-target/
-.env
-.env.*
-!.env.example
-*.sqlite
-*.sqlite-*
-.git/
-.DS_Store

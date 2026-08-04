@@ -201,8 +201,8 @@ fn cleared_cookie(secure: bool) -> String {
 }
 
 #[cfg(test)]
-mod cookie_tests {
-    use super::{cleared_cookie, session_cookie};
+mod tests {
+    use super::{cleared_cookie, session_cookie, MigrateDeviceReq};
 
     #[test]
     fn local_http_cookie_omits_secure_attribute() {
@@ -216,6 +216,19 @@ mod cookie_tests {
     fn production_cookie_requires_https() {
         assert!(session_cookie("token", true).contains("; Secure"));
         assert!(cleared_cookie(true).contains("; Secure"));
+    }
+
+    #[test]
+    fn migration_request_accepts_spa_payload() {
+        let request: MigrateDeviceReq = serde_json::from_value(serde_json::json!({
+            "migration_code": "ABCD-EF01-2345-6789",
+            "credential_id": "d23fc603-83f8-4efc-84d9-c03e3a4ad475",
+            "public_key": "public-key",
+            "device_name": "Safari on iPhone"
+        }))
+        .expect("SPA migration payload should deserialize");
+
+        assert_eq!(request.migration_code, "ABCD-EF01-2345-6789");
     }
 }
 
@@ -327,7 +340,8 @@ pub struct MigrationCodeResp {
 
 #[derive(Deserialize)]
 pub struct MigrateDeviceReq {
-    pub code: String,
+    #[serde(alias = "code")]
+    pub migration_code: String,
     #[serde(flatten)]
     pub credential: DeviceCredentialReq,
 }
@@ -562,7 +576,7 @@ pub async fn auth_device_migrate(
     axum::extract::State(state): axum::extract::State<AppState>,
     Json(req): Json<MigrateDeviceReq>,
 ) -> AppResult<Response> {
-    let normalized_code = normalize_migration_code(&req.code)?;
+    let normalized_code = normalize_migration_code(&req.migration_code)?;
     let code_hash = migration_code_hash(&normalized_code);
     let credential_id = validated_credential_id(&req.credential.credential_id)?;
     let device_name = validated_device_name(&req.credential.device_name)?;

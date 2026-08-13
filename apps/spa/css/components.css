@@ -967,6 +967,7 @@ body.agenda-print-layout #page {
   body { background: #fff; }
   #topbar, #bottombar, .no-print { display: none !important; }
   #page { max-width: none; min-height: 0; margin: 0; padding: 0; }
+  body.agenda-print-layout #page { max-width: none; min-height: 0; margin: 0; padding: 0; }
   .print-agenda-page { width: 210mm; }
   .print-agenda-stage { width: 210mm !important; height: 297mm !important; margin: 0; break-after: page; }
   .print-agenda-stage:last-child { break-after: auto; }

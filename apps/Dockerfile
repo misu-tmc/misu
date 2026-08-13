@@ -38,12 +38,10 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=builder --chown=misu:misu /build/target/release/misu-backend /usr/local/bin/misu-backend
-COPY --chown=misu:misu backend/web ./web
 COPY --chown=misu:misu backend/static ./static
 COPY --from=frontend --chown=misu:misu /build/spa/dist ./spa
 
 ENV MISU_BIND=0.0.0.0:8080 \
-    MISU_WEB_DIR=/app/web \
     MISU_STATIC_DIR=/app/static \
     MISU_SPA_DIR=/app/spa \
     MISU_COOKIE_SECURE=1 \

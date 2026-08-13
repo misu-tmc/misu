@@ -1,64 +1,36 @@
-// Web admin surface: server-served HTML pages plus the admin-scoped JSON APIs
-// (meeting list/upsert, roles catalog, user management) served on the shared
-// `/api/*` paths.
-//
-// The pages require an authenticated session and redirect to `/login` when absent;
-// management JSON APIs use the same `AuthUser` guard.
+// Web admin JSON APIs (meeting list/upsert, role catalog, and user management)
+// plus SPA and static-asset serving.
 
 use axum::{
     extract::{Path, Query, State},
     http::{header, StatusCode},
-    response::{Html, IntoResponse, Redirect, Response},
+    response::{IntoResponse, Redirect, Response},
     Json,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, MySqlConnection, QueryBuilder};
 use std::collections::{HashMap, HashSet};
 
-use crate::auth::{AuthUser, MaybeAuthUser};
+use crate::auth::AuthUser;
 use crate::error::{AppError, AppResult};
 use crate::meetings;
 use crate::models::MeetingResponse;
 use crate::AppState;
-
-// ---------------------------------------------------------------------------
-// Page serving (self-contained HTML files under the configured web dir)
-// ---------------------------------------------------------------------------
-
-async fn read_page(state: &AppState, file: &str) -> Response {
-    let path = std::path::Path::new(&state.config.web_dir).join(file);
-    match tokio::fs::read_to_string(&path).await {
-        Ok(content) => Html(content).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("failed to read {}: {e}", path.display()),
-        )
-            .into_response(),
-    }
-}
-
-/// Serve an admin page, redirecting to `/login` when there is no web session.
-async fn serve_admin(state: &AppState, maybe: MaybeAuthUser, file: &str) -> Response {
-    match maybe.0 {
-        Some(_) => read_page(state, file).await,
-        None => Redirect::to("/login").into_response(),
-    }
-}
 
 /// The login page is always reachable (it is how you get a session).
 pub async fn page_login(State(s): State<AppState>) -> Response {
     spa_index(State(s)).await
 }
 
-pub async fn page_agenda_print(State(s): State<AppState>, m: MaybeAuthUser) -> Response {
-    serve_admin(&s, m, "agenda-print.html").await
+pub async fn page_agenda_print(Path(meeting_id): Path<i64>) -> Redirect {
+    Redirect::to(&format!("/app/meetings/{meeting_id}/agenda"))
 }
 
 pub async fn redirect_editor(Path(meeting_id): Path<i64>) -> Redirect {
     Redirect::to(&format!("/app/meetings/{meeting_id}/edit"))
 }
 
-/// Serve static assets used by the print agenda and web pages.
+/// Serve static assets used by the SPA.
 pub async fn static_asset(State(s): State<AppState>, Path(path): Path<String>) -> Response {
     if path.contains("..") || path.starts_with('/') {
         return StatusCode::BAD_REQUEST.into_response();
@@ -1409,4 +1381,20 @@ pub async fn put_table_topics(
 
     tx.commit().await?;
     meeting_dto_response(&state.pool, meeting_id).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn legacy_agenda_route_redirects_to_spa() {
+        let response = page_agenda_print(Path(42)).await.into_response();
+
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            response.headers().get(header::LOCATION).unwrap(),
+            "/app/meetings/42/agenda"
+        );
+    }
 }

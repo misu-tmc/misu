@@ -145,9 +145,8 @@ never from the request body.
 The responsive Preact SPA under `apps/spa` mirrors attendee and management functionality.
 All feature routes require an authenticated cookie session and redirect to the device-key
 flow at `/login` when absent. `MISU_SPA_DIR` points to Vite's production output (default
-`../spa/dist` when the backend runs from `apps/backend`). The branded agenda print page
-remains server-served from `web/agenda-print.html`; `MISU_WEB_DIR` configures that legacy
-asset and `MISU_STATIC_DIR` serves logos, QR codes, and print images under `/static/*`.
+`../spa/dist` when the backend runs from `apps/backend`). `MISU_STATIC_DIR` serves logos,
+QR codes, and print images under `/static/*`.
 
 | Page | Purpose |
 | ---- | ------- |
@@ -163,12 +162,12 @@ asset and `MISU_STATIC_DIR` serves logos, QR codes, and print images under `/sta
 | `/app/me` | profile, bookings, and device migration code |
 | `/app/meetings/new` | meeting editor initialized from blank, last meeting, or template |
 | `/app/meetings/:id/edit` | edit information, roles, sessions, speeches, and Table Topics |
-| `/app/meetings/:id/agenda` | responsive/printable agenda view |
-| `/meetings/:id/agenda` | branded two-page printable agenda |
+| `/app/meetings/:id/agenda` | branded two-page agenda with PDF and PNG export |
+| `/meetings/:id/agenda` | redirect to the SPA agenda route |
 
-Legacy `/meetings`, `/meetings/new`, `/meetings/:id/edit`, and `/users` URLs redirect to
-their SPA equivalents. `/meetings` opens the unified Meeting tab and `/users` opens the
-Users tool nested under MISU. The actual branded print route is `/meetings/:id/agenda`.
+Legacy `/meetings`, `/meetings/new`, `/meetings/:id/edit`, `/meetings/:id/agenda`, and
+`/users` URLs redirect to their SPA equivalents. `/meetings` opens the unified Meeting tab
+and `/users` opens the Users tool nested under MISU.
 
 Web admin JSON APIs (require an authenticated session):
 

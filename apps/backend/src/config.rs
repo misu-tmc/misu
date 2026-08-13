@@ -15,8 +15,6 @@ pub struct Config {
     /// created on startup if the username does not already exist.
     pub seed_web_admin_user: Option<String>,
     pub seed_web_admin_password: Option<String>,
-    /// Directory holding the static web admin pages.
-    pub web_dir: String,
     /// Directory holding static assets (logos, QR codes, print images).
     pub static_dir: String,
     /// Directory holding the standalone SPA files served under `/app`.
@@ -67,7 +65,6 @@ impl Config {
             wechat_secret: non_empty("WECHAT_SECRET"),
             seed_web_admin_user: non_empty("MISU_WEB_ADMIN_USER"),
             seed_web_admin_password: non_empty("MISU_WEB_ADMIN_PASSWORD"),
-            web_dir: non_empty("MISU_WEB_DIR").unwrap_or_else(|| "web".to_string()),
             static_dir: non_empty("MISU_STATIC_DIR").unwrap_or_else(|| "static".to_string()),
             spa_dir: non_empty("MISU_SPA_DIR").unwrap_or_else(|| "../spa/dist".to_string()),
             secure_cookies: optional_env_bool("MISU_COOKIE_SECURE").unwrap_or(!dev_mode),

@@ -92,25 +92,6 @@ fn bearer_token(parts: &Parts) -> Option<String> {
     }
 }
 
-/// Optional variant of [`AuthUser`] used by server-served pages so they can redirect to
-/// login instead of returning a JSON 401 response.
-pub struct MaybeAuthUser(pub Option<AuthUser>);
-
-#[async_trait]
-impl<S> FromRequestParts<S> for MaybeAuthUser
-where
-    MySqlPool: FromRef<S>,
-    S: Send + Sync,
-{
-    type Rejection = std::convert::Infallible;
-
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        Ok(MaybeAuthUser(
-            AuthUser::from_request_parts(parts, state).await.ok(),
-        ))
-    }
-}
-
 /// Extracts the raw session token (bearer or cookie) if present — used by logout.
 pub struct SessionToken(pub Option<String>);
 

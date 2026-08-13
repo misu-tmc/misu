@@ -566,6 +566,7 @@ export function EditorPage({ params }) {
           <p>{meeting.theme || 'No theme'} · {shortDate(meeting.date).replace(',', '')} {meeting.start_time}{meeting.end_time ? `–${meeting.end_time}` : ''}</p>
         </div>
         <div class="editor-heading-actions">
+          {meeting.id && <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meeting.id}/agenda`} target="_blank" rel="noreferrer">Printed agenda</a>}
           <span class={`editor-status editor-status-${meeting.status}`}>{meeting.status}</span>
           <button class={`btn editor-publish-button ${meeting.status === 'published' ? 'published' : ''}`} type="button" disabled={saving} onClick={togglePublish}>{meeting.status === 'published' ? 'Unpublish' : 'Publish'}</button>
         </div>

@@ -876,18 +876,18 @@ body.agenda-print-layout #page {
 .print-agenda-back-top { padding-left: 7mm; }
 .print-agenda-back-top h2 { margin: 0 0 1mm; color: #fff; font-size: 16px; text-transform: uppercase; }
 .print-agenda-back-top p { color: #e7f0f4; font-size: 10px; line-height: 1.3; }
-.print-agenda-back-body { min-height: 0; display: grid; grid-template-rows: auto auto 1fr auto; gap: 3mm; padding: 3mm 6mm 3mm 8mm; }
+.print-agenda-back-body { min-height: 0; display: grid; grid-template-rows: 15mm minmax(0, 1fr) 100mm 33mm; gap: 3mm; padding: 3mm 6mm 3mm 8mm; }
 .print-agenda-back-body h3 { margin: 0 0 2mm; color: var(--print-blue); font-size: 15px; text-transform: uppercase; }
-.print-agenda-values-row { display: grid; grid-template-columns: 1fr 52mm; gap: 6mm; align-items: start; }
-.print-agenda-values-row h3 { min-height: 8mm; display: flex; align-items: center; justify-content: center; margin: 0 0 1mm; font-size: 12px; }
-.print-agenda-values-row > div:last-child p { min-height: 8mm; display: flex; align-items: center; justify-content: center; color: #8a1f1f; font-size: 12px; font-weight: 700; }
-.print-agenda-values { min-height: 8mm; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1mm; align-items: center; color: #284f62; font-size: 12px; font-weight: 700; text-align: center; }
-.print-agenda-speeches { min-height: 42mm; padding-top: 2.5mm; border-top: 1px solid #d3e0e6; }
+.print-agenda-values-row { min-height: 0; display: grid; grid-template-columns: 1fr 52mm; gap: 6mm; align-items: start; }
+.print-agenda-values-row h3 { min-height: 5mm; display: flex; align-items: center; justify-content: center; margin: 0; font-size: 12px; }
+.print-agenda-values-row > div:last-child p { min-height: 7mm; display: flex; align-items: center; justify-content: center; color: #8a1f1f; font-size: 12px; font-weight: 700; }
+.print-agenda-values { min-height: 7mm; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1mm; align-items: center; color: #284f62; font-size: 12px; font-weight: 700; text-align: center; }
+.print-agenda-speeches { min-height: 0; overflow: hidden; padding-top: 2.5mm; border-top: 1px solid #d3e0e6; }
 .print-agenda-speeches > p { color: var(--print-muted); font-size: 12.5px; }
-.print-agenda-speeches article { margin-bottom: 2mm; break-inside: avoid; }
+.print-agenda-speeches article { margin-bottom: 1mm; break-inside: avoid; }
 .print-agenda-speeches h4 { color: #173f53; font-size: 15px; font-weight: 800; }
 .print-agenda-speeches article p { margin-top: 1mm; color: #33525f; font-size: 12px; }
-.print-agenda-education { min-height: 0; display: grid; grid-template-columns: 1fr 1.3fr; padding-top: 2.5mm; border-top: 1px solid #d3e0e6; }
+.print-agenda-education { min-height: 0; height: 100mm; display: grid; grid-template-columns: 1fr 1.3fr; padding-top: 2.5mm; border-top: 1px solid #d3e0e6; }
 .print-agenda-roles { display: flex; flex-direction: column; justify-content: space-between; padding-right: 6mm; border-right: 1px solid #d3e0e6; }
 .print-agenda-roles h4 { color: #284f62; font-size: 12px; font-weight: 800; }
 .print-agenda-roles p { color: #33525f; font-size: 11px; line-height: 1.2; }
@@ -898,7 +898,7 @@ body.agenda-print-layout #page {
 .print-agenda-levels { margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 1.5mm; }
 .print-agenda-levels span { min-height: 19mm; padding: 2mm .5mm; display: flex; flex-direction: column; align-items: center; border: 1.5px solid #2b6c89; border-radius: 1.5mm; color: #2b6c89; font-size: 10px; font-weight: 700; text-align: center; }
 .print-agenda-levels b { display: block; margin-bottom: .5mm; font-size: 17px; }
-.print-agenda-process { display: grid; grid-template-columns: 1fr 30mm; gap: 5mm; align-items: center; padding-top: 2.5mm; border-top: 1px solid #d3e0e6; }
+.print-agenda-process { height: 33mm; display: grid; grid-template-columns: 1fr 30mm; gap: 5mm; align-items: center; padding-top: 2.5mm; border-top: 1px solid #d3e0e6; }
 .print-agenda-process ol { padding-left: 5mm; list-style: decimal; color: #33525f; font-size: 11px; line-height: 1.35; }
 .print-agenda-process > div:last-child { display: flex; flex-direction: column; align-items: center; color: var(--print-muted); font-size: 10px; }
 .print-agenda-process img { width: 26mm; height: 26mm; margin-bottom: 1mm; object-fit: contain; }

@@ -36,6 +36,17 @@ function sessionKey(session, index) {
   return session._key || `session-${session.id ?? index}`;
 }
 
+export function resolveSwipeAction(start, end) {
+  if (!start || !end || start.pointerId !== end.pointerId || start.type !== end.type || start.index !== end.index) {
+    return null;
+  }
+  const dx = end.clientX - start.x;
+  const dy = end.clientY - start.y;
+  if (dx < -30 && Math.abs(dx) > Math.abs(dy)) return 'swipe-left';
+  if (dx > 20) return 'swipe-right';
+  return null;
+}
+
 export function EditorPage({ params }) {
   const routeId = params?.id ? Number(params.id) : null;
   const [, navigate] = useLocation();
@@ -278,14 +289,12 @@ export function EditorPage({ params }) {
   function endSwipe(type, index, event) {
     const swipe = swipeRef.current;
     swipeRef.current = null;
-    if (!swipe || swipe.type !== type || swipe.index !== index || swipe.pointerId !== event.pointerId) return;
-    const dx = event.clientX - swipe.x;
-    const dy = event.clientY - swipe.y;
-    if (dx < -30 && Math.abs(dx) > Math.abs(dy)) {
+    const swipeAction = resolveSwipeAction(swipe, { ...event, type, index });
+    if (swipeAction === 'swipe-left') {
       suppressRowClickRef.current = true;
       setSwipedRow({ type, index });
       window.setTimeout(() => { suppressRowClickRef.current = false; }, 0);
-    } else if (dx > 20) {
+    } else if (swipeAction === 'swipe-right') {
       setSwipedRow(null);
     }
   }
@@ -627,7 +636,15 @@ export function EditorPage({ params }) {
                         </div>
                       )}
                     </div>
-                    <button class="editor-row-delete" type="button" onClick={() => { setMeeting((current) => ({ ...current, role_slots: current.role_slots.filter((_, slotIndex) => slotIndex !== index) })); setExpandedRole(null); setSwipedRow(null); }}>Delete</button>
+                    <button
+                      class="editor-row-delete"
+                      type="button"
+                      title="Delete"
+                      aria-label={`Delete ${slot.role_name || slot.custom_label || slot.label || 'unnamed'} role`}
+                      onClick={() => { setMeeting((current) => ({ ...current, role_slots: current.role_slots.filter((_, slotIndex) => slotIndex !== index) })); setExpandedRole(null); setSwipedRow(null); }}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
                   </article>
                 );
               })}
@@ -663,7 +680,15 @@ export function EditorPage({ params }) {
                         </div>
                       )}
                     </div>
-                    <button class="editor-row-delete" type="button" onClick={() => { setMeeting((current) => ({ ...current, sessions: current.sessions.filter((_, sessionIndex) => sessionIndex !== index) })); setExpandedSession(null); setSwipedRow(null); }}>Delete</button>
+                    <button
+                      class="editor-row-delete"
+                      type="button"
+                      title="Delete"
+                      aria-label={`Delete ${session.name || 'unnamed'} session`}
+                      onClick={() => { setMeeting((current) => ({ ...current, sessions: current.sessions.filter((_, sessionIndex) => sessionIndex !== index) })); setExpandedSession(null); setSwipedRow(null); }}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
                   </article>
                 );
               })}

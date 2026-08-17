@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const componentsCss = readFileSync(resolve(process.cwd(), 'css/components.css'), 'utf8');
 
 const { getMeeting, toPng } = vi.hoisted(() => ({
   getMeeting: vi.fn(),
@@ -38,6 +42,12 @@ describe('AgendaPage', () => {
     toPng.mockReset().mockResolvedValue('data:image/png;base64,agenda');
     vi.spyOn(window, 'print').mockImplementation(() => {});
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  });
+
+  it('allows the agenda body to grow with both sheets', () => {
+    expect(componentsCss).toMatch(
+      /body\.agenda-print-layout\s*\{[^}]*\bheight:\s*auto;/
+    );
   });
 
   it('renders the printable meeting and export controls', async () => {

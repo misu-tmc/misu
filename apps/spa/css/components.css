@@ -795,7 +795,7 @@ body.editor-detail-layout #page { padding-bottom: 0; }
 /* ============================================================
    AGENDA / PRINT
    ============================================================ */
-body.agenda-print-layout { background: #cfd3d5; }
+body.agenda-print-layout { height: auto; background: #cfd3d5; }
 body.agenda-print-layout #topbar, body.agenda-print-layout #bottombar { display: none !important; }
 body.agenda-print-layout #page {
   max-width: none; min-height: 100vh; margin: 0; padding: 18px 12px 32px;

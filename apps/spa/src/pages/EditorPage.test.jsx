@@ -9,15 +9,17 @@ const {
   meetingsTemplates,
   usersList,
   navigate
-} = vi.hoisted(() => ({
-  roles: vi.fn(),
-  venues: vi.fn(),
-  attendees: vi.fn(),
-  meetingsGet: vi.fn(),
-  meetingsTemplates: vi.fn(),
-  usersList: vi.fn(),
-  navigate: vi.fn()
-}));
+} = vi.hoisted(() => {
+  return {
+    roles: vi.fn(),
+    venues: vi.fn(),
+    attendees: vi.fn(),
+    meetingsGet: vi.fn(),
+    meetingsTemplates: vi.fn(),
+    usersList: vi.fn(),
+    navigate: vi.fn()
+  };
+});
 
 vi.mock('../lib/api.js', () => ({
   catalogApi: { roles, venues },
@@ -30,7 +32,7 @@ vi.mock('wouter-preact', () => ({
   useLocation: () => [['/app/meetings/42/edit?tab=roles', navigate], navigate]
 }));
 
-import { EditorPage, resolveSwipeAction } from './EditorPage.jsx';
+import { EditorPage } from './EditorPage.jsx';
 
 const meeting = {
   id: 42,
@@ -105,14 +107,24 @@ describe('EditorPage accessible row delete controls', () => {
   });
 
   it('toggles the swiped state on a role row with touch swipes', async () => {
-    expect(resolveSwipeAction(
-      { type: 'role', index: 0, pointerId: 1, x: 100, y: 12, pointerType: 'touch' },
-      { type: 'role', index: 0, pointerId: 1, clientX: 60, clientY: 12, pointerType: 'touch' }
-    )).toBe('swipe-left');
+    render(<EditorPage params={{ id: '42' }} />);
 
-    expect(resolveSwipeAction(
-      { type: 'role', index: 0, pointerId: 2, x: 60, y: 12, pointerType: 'touch' },
-      { type: 'role', index: 0, pointerId: 2, clientX: 90, clientY: 12, pointerType: 'touch' }
-    )).toBe('swipe-right');
+    const getRow = () => screen.getByText('Timer').closest('[data-drag-type="role"]');
+    await screen.findByText('Timer');
+    const main = getRow().querySelector('.editor-row-main');
+    const dispatchMouse = (target, type, init) => {
+      const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: init.clientX, clientY: init.clientY, button: 0, buttons: 1 });
+      Object.defineProperty(event, 'pointerId', { value: init.pointerId });
+      Object.defineProperty(event, 'pointerType', { value: init.pointerType });
+      target.dispatchEvent(event);
+    };
+
+    dispatchMouse(main, 'mousedown', { pointerType: 'touch', pointerId: 1, clientX: 100, clientY: 20 });
+    dispatchMouse(main, 'mouseup', { pointerType: 'touch', pointerId: 1, clientX: 60, clientY: 20 });
+    await waitFor(() => expect(getRow().classList.contains('swiped')).toBe(true));
+
+    dispatchMouse(main, 'mousedown', { pointerType: 'touch', pointerId: 2, clientX: 60, clientY: 20 });
+    dispatchMouse(main, 'mouseup', { pointerType: 'touch', pointerId: 2, clientX: 90, clientY: 20 });
+    await waitFor(() => expect(getRow().classList.contains('swiped')).toBe(false));
   });
 });

@@ -58,4 +58,40 @@ describe('AgendaPage', () => {
     expect(toPng.mock.calls[0][0].classList.contains('print-agenda-sheet')).toBe(true);
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(2);
   });
+
+  it('renders colorful core-value cycles on page 2', async () => {
+    const { container } = render(<AgendaPage params={{ id: '42' }} />);
+    await screen.findByRole('heading', { name: 'Regular Meeting #142' });
+
+    const values = [...container.querySelectorAll('.print-agenda-value')].map((item) => ({
+      initial: item.querySelector('.print-agenda-value-mark')?.textContent,
+      label: item.querySelector('.print-agenda-value-label')?.textContent,
+      accent: [...item.classList].find((name) => name.startsWith('accent-'))
+    }));
+
+    expect(values).toEqual([
+      { initial: 'I', label: 'Integrity', accent: 'accent-navy' },
+      { initial: 'R', label: 'Respect', accent: 'accent-orange' },
+      { initial: 'S', label: 'Service', accent: 'accent-green' },
+      { initial: 'E', label: 'Excellence', accent: 'accent-blue' }
+    ]);
+  });
+
+  it('renders colorful Pathways boundaries on page 2', async () => {
+    const { container } = render(<AgendaPage params={{ id: '42' }} />);
+    await screen.findByRole('heading', { name: 'Regular Meeting #142' });
+
+    const levels = [...container.querySelectorAll('.print-agenda-levels > span')].map((item) => ({
+      text: item.textContent,
+      accent: [...item.classList].find((name) => name.startsWith('accent-'))
+    }));
+
+    expect(levels).toEqual([
+      { text: '1Public Speaking', accent: 'accent-navy' },
+      { text: '2Interpersonal Communication', accent: 'accent-blue' },
+      { text: '3Strategic Leadership', accent: 'accent-orange' },
+      { text: '4Management', accent: 'accent-green' },
+      { text: '5Confidence', accent: 'accent-muted' }
+    ]);
+  });
 });

@@ -26,6 +26,21 @@ const PATHWAYS = [
   ['motivational-strategies.png', 'Motivational Strategies']
 ];
 
+const CORE_VALUES = [
+  ['I', 'Integrity', 'navy'],
+  ['R', 'Respect', 'orange'],
+  ['S', 'Service', 'green'],
+  ['E', 'Excellence', 'blue']
+];
+
+const PATHWAY_LEVELS = [
+  [1, 'Public Speaking', 'navy'],
+  [2, 'Interpersonal Communication', 'blue'],
+  [3, 'Strategic Leadership', 'orange'],
+  [4, 'Management', 'green'],
+  [5, 'Confidence', 'muted']
+];
+
 function printDate(date) {
   if (!date) return '';
   const parsed = new Date(`${date}T00:00:00`);
@@ -204,7 +219,17 @@ export function AgendaPage({ params }) {
           </header>
           <main class="print-agenda-back-body">
             <section class="print-agenda-values-row">
-              <div><h3>Four Core Values</h3><div class="print-agenda-values"><span>Integrity</span><span>Respect</span><span>Service</span><span>Excellence</span></div></div>
+              <div>
+                <h3>Four Core Values</h3>
+                <div class="print-agenda-values">
+                  {CORE_VALUES.map(([initial, name, accent]) => (
+                    <span class={`print-agenda-value accent-${accent}`} key={name}>
+                      <b class="print-agenda-value-mark" aria-hidden="true">{initial}</b>
+                      <span class="print-agenda-value-label">{name}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
               <div><h3>Four Taboos</h3><p>Politics · Religion · Race · Sex</p></div>
             </section>
             <section class="print-agenda-speeches">
@@ -217,7 +242,9 @@ export function AgendaPage({ params }) {
               <div class="print-agenda-pathways">
                 <h3>Education System: Pathways — 6 Paths</h3>
                 <div class="print-agenda-path-grid">{PATHWAYS.map(([image, name]) => <div key={name}><img src={`/static/tm-badges/${image}`} alt="" /><span>{name}</span></div>)}</div>
-                <div class="print-agenda-levels"><span><b>1</b>Public Speaking</span><span><b>2</b>Interpersonal Communication</span><span><b>3</b>Strategic Leadership</span><span><b>4</b>Management</span><span><b>5</b>Confidence</span></div>
+                <div class="print-agenda-levels">
+                  {PATHWAY_LEVELS.map(([level, name, accent]) => <span class={`accent-${accent}`} key={level}><b>{level}</b>{name}</span>)}
+                </div>
               </div>
             </section>
             <section class="print-agenda-process">

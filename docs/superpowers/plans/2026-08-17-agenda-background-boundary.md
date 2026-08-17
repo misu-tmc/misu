@@ -149,4 +149,3 @@ git status --short
 ```
 
 Expected: `master` and `origin/master` resolve to the same commit, and both worktrees are clean.
-

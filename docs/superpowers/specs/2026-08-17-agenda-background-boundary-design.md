@@ -27,4 +27,3 @@ adding lifecycle classes to `html`, or masking the issue on a child element.
 - Reproduce the agenda with two sheets in a browser and confirm the body extends
   through the full document height with no lavender boundary.
 - Run the SPA validation command: `npm run validate`.
-

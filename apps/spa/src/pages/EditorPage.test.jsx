@@ -18,7 +18,8 @@ if (!globalThis.PointerEvent) {
 // Preact detects the lowercase name and uses addEventListener('pointerdown', …).
 const _pointerPropNames = ['onpointerdown', 'onpointerup', 'onpointercancel', 'onpointermove'];
 const _savedPointerDescs = {};
-if (!('onpointerdown' in document.createElement('div'))) {
+const pointerShimInstalled = !('onpointerdown' in document.createElement('div'));
+if (pointerShimInstalled) {
   for (const evtName of _pointerPropNames) {
     _savedPointerDescs[evtName] = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, evtName);
     Object.defineProperty(window.HTMLElement.prototype, evtName, {
@@ -29,6 +30,7 @@ if (!('onpointerdown' in document.createElement('div'))) {
   }
 }
 afterAll(() => {
+  if (!pointerShimInstalled) return;
   for (const evtName of _pointerPropNames) {
     if (_savedPointerDescs[evtName]) {
       Object.defineProperty(window.HTMLElement.prototype, evtName, _savedPointerDescs[evtName]);
@@ -66,7 +68,7 @@ vi.mock('../lib/api.js', () => ({
 }));
 
 vi.mock('wouter-preact', () => ({
-  useLocation: () => [['/app/meetings/42/edit?tab=roles', navigate], navigate]
+  useLocation: () => ['/app/meetings/42/edit?tab=roles', navigate]
 }));
 
 import { EditorPage } from './EditorPage.jsx';

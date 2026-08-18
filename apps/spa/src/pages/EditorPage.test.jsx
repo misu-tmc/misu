@@ -1,5 +1,42 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Local PointerEvent shim — keeps pointer-event support out of global setup.js
+if (!globalThis.PointerEvent) {
+  class TestPointerEvent extends MouseEvent {
+    constructor(type, init = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 0;
+      this.pointerType = init.pointerType ?? '';
+    }
+  }
+  globalThis.PointerEvent = TestPointerEvent;
+}
+
+// jsdom omits onpointerdown/up/cancel properties on elements, so Preact would
+// register 'PointerDown' (capital) instead of 'pointerdown'. Stub them so
+// Preact detects the lowercase name and uses addEventListener('pointerdown', …).
+const _pointerPropNames = ['onpointerdown', 'onpointerup', 'onpointercancel', 'onpointermove'];
+const _savedPointerDescs = {};
+if (!('onpointerdown' in document.createElement('div'))) {
+  for (const evtName of _pointerPropNames) {
+    _savedPointerDescs[evtName] = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, evtName);
+    Object.defineProperty(window.HTMLElement.prototype, evtName, {
+      get() { return null; },
+      set() {},
+      configurable: true
+    });
+  }
+}
+afterAll(() => {
+  for (const evtName of _pointerPropNames) {
+    if (_savedPointerDescs[evtName]) {
+      Object.defineProperty(window.HTMLElement.prototype, evtName, _savedPointerDescs[evtName]);
+    } else {
+      delete window.HTMLElement.prototype[evtName];
+    }
+  }
+});
 
 const {
   roles,
@@ -111,20 +148,14 @@ describe('EditorPage accessible row delete controls', () => {
 
     const getRow = () => screen.getByText('Timer').closest('[data-drag-type="role"]');
     await screen.findByText('Timer');
-    const main = getRow().querySelector('.editor-row-main');
-    const dispatchMouse = (target, type, init) => {
-      const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: init.clientX, clientY: init.clientY, button: 0, buttons: 1 });
-      Object.defineProperty(event, 'pointerId', { value: init.pointerId });
-      Object.defineProperty(event, 'pointerType', { value: init.pointerType });
-      target.dispatchEvent(event);
-    };
+    const rowMain = getRow().querySelector('.editor-row-main');
 
-    dispatchMouse(main, 'mousedown', { pointerType: 'touch', pointerId: 1, clientX: 100, clientY: 20 });
-    dispatchMouse(main, 'mouseup', { pointerType: 'touch', pointerId: 1, clientX: 60, clientY: 20 });
+    fireEvent(rowMain, new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch', pointerId: 1, clientX: 100, clientY: 20 }));
+    fireEvent(rowMain, new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 1, clientX: 60, clientY: 20 }));
     await waitFor(() => expect(getRow().classList.contains('swiped')).toBe(true));
 
-    dispatchMouse(main, 'mousedown', { pointerType: 'touch', pointerId: 2, clientX: 60, clientY: 20 });
-    dispatchMouse(main, 'mouseup', { pointerType: 'touch', pointerId: 2, clientX: 90, clientY: 20 });
+    fireEvent(rowMain, new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch', pointerId: 2, clientX: 60, clientY: 20 }));
+    fireEvent(rowMain, new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 2, clientX: 90, clientY: 20 }));
     await waitFor(() => expect(getRow().classList.contains('swiped')).toBe(false));
   });
 });

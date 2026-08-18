@@ -68,7 +68,7 @@ vi.mock('../lib/api.js', () => ({
 }));
 
 vi.mock('wouter-preact', () => ({
-  useLocation: () => ['/app/meetings/42/edit?tab=roles', navigate]
+  useLocation: () => [`${window.location.pathname}${window.location.search}`, navigate]
 }));
 
 import { EditorPage } from './EditorPage.jsx';

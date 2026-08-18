@@ -278,14 +278,18 @@ export function EditorPage({ params }) {
   function endSwipe(type, index, event) {
     const swipe = swipeRef.current;
     swipeRef.current = null;
-    if (!swipe || swipe.type !== type || swipe.index !== index || swipe.pointerId !== event.pointerId) return;
-    const dx = event.clientX - swipe.x;
-    const dy = event.clientY - swipe.y;
-    if (dx < -30 && Math.abs(dx) > Math.abs(dy)) {
+    let swipeAction = null;
+    if (swipe && swipe.pointerId === event.pointerId && swipe.type === type && swipe.index === index) {
+      const dx = event.clientX - swipe.x;
+      const dy = event.clientY - swipe.y;
+      if (dx < -30 && Math.abs(dx) > Math.abs(dy)) swipeAction = 'swipe-left';
+      else if (dx > 20) swipeAction = 'swipe-right';
+    }
+    if (swipeAction === 'swipe-left') {
       suppressRowClickRef.current = true;
       setSwipedRow({ type, index });
       window.setTimeout(() => { suppressRowClickRef.current = false; }, 0);
-    } else if (dx > 20) {
+    } else if (swipeAction === 'swipe-right') {
       setSwipedRow(null);
     }
   }
@@ -605,7 +609,10 @@ export function EditorPage({ params }) {
 
         {activeTab === 'roles' && (
           <section class="editor-panel editor-list-panel">
-            <p class="editor-list-hint">{meeting.role_slots.length} role slots · drag ⋮⋮ to reorder · swipe a row for Delete</p>
+            <p class="editor-list-hint">
+              {meeting.role_slots.length} role slots · drag ⋮⋮ to reorder
+              <span class="editor-swipe-hint"> · swipe a row for Delete</span>
+            </p>
             <div class="editor-list">
               {meeting.role_slots.map((slot, index) => {
                 const key = roleKey(slot, index);
@@ -627,7 +634,15 @@ export function EditorPage({ params }) {
                         </div>
                       )}
                     </div>
-                    <button class="editor-row-delete" type="button" onClick={() => { setMeeting((current) => ({ ...current, role_slots: current.role_slots.filter((_, slotIndex) => slotIndex !== index) })); setExpandedRole(null); setSwipedRow(null); }}>Delete</button>
+                    <button
+                      class="editor-row-delete"
+                      type="button"
+                      title="Delete"
+                      aria-label={`Delete ${slot.role_name || slot.custom_label || slot.label || 'unnamed'} role`}
+                      onClick={() => { setMeeting((current) => ({ ...current, role_slots: current.role_slots.filter((_, slotIndex) => slotIndex !== index) })); setExpandedRole(null); setSwipedRow(null); }}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
                   </article>
                 );
               })}
@@ -639,7 +654,10 @@ export function EditorPage({ params }) {
 
         {activeTab === 'sessions' && (
           <section class="editor-panel editor-list-panel">
-            <p class="editor-list-hint">Start times auto-computed · drag ⋮⋮ to reorder · swipe a row for Delete</p>
+            <p class="editor-list-hint">
+              Start times auto-computed · drag ⋮⋮ to reorder
+              <span class="editor-swipe-hint"> · swipe a row for Delete</span>
+            </p>
             <div class="editor-list">
               {meeting.sessions.map((session, index) => {
                 const key = sessionKey(session, index);
@@ -663,7 +681,15 @@ export function EditorPage({ params }) {
                         </div>
                       )}
                     </div>
-                    <button class="editor-row-delete" type="button" onClick={() => { setMeeting((current) => ({ ...current, sessions: current.sessions.filter((_, sessionIndex) => sessionIndex !== index) })); setExpandedSession(null); setSwipedRow(null); }}>Delete</button>
+                    <button
+                      class="editor-row-delete"
+                      type="button"
+                      title="Delete"
+                      aria-label={`Delete ${session.name || 'unnamed'} session`}
+                      onClick={() => { setMeeting((current) => ({ ...current, sessions: current.sessions.filter((_, sessionIndex) => sessionIndex !== index) })); setExpandedSession(null); setSwipedRow(null); }}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
                   </article>
                 );
               })}

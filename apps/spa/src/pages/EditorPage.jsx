@@ -609,7 +609,10 @@ export function EditorPage({ params }) {
 
         {activeTab === 'roles' && (
           <section class="editor-panel editor-list-panel">
-            <p class="editor-list-hint">{meeting.role_slots.length} role slots · drag ⋮⋮ to reorder · swipe a row for Delete</p>
+            <p class="editor-list-hint">
+              {meeting.role_slots.length} role slots · drag ⋮⋮ to reorder
+              <span class="editor-swipe-hint"> · swipe a row for Delete</span>
+            </p>
             <div class="editor-list">
               {meeting.role_slots.map((slot, index) => {
                 const key = roleKey(slot, index);
@@ -651,7 +654,10 @@ export function EditorPage({ params }) {
 
         {activeTab === 'sessions' && (
           <section class="editor-panel editor-list-panel">
-            <p class="editor-list-hint">Start times auto-computed · drag ⋮⋮ to reorder · swipe a row for Delete</p>
+            <p class="editor-list-hint">
+              Start times auto-computed · drag ⋮⋮ to reorder
+              <span class="editor-swipe-hint"> · swipe a row for Delete</span>
+            </p>
             <div class="editor-list">
               {meeting.sessions.map((session, index) => {
                 const key = sessionKey(session, index);

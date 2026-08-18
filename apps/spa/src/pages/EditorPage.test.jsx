@@ -145,6 +145,15 @@ describe('EditorPage accessible row delete controls', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Delete Timer report session' })).toBeNull());
   });
 
+  it('shows swipe-hint text inside an editor-swipe-hint element on the Roles tab', async () => {
+    render(<EditorPage params={{ id: '42' }} />);
+
+    await screen.findByText('Timer');
+    const hint = document.querySelector('.editor-swipe-hint');
+    expect(hint).toBeTruthy();
+    expect(hint.textContent).toContain('· swipe a row for Delete');
+  });
+
   it('toggles the swiped state on a role row with touch swipes', async () => {
     render(<EditorPage params={{ id: '42' }} />);
 

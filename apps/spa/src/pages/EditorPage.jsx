@@ -265,7 +265,7 @@ export function EditorPage({ params }) {
   }
 
   function startSwipe(type, index, event) {
-    if (event.pointerType === 'mouse' || (event.type === 'mousedown' && !event.pointerType)) return;
+    if (event.pointerType === 'mouse') return;
     swipeRef.current = {
       type,
       index,
@@ -619,7 +619,7 @@ export function EditorPage({ params }) {
                 return (
                   <article class={`editor-row ${expanded ? 'expanded' : ''} ${isDragging ? 'dragging' : ''} ${isSwiped ? 'swiped' : ''}`} key={key} data-drag-type="role" data-index={index}>
                     <button class="drag-handle" type="button" aria-label={`Drag role ${index + 1}`} onPointerDown={(event) => startDrag('role', index, event)} onPointerMove={(event) => moveDrag('role', event)} onPointerUp={endDrag} onPointerCancel={endDrag}>⋮⋮</button>
-                    <div class="editor-row-main" onPointerDown={(event) => startSwipe('role', index, event)} onMouseDown={(event) => startSwipe('role', index, event)} onPointerUp={(event) => endSwipe('role', index, event)} onMouseUp={(event) => endSwipe('role', index, event)} onPointerCancel={() => { swipeRef.current = null; }}>
+                    <div class="editor-row-main" onPointerDown={(event) => startSwipe('role', index, event)} onPointerUp={(event) => endSwipe('role', index, event)} onPointerCancel={() => { swipeRef.current = null; }}>
                       <button class="row-expand-button" type="button" aria-expanded={expanded} onClick={() => toggleEditorRow('role', key)}>
                         <span class="row-summary-copy"><strong>{slot.role_name || slot.custom_label || slot.label || 'New role'}</strong><small>Assignee: {slot.taker_name || '—'}</small></span>
                       </button>
@@ -662,7 +662,7 @@ export function EditorPage({ params }) {
                 return (
                   <article class={`editor-row ${expanded ? 'expanded' : ''} ${isDragging ? 'dragging' : ''} ${isSwiped ? 'swiped' : ''}`} key={key} data-drag-type="session" data-index={index}>
                     <button class="drag-handle" type="button" aria-label={`Drag session ${index + 1}`} onPointerDown={(event) => startDrag('session', index, event)} onPointerMove={(event) => moveDrag('session', event)} onPointerUp={endDrag} onPointerCancel={endDrag}>⋮⋮</button>
-                    <div class="editor-row-main" onPointerDown={(event) => startSwipe('session', index, event)} onMouseDown={(event) => startSwipe('session', index, event)} onPointerUp={(event) => endSwipe('session', index, event)} onMouseUp={(event) => endSwipe('session', index, event)} onPointerCancel={() => { swipeRef.current = null; }}>
+                    <div class="editor-row-main" onPointerDown={(event) => startSwipe('session', index, event)} onPointerUp={(event) => endSwipe('session', index, event)} onPointerCancel={() => { swipeRef.current = null; }}>
                       <button class="row-expand-button" type="button" aria-expanded={expanded} onClick={() => toggleEditorRow('session', key)}>
                         <span class="row-summary-copy"><strong><span class="session-start">{sessionStarts[index]}</span> {session.name || 'New session'}</strong><small>{session.duration_minutes}' · {role?.custom_label || role?.label || role?.role_name || '—'}</small></span>
                       </button>

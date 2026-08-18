@@ -146,10 +146,10 @@ describe('EditorPage accessible row delete controls', () => {
   });
 
   it('shows swipe-hint text inside an editor-swipe-hint element on the Roles tab', async () => {
-    render(<EditorPage params={{ id: '42' }} />);
+    const { container } = render(<EditorPage params={{ id: '42' }} />);
 
     await screen.findByText('Timer');
-    const hint = document.querySelector('.editor-swipe-hint');
+    const hint = container.querySelector('.editor-swipe-hint');
     expect(hint).toBeTruthy();
     expect(hint.textContent).toContain('· swipe a row for Delete');
   });

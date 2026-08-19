@@ -127,8 +127,13 @@ Both `pages/checkin/checkin.js` and `pages/meeting/meeting.js` write the same
 — but only **after** the `POST /api/meetings/:id/checkin` call resolves successfully.
 The two pages diverge on failure handling, but share the same invariant: a rejected
 `POST` never writes the cache key or navigates.
-- `checkin.js`'s outer `catch` clears the loading state (`setData({ loading: false })`)
-  and shows a `加载失败` (or `请先登录` when the user still has no auth token) toast.
+- `checkin.js`'s pre-request guard checks for an auth token *before* the try/catch: if
+  still missing after `ensureLogin`, it clears the loading state
+  (`setData({ loading: false })`), shows a `请先登录` toast, and returns — no
+  `POST /api/meetings/:id/checkin` is ever issued for that path.
+- `checkin.js`'s outer `catch` (for the resolve/checkin work that follows the guard)
+  clears the loading state and shows a `加载失败` toast for any rejected call in that
+  block.
 - `meeting.js`'s `goCheckIn` catch leaves `checkedIn` unset and shows a `Check-in failed`
   toast instead; it does not write the cache key on failure.
 

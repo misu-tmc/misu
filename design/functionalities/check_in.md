@@ -91,6 +91,17 @@ flowchart TD
   `/app/meetings/<meeting_id>` (using the server-resolved ID) where the Meeting tab
   shows **Checked in**. It never renders its own check-in form; on failure it shows the
   backend's error message in place and does not navigate.
+  - **Query validation before any request**: `optionalMeetingId` parses the `meetingId`
+    query param and requires it to be a decimal positive safe integer. A malformed value
+    (non-numeric, zero, negative, or non-integer) never issues the `POST` at all — the
+    page shows the local message **"This check-in link is invalid."** immediately.
+  - **Response validation after the request**: even when the query param was well-formed
+    (or omitted), the page also rejects a non-positive/invalid `meeting_id` in the
+    `POST /api/checkin` response by showing that same local
+    **"This check-in link is invalid."** message. Any other API failure (404/409/etc.)
+    shows the backend's error message instead. The backend's own 400 Bad Request for a
+    non-positive `meeting_id` (see below) remains defense-in-depth for callers that hit
+    the API directly, bypassing the SPA's client-side validation.
 - **No role selection**: booked roles are not selected or corrected here. Role linking is
   an admin action (see below), not part of check-in.
 - **Name/club stays with the account, not check-in**: neither `/api/checkin` nor

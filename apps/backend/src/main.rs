@@ -103,6 +103,7 @@ async fn main() -> anyhow::Result<()> {
             "/api/meetings/:meeting_id/checkin",
             get(handlers::checkin_status).post(handlers::checkin),
         )
+        .route("/api/checkin", post(handlers::umbrella_checkin))
         .route(
             "/api/meetings/:meeting_id/attendees",
             get(admin::list_attendees).post(admin::create_walk_in),

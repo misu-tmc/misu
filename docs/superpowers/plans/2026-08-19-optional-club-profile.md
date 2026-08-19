@@ -16,7 +16,7 @@
 - Create: `docs/superpowers/specs/2026-08-19-optional-club-profile-design.md`
 - Create: `docs/superpowers/plans/2026-08-19-optional-club-profile.md`
 
-- [ ] **Step 1: Preserve the full implementation branch**
+- [x] **Step 1: Preserve the full implementation branch**
 
 ```powershell
 git branch agents/deeplink-checkin-full-backup
@@ -26,7 +26,7 @@ git switch -c agents/optional-club-name origin/master
 Expected: the original full branch remains available as a read-only reference;
 the working branch starts exactly at `origin/master`.
 
-- [ ] **Step 2: Copy only this specification and plan from the backup**
+- [x] **Step 2: Copy only this specification and plan from the backup**
 
 ```powershell
 git checkout agents/deeplink-checkin-full-backup -- `
@@ -39,6 +39,8 @@ git commit -m "docs: design optional club profiles" `
 ```
 
 Expected: no check-in or umbrella-link document appears in the branch.
+
+Execution resumes at Task 2.
 
 ## Task 2: Add the Optional Club Data Contract
 

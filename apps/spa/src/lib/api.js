@@ -92,7 +92,7 @@ export const votingApi = {
 export const usersApi = {
   list: () => request('/api/users'),
   create: (displayName) => request('/api/users', { method: 'POST', body: { display_name: displayName } }),
-  update: (id, displayName) => request(`/api/users/${id}`, { method: 'POST', body: { display_name: displayName } })
+  update: (id, profile) => request(`/api/users/${id}`, { method: 'POST', body: profile })
 };
 
 export const catalogApi = {

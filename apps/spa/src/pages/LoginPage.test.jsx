@@ -24,8 +24,9 @@ vi.mock('../lib/api.js', () => ({
   }
 }));
 
-const { generateCredential } = vi.hoisted(() => ({
-  generateCredential: vi.fn()
+const { generateCredential, trySilentLogin } = vi.hoisted(() => ({
+  generateCredential: vi.fn(),
+  trySilentLogin: vi.fn(() => Promise.resolve(null))
 }));
 
 vi.mock('../lib/authDevice.js', () => ({
@@ -34,7 +35,7 @@ vi.mock('../lib/authDevice.js', () => ({
   generateCredential,
   signChallenge: vi.fn(),
   storedCredential: vi.fn(),
-  trySilentLogin: vi.fn(() => Promise.resolve(null))
+  trySilentLogin
 }));
 
 vi.mock('../state/auth.js', () => ({
@@ -42,22 +43,14 @@ vi.mock('../state/auth.js', () => ({
   authReady: { value: false }
 }));
 
+const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
+
+vi.mock('wouter-preact', () => ({
+  useLocation: () => [window.location.pathname, navigate]
+}));
+
 import { ApiError } from '../lib/api.js';
-import { LoginPage, safeNextPath } from './LoginPage.jsx';
-
-describe('safeNextPath', () => {
-  it('keeps a local return path', () => {
-    expect(safeNextPath('?next=%2Fapp%2Fmeeting')).toBe('/app/meeting');
-  });
-
-  it('rejects protocol-relative redirects', () => {
-    expect(safeNextPath('?next=%2F%2Fevil.example')).toBe('/app/booking');
-  });
-
-  it('defaults to booking', () => {
-    expect(safeNextPath('')).toBe('/app/booking');
-  });
-});
+import { LoginPage } from './LoginPage.jsx';
 
 describe('LoginPage generic account creation', () => {
   beforeEach(() => {
@@ -69,6 +62,8 @@ describe('LoginPage generic account creation', () => {
       local: {},
       request: { credential_id: 'credential', public_key: 'public-key', device_name: 'Phone' }
     });
+    trySilentLogin.mockReset().mockResolvedValue(null);
+    navigate.mockReset();
     window.history.pushState({}, '', '/login');
   });
 
@@ -103,5 +98,91 @@ describe('LoginPage generic account creation', () => {
       public_key: 'public-key',
       device_name: 'Phone'
     }));
+  });
+});
+
+async function createAccountVia(displayName = 'Guest') {
+  fireEvent.click(await screen.findByRole('button', { name: 'Create an account' }));
+  fireEvent.input(await screen.findByLabelText('Your display name'), { target: { value: displayName } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+  await waitFor(() => expect(register).toHaveBeenCalled());
+}
+
+describe('LoginPage safe redirect after finish', () => {
+  beforeEach(() => {
+    me.mockReset()
+      .mockRejectedValueOnce(new ApiError(401, 'unauthenticated'))
+      .mockResolvedValue({ user: { id: 1, display_name: 'Guest', club_name: '' } });
+    register.mockReset().mockResolvedValue({ ok: true });
+    generateCredential.mockReset().mockResolvedValue({
+      local: {},
+      request: { credential_id: 'credential', public_key: 'public-key', device_name: 'Phone' }
+    });
+    trySilentLogin.mockReset().mockResolvedValue(null);
+    navigate.mockReset();
+  });
+
+  it('auto-returns to an explicit valid next after account creation', async () => {
+    window.history.pushState({}, '', '/login?next=%2Fapp%2Fmeeting');
+    render(<LoginPage />);
+
+    await createAccountVia();
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/app/meeting', { replace: true }));
+    expect(screen.queryByText(/Welcome,/)).toBeNull();
+  });
+
+  it('retains the account confirmation view when next is missing', async () => {
+    window.history.pushState({}, '', '/login');
+    render(<LoginPage />);
+
+    await createAccountVia();
+
+    expect(await screen.findByText(/Welcome,/)).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/app/booking');
+  });
+
+  it('retains the account confirmation view and never navigates off-origin when next is invalid', async () => {
+    window.history.pushState({}, '', '/login?next=%2F%2Fevil.example');
+    render(<LoginPage />);
+
+    await createAccountVia();
+
+    expect(await screen.findByText(/Welcome,/)).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/app/booking');
+  });
+
+  it('navigates via the shared finish path when an existing session cookie is present', async () => {
+    window.history.pushState({}, '', '/login?next=%2Fapp%2Fmeeting');
+    me.mockReset().mockResolvedValue({ user: { id: 1, display_name: 'Guest', club_name: '' } });
+
+    render(<LoginPage />);
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/app/meeting', { replace: true }));
+  });
+
+  it('navigates via the shared finish path after a silent device login', async () => {
+    window.history.pushState({}, '', '/login?next=%2Fapp%2Fmeeting');
+    trySilentLogin.mockReset().mockResolvedValue({ id: 1, display_name: 'Guest', club_name: '' });
+
+    render(<LoginPage />);
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/app/meeting', { replace: true }));
+  });
+
+  it('navigates via the shared finish path after a migration code redeems', async () => {
+    const { migrate } = await import('../lib/api.js').then((m) => m.authApi);
+    migrate.mockReset().mockResolvedValue({ ok: true });
+    window.history.pushState({}, '', '/login?next=%2Fapp%2Fmeeting');
+
+    render(<LoginPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'I have a migration code' }));
+    fireEvent.input(await screen.findByLabelText('Migration code'), { target: { value: 'ABCD-EFGH-IJKL-MNOP' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect device' }));
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/app/meeting', { replace: true }));
   });
 });

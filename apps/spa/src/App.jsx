@@ -4,6 +4,7 @@ import { AppShell } from './components/AppShell.jsx';
 import { PageLoading } from './components/PageState.jsx';
 import { authApi } from './lib/api.js';
 import { trySilentLogin } from './lib/authDevice.js';
+import { loginRedirectUrl } from './lib/safeNextPath.js';
 import { authReady, authUser } from './state/auth.js';
 import { BookingPage } from './pages/BookingPage.jsx';
 import { AboutPage } from './pages/AboutPage.jsx';
@@ -21,8 +22,7 @@ import { UsersPage } from './pages/UsersPage.jsx';
 
 function LoginRedirect({ location }) {
   useEffect(() => {
-    const loginPath = import.meta.env.DEV ? '/app/login' : '/login';
-    window.location.assign(`${loginPath}?next=${encodeURIComponent(location)}`);
+    window.location.assign(loginRedirectUrl(location, window.location.search, import.meta.env.DEV));
   }, [location]);
   return <PageLoading label="Opening sign in…" />;
 }

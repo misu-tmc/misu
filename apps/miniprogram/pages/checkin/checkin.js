@@ -48,11 +48,7 @@ Page({
       this.meetingId = meetingId;
       const detail = await api.meeting(meetingId);
       const me = app.globalData.userId;
-      try {
-        await api.checkin(meetingId);
-      } catch (e) {
-        console.error(e);
-      }
+      await api.checkin(meetingId);
       wx.setStorageSync(this.storageKey(meetingId, me), {
         meetingId,
         userId: me,

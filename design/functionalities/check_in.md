@@ -10,8 +10,8 @@ Check-in has three purposes:
 3. **Feed the voting page** — provide the pool of attendees and resolved role takers.
 
 Check-in must not create anonymous or dropped-identifier users. The attendee signs in
-first via the active provider: the generic passkey account flow on web (`/login`,
-shared by every protected route, not a check-in-specific form), and the WeChat
+first via the active provider: the generic device-credential account flow on web
+(`/login`, shared by every protected route, not a check-in-specific form), and the WeChat
 launch-time login on the mini program. Only after auth resolves a `user.id` does the
 check-in page load.
 
@@ -127,11 +127,12 @@ Both `pages/checkin/checkin.js` and `pages/meeting/meeting.js` write the same
 — but only **after** the `POST /api/meetings/:id/checkin` call resolves successfully.
 A rejected check-in call must never write this key or switch tabs: it is caught by the
 page's outer `catch`, which clears the loading state and shows a `加载失败` (or
-`请先登录` when the user still has no auth token) toast instead. `meeting.js` uses the
-cached entry only as an immediate, optimistic **first paint** while
-`GET /api/meetings/:id/checkin` is in flight, then overwrites it with that call's
-authoritative `checked_in` value; if the status call itself fails, the cached value is
-kept as a last-resort fallback rather than forcing "not checked in".
+`请先登录` when the user still has no auth token) toast instead. `meeting.js` reads the
+cached entry but never renders it — the page's single `setData` call happens only after
+`await api.checkinStatus(...)` resolves, so there is no optimistic first paint. The
+cached value is used only as a **fallback**: if the `GET /api/meetings/:id/checkin` call
+itself fails, the cached value is kept rather than forcing "not checked in"; otherwise it
+is discarded in favor of that call's authoritative `checked_in` value.
 
 ## API
 
@@ -155,7 +156,9 @@ POST /api/checkin
 - No `role_slot_id` is involved. Attendance never touches `role_assignment`.
 - `GET`/`POST /api/meetings/:id/checkin` are unchanged from before this deep link — they
   remain the endpoint `MeetingPage` and the mini program use for a meeting the caller
-  already knows the ID of. A missing meeting is a 404.
+  already knows the ID of. `GET` never checks existence: an unknown ID simply returns
+  `{ checked_in: false }` (the attendance count is `0`), not a 404. `POST` does check
+  existence first and returns a 404 for a missing meeting.
 
 ### `POST /api/checkin` meeting resolution
 

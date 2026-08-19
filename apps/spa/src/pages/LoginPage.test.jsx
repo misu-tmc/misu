@@ -185,4 +185,26 @@ describe('LoginPage safe redirect after finish', () => {
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/app/meeting', { replace: true }));
   });
+
+  it('shows the account view instead of looping when next points back to the prod login route', async () => {
+    window.history.pushState({}, '', '/login?next=%2Flogin');
+    render(<LoginPage />);
+
+    await createAccountVia();
+
+    expect(await screen.findByText(/Welcome,/)).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/app/booking');
+  });
+
+  it('shows the account view instead of looping when next points back to the dev login route', async () => {
+    window.history.pushState({}, '', '/login?next=%2Fapp%2Flogin');
+    render(<LoginPage />);
+
+    await createAccountVia();
+
+    expect(await screen.findByText(/Welcome,/)).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/app/booking');
+  });
 });

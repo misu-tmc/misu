@@ -62,6 +62,25 @@ describe('resolveNextPath', () => {
       hasExplicitNext: true
     });
   });
+
+  it('rejects a next value that loops back to the prod login route', () => {
+    expect(resolveNextPath('?next=%2Flogin')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+  });
+
+  it('rejects a next value that loops back to the dev login route', () => {
+    expect(resolveNextPath('?next=%2Fapp%2Flogin')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+  });
+
+  it('rejects the login route even with a query string or hash attached', () => {
+    expect(resolveNextPath('?next=%2Flogin%3Fnext%3D%2Fapp%2Fbooking')).toEqual({
+      path: '/app/booking',
+      hasExplicitNext: false
+    });
+    expect(resolveNextPath('?next=%2Fapp%2Flogin%23section')).toEqual({
+      path: '/app/booking',
+      hasExplicitNext: false
+    });
+  });
 });
 
 describe('loginRedirectUrl', () => {

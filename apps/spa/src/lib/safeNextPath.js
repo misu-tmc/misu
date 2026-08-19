@@ -19,6 +19,9 @@ function sanitizeNext(raw) {
 
   if (url.origin !== SAFE_ORIGIN) return null;
   if (url.pathname.startsWith('//')) return null;
+  // A `next` that resolves back to the login route itself would strand the
+  // user in a login -> login redirect loop, so it is treated as unsafe.
+  if (url.pathname === '/login' || url.pathname === '/app/login') return null;
 
   return `${url.pathname}${url.search}${url.hash}`;
 }

@@ -51,12 +51,19 @@ When `meeting_id` is supplied:
 When `meeting_id` is omitted:
 
 - use the service's local date and time;
-- select the earliest published meeting whose window contains now (the
-  automatic-selection query already filters to `status = 'published'`);
+- select the earliest published meeting whose window contains now, resolved
+  by a service-side Rust function (not a single SQL date/time expression):
+  the backend loads `published` candidates scheduled from yesterday through
+  tomorrow, then that function parses each candidate's stored schedule and
+  picks the match;
 - the window includes both 30 minutes before the scheduled start and the
   scheduled end; a blank scheduled end time is treated as the scheduled start
-  time — no duration is invented;
+  time — no duration is invented; a nonblank scheduled end time that is
+  earlier than the scheduled start time is treated as ending the next
+  calendar day (an overnight meeting, for example 23:00–00:30);
 - order overlapping matches by scheduled start and then meeting ID;
+- a candidate whose stored date or time cannot be parsed is an explicit
+  internal error, never a silently skipped row;
 - return a conflict-style error when no meeting is open.
 
 Attendance remains one row per `(meeting_id, user_id)`. Repeated requests refresh
@@ -105,7 +112,12 @@ never introduced, so there is nothing to uninstall, delete, or edit:
   during the meeting, exactly at end, and after end.
 - Blank scheduled end time is treated as the scheduled start time (no invented
   duration), including its own boundary cases.
-- Earliest selection when windows overlap.
+- A scheduled end time earlier than the scheduled start time rolls over to
+  the next calendar day (an overnight meeting).
+- A candidate with an unparsable stored date or time surfaces as an explicit
+  error rather than being silently excluded from selection.
+- Earliest selection when windows overlap, including an explicit tie-break by
+  meeting ID when scheduled starts are equal.
 - Explicit meeting ID success, draft, unknown, and invalid values.
 - Idempotent attendance.
 - Full query preservation through generic authentication.

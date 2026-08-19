@@ -81,6 +81,31 @@ describe('resolveNextPath', () => {
       hasExplicitNext: false
     });
   });
+
+  it('rejects a trailing-slash variant of the prod login route', () => {
+    expect(resolveNextPath('?next=%2Flogin%2F')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+  });
+
+  it('rejects an uppercase variant of the prod login route', () => {
+    expect(resolveNextPath('?next=%2FLOGIN')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+  });
+
+  it('rejects a mixed-case trailing-slash variant of the prod login route', () => {
+    expect(resolveNextPath('?next=%2FLogin%2F')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+  });
+
+  it('rejects a trailing-slash variant of the dev login route', () => {
+    expect(resolveNextPath('?next=%2Fapp%2Flogin%2F')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+  });
+
+  it('rejects an uppercase variant of the dev login route', () => {
+    expect(resolveNextPath('?next=%2Fapp%2FLogin')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+  });
+
+  it('does not reject unrelated paths that merely start with the login segment', () => {
+    expect(resolveNextPath('?next=%2Flogin%2Fhelp')).toEqual({ path: '/login/help', hasExplicitNext: true });
+    expect(resolveNextPath('?next=%2Fapp%2Flogin-help')).toEqual({ path: '/app/login-help', hasExplicitNext: true });
+  });
 });
 
 describe('loginRedirectUrl', () => {

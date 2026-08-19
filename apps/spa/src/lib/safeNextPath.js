@@ -21,9 +21,21 @@ function sanitizeNext(raw) {
   if (url.pathname.startsWith('//')) return null;
   // A `next` that resolves back to the login route itself would strand the
   // user in a login -> login redirect loop, so it is treated as unsafe.
-  if (url.pathname === '/login' || url.pathname === '/app/login') return null;
+  if (isLoginRoute(url.pathname)) return null;
 
   return `${url.pathname}${url.search}${url.hash}`;
+}
+
+/**
+ * Compares a pathname against the login routes using the same normalization
+ * Wouter applies when matching routes: case-insensitive, with a single
+ * optional trailing slash ignored. Only exact matches for `/login` or
+ * `/app/login` are rejected, so sibling paths like `/login/help` or
+ * `/app/login-help` are left untouched.
+ */
+function isLoginRoute(pathname) {
+  const normalized = pathname.toLowerCase().replace(/\/$/, '');
+  return normalized === '/login' || normalized === '/app/login';
 }
 
 /**

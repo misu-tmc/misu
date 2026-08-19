@@ -207,4 +207,21 @@ describe('LoginPage safe redirect after finish', () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/app/booking');
   });
+
+  it.each([
+    ['%2Flogin%2F', 'trailing-slash prod login route'],
+    ['%2FLOGIN', 'uppercase prod login route'],
+    ['%2FLogin%2F', 'mixed-case trailing-slash prod login route'],
+    ['%2Fapp%2Flogin%2F', 'trailing-slash dev login route'],
+    ['%2Fapp%2FLogin', 'uppercase dev login route']
+  ])('shows the account view instead of looping when next is a %s (%s)', async (encodedNext) => {
+    window.history.pushState({}, '', `/login?next=${encodedNext}`);
+    render(<LoginPage />);
+
+    await createAccountVia();
+
+    expect(await screen.findByText(/Welcome,/)).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/app/booking');
+  });
 });

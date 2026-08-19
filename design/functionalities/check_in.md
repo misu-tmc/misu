@@ -63,7 +63,7 @@ There is no check-in-specific login screen or dialogue.
 ```mermaid
 flowchart TD
     L[Open /app/checkin?meetingId=optional] --> A[Generic protected-route auth guard]
-    A -->|not signed in| S[/login?next=/app/checkin...]
+    A -->|not signed in| S["/login?next=/app/checkin..."]
     S -->|sign in or create account| A
     A -->|signed in| C[POST /api/checkin]
     C -->|resolved meeting_id| M[Navigate to /app/meetings/:meeting_id]
@@ -125,9 +125,14 @@ Page states:
 Both `pages/checkin/checkin.js` and `pages/meeting/meeting.js` write the same
 `checkin:<meetingId>:<userId>` `wx.storage` key as `{ meetingId, userId, confirmedAt }`
 — but only **after** the `POST /api/meetings/:id/checkin` call resolves successfully.
-A rejected check-in call must never write this key or switch tabs: it is caught by the
-page's outer `catch`, which clears the loading state and shows a `加载失败` (or
-`请先登录` when the user still has no auth token) toast instead. `meeting.js` reads the
+The two pages diverge on failure handling, but share the same invariant: a rejected
+`POST` never writes the cache key or navigates.
+- `checkin.js`'s outer `catch` clears the loading state (`setData({ loading: false })`)
+  and shows a `加载失败` (or `请先登录` when the user still has no auth token) toast.
+- `meeting.js`'s `goCheckIn` catch leaves `checkedIn` unset and shows a `Check-in failed`
+  toast instead; it does not write the cache key on failure.
+
+`meeting.js` reads the
 cached entry but never renders it — the page's single `setData` call happens only after
 `await api.checkinStatus(...)` resolves, so there is no optimistic first paint. The
 cached value is used only as a **fallback**: if the `GET /api/meetings/:id/checkin` call

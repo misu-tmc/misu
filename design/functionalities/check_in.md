@@ -10,12 +10,18 @@ Check-in has three purposes:
 3. **Feed the voting page** — provide the pool of attendees and resolved role takers.
 
 Check-in must not create anonymous or dropped-identifier users. The attendee signs in
-first via the active provider: web login/register on web, and WeChat identity in the
-mini program. Only after auth resolves a `user.id` does the check-in page load.
+first via the active provider: the generic passkey account flow on web (`/login`,
+shared by every protected route, not a check-in-specific form), and the WeChat
+launch-time login on the mini program. Only after auth resolves a `user.id` does the
+check-in page load.
 
-The page is mobile-centric because the main scenario is scanning a meeting QR code from
-the WeChat mini program. Detailed WeChat provider behavior is left for the next stage;
-this design only assumes that it resolves to the shared auth contract.
+The page is mobile-centric because the main scenario is opening a meeting link from
+the WeChat mini program or a shared web URL. **MISU does not generate QR codes.**
+There is no `qrcode` dependency, encoder, or QR-editing UI anywhere in `apps/spa`, the
+backend, or the mini program. The canonical check-in URL —
+`/app/checkin`, optionally with `?meetingId=<id>` — is a plain link; an admin who wants
+a scannable poster encodes that URL with an external tool. MISU only owns the link's
+behavior, never the code's pixels.
 
 ## Design decision: presence-only check-in, admin-driven linking
 
@@ -34,19 +40,34 @@ data model (a claim would trigger the same merge operation an admin link perform
 
 ## Interaction model
 
-Check-in is not a separate form. It is a one-tap status on the Meeting tab, and QR code
-scan/deep-link entry automatically records the same status before showing the Meeting tab.
-Auth happens before this flow, so check-in never asks for a name just to identify the
-attendee.
+Check-in is not a separate form. It is a one-tap status on the Meeting tab, and the
+umbrella deep link (`/app/checkin`) automatically records the same status before
+redirecting into that meeting. Auth is fully generic: the link is just another
+protected route, gated by the same `ProtectedApp` guard as every other `/app/*` page.
+There is no check-in-specific login screen or dialogue.
+
+- **Not signed in**: the guard redirects to `/login` (or `/app/login` in dev) with
+  `?next=<original path and query>`. `next` is sanitized to a same-origin,
+  non-login path — anything unsafe or absent falls back to the generic
+  `/app/booking` default. After the generic account flow completes, an explicit safe
+  `next` sends the user straight back to `/app/checkin?...` (skipping the normal
+  "device connected" welcome screen); no explicit `next` (or a stripped-out unsafe one)
+  lands on that welcome screen instead.
+- **No account yet**: account creation is the same generic form every new device uses —
+  a required `display_name` and an optional `club_name` (added in an earlier stacked
+  change) — not a check-in-specific registration step.
+- **Signed in**: `CheckinPage` calls `POST /api/checkin` with the optional `meetingId`
+  from the query string, then navigates to `/app/meetings/<meeting_id>` using the
+  **meeting ID the backend returned**, never the client-supplied one.
 
 ```mermaid
 flowchart TD
-    Q[Scan QR or open link] --> A[Auth guard]
-    A -->|signed in| C[POST /api/meetings/:id/checkin]
-    A -->|not signed in| S[Sign in / register]
-    S --> C
-    C --> M[Meeting tab]
-    M --> DONE[Button shows Checked in]
+    L[Open /app/checkin?meetingId=optional] --> A[Generic protected-route auth guard]
+    A -->|not signed in| S[/login?next=/app/checkin...]
+    S -->|sign in or create account| A
+    A -->|signed in| C[POST /api/checkin]
+    C -->|resolved meeting_id| M[Navigate to /app/meetings/:meeting_id]
+    C -->|409/404/400| E[Show error, stay on /app/checkin]
 ```
 
 ### Meeting tab status
@@ -62,24 +83,35 @@ flowchart TD
 
 ### Details
 
-- **Meeting tab button**: starts as **Check in**. Tapping it calls the check-in API,
-  records attendance for the current `user.id`, and turns green **Checked in**.
-- **QR/deep-link entry**: `/pages/checkin/checkin?meetingId=<id>` calls the same API
-  immediately, remembers the target meeting id, then switches to the Meeting tab. The
-  Meeting tab opens that meeting and shows **Checked in**.
+- **Meeting tab button** (`MeetingPage`): starts as **Check in**. Tapping it calls
+  `POST /api/meetings/:id/checkin` for the meeting already open on that page, records
+  attendance for the current `user.id`, and turns green **Checked in**.
+- **Web umbrella link** (`/app/checkin`, see `CheckinPage.jsx`): a silent redirector —
+  it calls `POST /api/checkin` once, then navigates straight to
+  `/app/meetings/<meeting_id>` (using the server-resolved ID) where the Meeting tab
+  shows **Checked in**. It never renders its own check-in form; on failure it shows the
+  backend's error message in place and does not navigate.
 - **No role selection**: booked roles are not selected or corrected here. Role linking is
   an admin action (see below), not part of check-in.
-- **Display name**: check-in may confirm/edit the signed-in user's `display_name`; the
-  edit is saved on that user. It is not a way to pick a *different* identity.
-- **Persistence**: attendance is stored server-side via `POST /api/meetings/:id/checkin`.
-  Local storage becomes only an optimistic cache of the button state.
+- **Name/club stays with the account, not check-in**: neither `/api/checkin` nor
+  `/api/meetings/:id/checkin` accept a name or club field. Editing `display_name` /
+  `club_name` is a separate, generic account-profile action; check-in itself only ever
+  records presence for the already-resolved `user.id`.
+- **Persistence**: attendance is stored server-side. Any client-side storage (mini
+  program's `checkin:<meetingId>:<userId>` cache) is only an optimistic fallback for the
+  button state, never the source of truth.
 
 ## Mini Program Pages
 
 Entry points:
-- Meeting tab's **Check in** action records attendance in place.
-- A QR code can deep-link to `/pages/checkin/checkin?meetingId=<id>`; that page is a
-  silent redirector to the Meeting tab after recording attendance.
+- Meeting tab's **Check in** action (`goCheckIn` in `pages/meeting/meeting.js`) records
+  attendance in place via `POST /api/meetings/:id/checkin`.
+- A shared link can deep-link to `/pages/checkin/checkin?meetingId=<id>`
+  (`pages/checkin/checkin.js`); that page is a silent redirector to the Meeting tab
+  after recording attendance. Unlike the web umbrella link, this page resolves its own
+  meeting when `meetingId` is absent — it calls `GET /api/meetings/upcoming` and picks
+  the first result — then calls the **existing meeting-specific**
+  `POST /api/meetings/:id/checkin`, not `/api/checkin`.
 
 Page states:
 
@@ -88,22 +120,68 @@ Page states:
 2. **Not checked in** — show **Check in**.
 3. **Checked in** — show green **Checked in**.
 
+### Mini program cache semantics
+
+Both `pages/checkin/checkin.js` and `pages/meeting/meeting.js` write the same
+`checkin:<meetingId>:<userId>` `wx.storage` key as `{ meetingId, userId, confirmedAt }`
+— but only **after** the `POST /api/meetings/:id/checkin` call resolves successfully.
+A rejected check-in call must never write this key or switch tabs: it is caught by the
+page's outer `catch`, which clears the loading state and shows a `加载失败` (or
+`请先登录` when the user still has no auth token) toast instead. `meeting.js` uses the
+cached entry only as an immediate, optimistic **first paint** while
+`GET /api/meetings/:id/checkin` is in flight, then overwrites it with that call's
+authoritative `checked_in` value; if the status call itself fails, the cached value is
+kept as a last-resort fallback rather than forcing "not checked in".
+
 ## API
 
 ```
 GET  /api/meetings/:id/checkin
-  -> { checked_in: bool, checked_in_at: datetime|null, display_name: string }
+  -> { checked_in: bool }
 
 POST /api/meetings/:id/checkin
-  body: { display_name?: string }        // optional confirm/edit of the caller's name
-  -> { checked_in: true, checked_in_at }
+  -> { checked_in: true }
+
+POST /api/checkin
+  body: { meeting_id?: number }           // omit to let the server pick the open meeting
+  -> { checked_in: true, meeting_id: number }
 ```
 
-- Both require an authenticated `user.id` (bearer or cookie via the shared auth guard).
-- `POST` upserts one `attendance` row per `(meeting_id, user_id)` with `source = 'self'`.
-  It is idempotent: checking in again just refreshes `checked_in_at` and, if provided,
-  `display_name`.
+- All three require an authenticated `user.id` (bearer or cookie via the shared auth
+  guard). None of them accept a display-name or club field.
+- Every variant upserts one `attendance` row per `(meeting_id, user_id)` with
+  `source = 'self'` (`ON DUPLICATE KEY UPDATE checked_in_at = ...`). It is idempotent:
+  checking in again just refreshes `checked_in_at`.
 - No `role_slot_id` is involved. Attendance never touches `role_assignment`.
+- `GET`/`POST /api/meetings/:id/checkin` are unchanged from before this deep link — they
+  remain the endpoint `MeetingPage` and the mini program use for a meeting the caller
+  already knows the ID of. A missing meeting is a 404.
+
+### `POST /api/checkin` meeting resolution
+
+`meeting_id` is optional in the request body:
+
+- **Explicit `meeting_id`** (must be a positive integer, otherwise 400 Bad Request): the
+  meeting must exist (404 if not) and must be `status = 'published'` — any other status,
+  including `draft`, is a 409 Conflict ("This meeting is not open for check-in."). The
+  response's `meeting_id` always echoes this same ID; the SPA still navigates using the
+  response value rather than the request value, so the client never has to trust its
+  own input.
+- **Omitted `meeting_id`** (automatic resolution): the server loads every `published`
+  meeting scheduled from yesterday through tomorrow (a generous date-only prefilter),
+  then picks the **earliest-starting** one whose check-in window contains the current
+  local time, breaking ties by meeting ID. A meeting's check-in window is
+  **inclusive of `start_time − 30 minutes` through its scheduled `end_time`**:
+  - A blank `end_time` is treated as equal to `start_time` (no invented duration).
+  - An `end_time` that parses earlier than `start_time` is an overnight meeting (e.g.
+    23:00–00:30); its end rolls over to the next calendar day.
+  - A candidate whose `date`/`start_time`/`end_time` fails to parse is a data-integrity
+    bug in that one row, not a reason to fail check-in for everyone: it is logged via
+    `tracing::error!` (with the meeting ID and parse error) and excluded, while every
+    other well-formed candidate is still considered.
+  - If no candidate's window contains now (including because every candidate was
+    excluded as unschedulable), the response is a 409 Conflict ("No meeting is
+    currently open for check-in.").
 
 ### Admin linking API
 
@@ -154,10 +232,3 @@ empty user so the person keeps a login, and the raw record becomes free again.
 No new work for voting here. The voting page reads `role_assignment.taker_id` for
 role-taker candidates and `attendance` for the general attendee pool. This design
 guarantees those users are real and de-duplicated once an admin has linked identities.
-
-## Next-stage WeChat notes
-
-- Define how the mini program obtains and refreshes WeChat identity.
-- Decide when to ask for or edit `display_name` if the WeChat profile is incomplete.
-- Preserve the return target so scanning a meeting QR code signs the user in and then
-  returns directly to that meeting's check-in page.

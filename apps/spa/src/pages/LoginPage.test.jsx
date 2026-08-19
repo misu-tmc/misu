@@ -224,4 +224,47 @@ describe('LoginPage safe redirect after finish', () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/app/booking');
   });
+
+  it.each([
+    ['%2F%256Cogin', 'percent-encoded prod login route (/%6Cogin)'],
+    ['%2Fapp%2F%256Cogin', 'percent-encoded dev login route (/app/%6Cogin)'],
+    ['%2F%256COGIN', 'uppercase percent-encoded prod login route (/%6COGIN)'],
+    ['%2F%254Cogin', 'uppercase-hex percent-encoded prod login route (/%4Cogin)'],
+    ['%2F%256Cogin%2F', 'trailing-slash percent-encoded prod login route (/%6Cogin/)'],
+    ['%2FApp%2F%256Cogin', 'mixed-case percent-encoded dev login route (/App/%6Cogin)'],
+    ['%2Fapp%2F%256Cogin%2F', 'trailing-slash percent-encoded dev login route (/app/%6Cogin/)']
+  ])('never navigates and shows the account view when next is a %s (%s)', async (encodedNext) => {
+    window.history.pushState({}, '', `/login?next=${encodedNext}`);
+    render(<LoginPage />);
+
+    await createAccountVia();
+
+    expect(await screen.findByText(/Welcome,/)).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/app/booking');
+  });
+
+  it.each([
+    ['%2F%25E0%25A4', 'incomplete multi-byte UTF-8 sequence'],
+    ['%2F%25FF', 'invalid standalone UTF-8 byte'],
+    ['%2F%25C0%2580', 'overlong UTF-8 encoding']
+  ])('fails closed without navigating or stalling when next has malformed percent-encoding (%s / %s)', async (encodedNext) => {
+    window.history.pushState({}, '', `/login?next=${encodedNext}`);
+    render(<LoginPage />);
+
+    await createAccountVia();
+
+    expect(await screen.findByText(/Welcome,/)).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/app/booking');
+  });
+
+  it('still honors an unrelated path that merely contains an encoded login segment', async () => {
+    window.history.pushState({}, '', '/login?next=%2Fapp%2F%256Cogin-help');
+    render(<LoginPage />);
+
+    await createAccountVia();
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/app/%6Cogin-help', { replace: true }));
+  });
 });

@@ -106,6 +106,51 @@ describe('resolveNextPath', () => {
     expect(resolveNextPath('?next=%2Flogin%2Fhelp')).toEqual({ path: '/login/help', hasExplicitNext: true });
     expect(resolveNextPath('?next=%2Fapp%2Flogin-help')).toEqual({ path: '/app/login-help', hasExplicitNext: true });
   });
+
+  describe('encoded login-route bypass (percent-encoded segments)', () => {
+    it('rejects a percent-encoded prod login route (/%6Cogin decodes to /login)', () => {
+      expect(resolveNextPath('?next=%2F%256Cogin')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+    });
+
+    it('rejects a percent-encoded dev login route (/app/%6Cogin decodes to /app/login)', () => {
+      expect(resolveNextPath('?next=%2Fapp%2F%256Cogin')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+    });
+
+    it('rejects an uppercase percent-encoded login route (/%6COGIN decodes to /lOGIN)', () => {
+      expect(resolveNextPath('?next=%2F%256COGIN')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+    });
+
+    it('rejects a percent-encoded login route using an uppercase-hex escape (/%4Cogin decodes to /Login)', () => {
+      expect(resolveNextPath('?next=%2F%254Cogin')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+    });
+
+    it('rejects a trailing-slash percent-encoded prod login route (/%6Cogin/ decodes to /login/)', () => {
+      expect(resolveNextPath('?next=%2F%256Cogin%2F')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+    });
+
+    it('rejects a mixed-case percent-encoded dev login route (/App/%6Cogin decodes to /App/login)', () => {
+      expect(resolveNextPath('?next=%2FApp%2F%256Cogin')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+    });
+
+    it('rejects a trailing-slash percent-encoded dev login route (/app/%6Cogin/ decodes to /app/login/)', () => {
+      expect(resolveNextPath('?next=%2Fapp%2F%256Cogin%2F')).toEqual({ path: '/app/booking', hasExplicitNext: false });
+    });
+
+    it('preserves an unrelated path that merely contains an encoded login segment', () => {
+      expect(resolveNextPath('?next=%2Fapp%2F%256Cogin-help')).toEqual({
+        path: '/app/%6Cogin-help',
+        hasExplicitNext: true
+      });
+    });
+
+    it.each([
+      ['%2F%25E0%25A4', 'incomplete multi-byte UTF-8 sequence'],
+      ['%2F%25FF', 'invalid standalone UTF-8 byte'],
+      ['%2F%25C0%2580', 'overlong UTF-8 encoding']
+    ])('fails closed to /app/booking when decodeURI throws on malformed percent-encoding (%s / %s)', (encodedNext) => {
+      expect(resolveNextPath(`?next=${encodedNext}`)).toEqual({ path: '/app/booking', hasExplicitNext: false });
+    });
+  });
 });
 
 describe('loginRedirectUrl', () => {

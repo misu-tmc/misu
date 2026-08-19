@@ -28,13 +28,23 @@ function sanitizeNext(raw) {
 
 /**
  * Compares a pathname against the login routes using the same normalization
- * Wouter applies when matching routes: case-insensitive, with a single
- * optional trailing slash ignored. Only exact matches for `/login` or
- * `/app/login` are rejected, so sibling paths like `/login/help` or
- * `/app/login-help` are left untouched.
+ * Wouter applies when matching routes: `decodeURI` first (so percent-encoded
+ * segments like `/%6Cogin` are recognized as `/login`), then case-insensitive
+ * comparison with a single optional trailing slash ignored. Only exact
+ * matches for `/login` or `/app/login` are rejected, so sibling paths like
+ * `/login/help` or `/app/login-help` are left untouched. A pathname with
+ * malformed percent-encoding fails closed (treated as a login route) so it
+ * can never be handed to Wouter's own `decodeURI` call, which would throw
+ * and stall navigation.
  */
 function isLoginRoute(pathname) {
-  const normalized = pathname.toLowerCase().replace(/\/$/, '');
+  let decoded;
+  try {
+    decoded = decodeURI(pathname);
+  } catch {
+    return true;
+  }
+  const normalized = decoded.toLowerCase().replace(/\/$/, '');
   return normalized === '/login' || normalized === '/app/login';
 }
 

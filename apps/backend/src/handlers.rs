@@ -317,13 +317,12 @@ pub async fn checkin_status(
     user: AuthUser,
     Path(meeting_id): Path<i64>,
 ) -> AppResult<Json<serde_json::Value>> {
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM attendance WHERE meeting_id = ? AND user_id = ?",
-    )
-    .bind(meeting_id)
-    .bind(user.id)
-    .fetch_one(&state.pool)
-    .await?;
+    let count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM attendance WHERE meeting_id = ? AND user_id = ?")
+            .bind(meeting_id)
+            .bind(user.id)
+            .fetch_one(&state.pool)
+            .await?;
     Ok(Json(json!({ "checked_in": count > 0 })))
 }
 

@@ -26,6 +26,7 @@ pub struct AuthUser {
     pub id: i64,
     #[allow(dead_code)]
     pub display_name: String,
+    pub club_name: Option<String>,
 }
 
 #[async_trait]
@@ -40,8 +41,8 @@ where
         let pool = MySqlPool::from_ref(state);
         let token = session_token(parts).ok_or(AppError::Unauthorized)?;
 
-        let row = sqlx::query_as::<_, (i64, String)>(
-            "SELECT u.id, u.display_name FROM auth_session s \
+        let row = sqlx::query_as::<_, (i64, String, Option<String>)>(
+            "SELECT u.id, u.display_name, u.club_name FROM auth_session s \
              JOIN user u ON u.id = s.user_id WHERE s.token = ?",
         )
         .bind(&token)
@@ -49,10 +50,46 @@ where
         .await?;
 
         match row {
-            Some((id, display_name)) => Ok(AuthUser { id, display_name }),
+            Some((id, display_name, club_name)) => Ok(AuthUser {
+                id,
+                display_name,
+                club_name,
+            }),
             None => Err(AppError::Unauthorized),
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Shared field normalization
+// ---------------------------------------------------------------------------
+
+/// Trim a required text field and enforce the 1..=255 Unicode-character bound shared by
+/// `display_name` and similar fields. `label` names the field in the error message.
+pub(crate) fn normalize_required_field(value: &str, label: &str) -> Result<String, AppError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed.chars().count() > 255 {
+        return Err(AppError::BadRequest(format!(
+            "{label} must contain 1 to 255 characters"
+        )));
+    }
+    Ok(trimmed.to_string())
+}
+
+/// Trim an optional text field, mapping a missing or blank value to `None`, and enforce
+/// the 255-Unicode-character upper bound shared by `club_name` and similar fields.
+pub(crate) fn normalize_optional_field(
+    value: Option<&str>,
+    label: &str,
+) -> Result<Option<String>, AppError> {
+    let Some(value) = value else { return Ok(None) };
+    let value = value.trim();
+    if value.chars().count() > 255 {
+        return Err(AppError::BadRequest(format!(
+            "{label} must contain at most 255 characters"
+        )));
+    }
+    Ok((!value.is_empty()).then(|| value.to_string()))
 }
 
 /// The name of the web session cookie.
@@ -132,7 +169,8 @@ pub async fn auth_wechat(
         Some(openid) => openid,
         None => resolve_openid(&state.config, req.code.trim()).await?,
     };
-    let (user_id, display_name, _created) = upsert_wechat_user(&state.pool, &openid).await?;
+    let (user_id, display_name, club_name, _created) =
+        upsert_wechat_user(&state.pool, &openid).await?;
 
     let token = create_session(&state.pool, user_id).await?;
     Ok(Json(LoginResp {
@@ -140,6 +178,7 @@ pub async fn auth_wechat(
         user: UserResponse {
             id: user_id,
             display_name,
+            club_name,
         },
     }))
 }
@@ -183,7 +222,10 @@ fn cleared_cookie(secure: bool) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{cleared_cookie, session_cookie, MigrateDeviceReq};
+    use super::{
+        cleared_cookie, normalize_optional_field, normalize_required_field, session_cookie,
+        MigrateDeviceReq,
+    };
 
     #[test]
     fn local_http_cookie_omits_secure_attribute() {
@@ -211,6 +253,30 @@ mod tests {
 
         assert_eq!(request.migration_code, "ABCD-EF01-2345-6789");
     }
+
+    #[test]
+    fn optional_club_is_trimmed_or_cleared() {
+        assert_eq!(
+            normalize_optional_field(Some("  Other TMC  "), "club name").unwrap(),
+            Some("Other TMC".into())
+        );
+        assert_eq!(
+            normalize_optional_field(Some("   "), "club name").unwrap(),
+            None
+        );
+        assert_eq!(normalize_optional_field(None, "club name").unwrap(), None);
+        assert!(normalize_optional_field(Some(&"x".repeat(256)), "club name").is_err());
+    }
+
+    #[test]
+    fn required_display_name_is_trimmed_and_bounded() {
+        assert_eq!(
+            normalize_required_field("  Ada Lovelace  ", "display name").unwrap(),
+            "Ada Lovelace"
+        );
+        assert!(normalize_required_field("   ", "display name").is_err());
+        assert!(normalize_required_field(&"x".repeat(256), "display name").is_err());
+    }
 }
 
 pub async fn auth_login(
@@ -223,13 +289,13 @@ pub async fn auth_login(
             "username and password are required".into(),
         ));
     }
-    let (user_id, display_name) = verify_web_login(&state.pool, username, &req.password)
+    let (user_id, display_name, club_name) = verify_web_login(&state.pool, username, &req.password)
         .await?
         .ok_or(AppError::Unauthorized)?;
 
     let token = create_session(&state.pool, user_id).await?;
     let mut resp = Json(json!({
-        "user": { "id": user_id, "display_name": display_name }
+        "user": { "id": user_id, "display_name": display_name, "club_name": club_name }
     }))
     .into_response();
     resp.headers_mut().insert(
@@ -277,6 +343,7 @@ pub async fn auth_me(user: AuthUser) -> Json<CurrentUserResp> {
         user: UserResponse {
             id: user.id,
             display_name: user.display_name,
+            club_name: user.club_name,
         },
     })
 }
@@ -291,6 +358,8 @@ pub struct DeviceCredentialReq {
 #[derive(Deserialize)]
 pub struct RegisterDeviceReq {
     pub display_name: String,
+    #[serde(default)]
+    pub club_name: Option<String>,
     #[serde(flatten)]
     pub credential: DeviceCredentialReq,
 }
@@ -376,10 +445,11 @@ async fn device_login_response(
     state: &AppState,
     user_id: i64,
     display_name: String,
+    club_name: Option<String>,
 ) -> AppResult<Response> {
     let token = create_session(&state.pool, user_id).await?;
     let mut response = Json(json!({
-        "user": { "id": user_id, "display_name": display_name }
+        "user": { "id": user_id, "display_name": display_name, "club_name": club_name }
     }))
     .into_response();
     response.headers_mut().insert(
@@ -397,19 +467,16 @@ pub async fn auth_device_register(
     axum::extract::State(state): axum::extract::State<AppState>,
     Json(req): Json<RegisterDeviceReq>,
 ) -> AppResult<Response> {
-    let display_name = req.display_name.trim();
-    if display_name.is_empty() || display_name.chars().count() > 255 {
-        return Err(AppError::BadRequest(
-            "display name must contain 1 to 255 characters".into(),
-        ));
-    }
+    let display_name = normalize_required_field(&req.display_name, "display name")?;
+    let club_name = normalize_optional_field(req.club_name.as_deref(), "club name")?;
     let credential_id = validated_credential_id(&req.credential.credential_id)?;
     let device_name = validated_device_name(&req.credential.device_name)?;
     let public_key = decode_public_key(&req.credential.public_key)?;
 
     let mut transaction = state.pool.begin().await?;
-    let user_id = sqlx::query("INSERT INTO user(display_name) VALUES (?)")
-        .bind(display_name)
+    let user_id = sqlx::query("INSERT INTO user(display_name, club_name) VALUES (?, ?)")
+        .bind(&display_name)
+        .bind(&club_name)
         .execute(&mut *transaction)
         .await?
         .last_insert_id() as i64;
@@ -424,7 +491,7 @@ pub async fn auth_device_register(
     .await?;
     transaction.commit().await?;
 
-    device_login_response(&state, user_id, display_name.to_string()).await
+    device_login_response(&state, user_id, display_name, club_name).await
 }
 
 /// Start a one-time challenge for a known, non-revoked browser key.
@@ -481,8 +548,8 @@ pub async fn auth_device_verify(
         .map_err(|_| AppError::Unauthorized)?;
 
     let mut transaction = state.pool.begin().await?;
-    let row = sqlx::query_as::<_, (String, Vec<u8>, String, i64, String)>(
-        "SELECT c.challenge, d.public_key, d.id, u.id, u.display_name \
+    let row = sqlx::query_as::<_, (String, Vec<u8>, String, i64, String, Option<String>)>(
+        "SELECT c.challenge, d.public_key, d.id, u.id, u.display_name, u.club_name \
          FROM device_auth_challenge c \
          JOIN device_credential d ON d.id = c.credential_id \
          JOIN user u ON u.id = d.user_id \
@@ -493,7 +560,7 @@ pub async fn auth_device_verify(
     .fetch_optional(&mut *transaction)
     .await?
     .ok_or(AppError::Unauthorized)?;
-    let (challenge, public_key, credential_id, user_id, display_name) = row;
+    let (challenge, public_key, credential_id, user_id, display_name, club_name) = row;
 
     let verifying_key =
         VerifyingKey::from_sec1_bytes(&public_key).map_err(|_| AppError::Unauthorized)?;
@@ -512,7 +579,7 @@ pub async fn auth_device_verify(
         .await?;
     transaction.commit().await?;
 
-    device_login_response(&state, user_id, display_name).await
+    device_login_response(&state, user_id, display_name, club_name).await
 }
 
 /// Issue a short-lived code from an authenticated device. Redeeming it adds, rather
@@ -564,8 +631,8 @@ pub async fn auth_device_migrate(
     let public_key = decode_public_key(&req.credential.public_key)?;
 
     let mut transaction = state.pool.begin().await?;
-    let user = sqlx::query_as::<_, (i64, String)>(
-        "SELECT u.id, u.display_name FROM device_migration_code m \
+    let user = sqlx::query_as::<_, (i64, String, Option<String>)>(
+        "SELECT u.id, u.display_name, u.club_name FROM device_migration_code m \
          JOIN user u ON u.id = m.user_id \
          WHERE m.code_hash = ? AND m.consumed_at IS NULL \
            AND m.expires_at > UTC_TIMESTAMP(6) FOR UPDATE",
@@ -592,7 +659,7 @@ pub async fn auth_device_migrate(
     .await?;
     transaction.commit().await?;
 
-    device_login_response(&state, user.0, user.1).await
+    device_login_response(&state, user.0, user.1, user.2).await
 }
 
 // ---------------------------------------------------------------------------
@@ -610,15 +677,15 @@ fn verify_password(password: &str, hash: &str) -> bool {
     bcrypt::verify(password, hash).unwrap_or(false)
 }
 
-/// Verify a web login. Returns `(user_id, display_name)` on success, `None` on any
-/// mismatch (unknown username or wrong password — indistinguishable to the caller).
+/// Verify a web login. Returns `(user_id, display_name, club_name)` on success, `None`
+/// on any mismatch (unknown username or wrong password — indistinguishable to the caller).
 pub async fn verify_web_login(
     pool: &MySqlPool,
     username: &str,
     password: &str,
-) -> Result<Option<(i64, String)>, AppError> {
-    let row = sqlx::query_as::<_, (i64, String, String)>(
-        "SELECT u.id, u.display_name, c.password_hash FROM web_credential c \
+) -> Result<Option<(i64, String, Option<String>)>, AppError> {
+    let row = sqlx::query_as::<_, (i64, String, Option<String>, String)>(
+        "SELECT u.id, u.display_name, u.club_name, c.password_hash FROM web_credential c \
          JOIN user u ON u.id = c.user_id WHERE c.username = ?",
     )
     .bind(username)
@@ -626,7 +693,9 @@ pub async fn verify_web_login(
     .await?;
 
     Ok(match row {
-        Some((id, name, hash)) if verify_password(password, &hash) => Some((id, name)),
+        Some((id, name, club_name, hash)) if verify_password(password, &hash) => {
+            Some((id, name, club_name))
+        }
         _ => None,
     })
 }
@@ -772,24 +841,26 @@ fn sanitized_wechat_error(operation: &str, error: &reqwest::Error) -> AppError {
 }
 
 /// Look up the user for an openid, creating a thin user + identity row on first login.
-/// Returns (user_id, display_name).
+/// Returns (user_id, display_name, club_name, created).
 pub async fn upsert_wechat_user(
     pool: &MySqlPool,
     openid: &str,
-) -> Result<(i64, String, bool), AppError> {
-    if let Some((user_id, display_name)) = sqlx::query_as::<_, (i64, String)>(
-        "SELECT u.id, u.display_name FROM wechat_identity w \
-         JOIN user u ON u.id = w.user_id WHERE w.openid = ?",
-    )
-    .bind(openid)
-    .fetch_optional(pool)
-    .await?
+) -> Result<(i64, String, Option<String>, bool), AppError> {
+    if let Some((user_id, display_name, club_name)) =
+        sqlx::query_as::<_, (i64, String, Option<String>)>(
+            "SELECT u.id, u.display_name, u.club_name FROM wechat_identity w \
+             JOIN user u ON u.id = w.user_id WHERE w.openid = ?",
+        )
+        .bind(openid)
+        .fetch_optional(pool)
+        .await?
     {
-        return Ok((user_id, display_name, false));
+        return Ok((user_id, display_name, club_name, false));
     }
 
     // WeChat no longer exposes real nicknames, so a new user starts nameless; the mini
-    // program requires them to set one on first login.
+    // program requires them to set one on first login. A new user also has no club on
+    // file until they set one.
     let default_name = String::new();
     let user_id = sqlx::query("INSERT INTO user(display_name) VALUES (?)")
         .bind(&default_name)
@@ -801,7 +872,7 @@ pub async fn upsert_wechat_user(
         .bind(user_id)
         .execute(pool)
         .await?;
-    Ok((user_id, default_name, true))
+    Ok((user_id, default_name, None, true))
 }
 
 /// Create a fresh opaque session token for a user.

@@ -7,7 +7,7 @@ use serde_json::json;
 use sqlx::FromRow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::auth::AuthUser;
+use crate::auth::{normalize_optional_field, normalize_required_field, AuthUser};
 use crate::error::{AppError, AppResult};
 use crate::meetings;
 use crate::models::{MeetingResponse, UserResponse};
@@ -252,31 +252,58 @@ pub async fn update_speech(
 #[derive(Deserialize)]
 pub struct UpdateUserReq {
     pub display_name: String,
+    /// `None` (field absent or JSON `null`) preserves the current stored value; an
+    /// explicitly supplied empty string clears the club to `NULL`.
+    #[serde(default)]
+    pub club_name: Option<String>,
+}
+
+/// Reject writes where the path `user_id` does not match the authenticated caller.
+/// Users may only edit their own profile through this endpoint.
+fn ensure_self(auth_user_id: i64, path_user_id: i64) -> AppResult<()> {
+    if auth_user_id != path_user_id {
+        return Err(AppError::Unauthorized);
+    }
+    Ok(())
+}
+
+/// Resolve the club_name to persist: an explicit `update` (even `Some(None)` to clear
+/// it) takes precedence; a missing update (`None`, meaning the client did not send
+/// `club_name` at all) preserves the authenticated user's current club_name unchanged.
+fn resolve_club_name(update: Option<Option<String>>, current: Option<String>) -> Option<String> {
+    update.unwrap_or(current)
 }
 
 pub async fn update_user(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(user_id): Path<i64>,
     Json(req): Json<UpdateUserReq>,
 ) -> AppResult<Json<UserResponse>> {
-    let name = req.display_name.trim();
-    if name.is_empty() {
-        return Err(AppError::BadRequest("display_name is required".into()));
-    }
+    ensure_self(user.id, user_id)?;
+    let display_name = normalize_required_field(&req.display_name, "display name")?;
+    // `Some(_)` means the field was explicitly supplied (even as ""); `None` means it
+    // was missing/null and the stored club_name must be left untouched.
+    let club_update = match &req.club_name {
+        None => None,
+        Some(value) => Some(normalize_optional_field(Some(value.as_str()), "club name")?),
+    };
+    let club_name = resolve_club_name(club_update, user.club_name);
 
-    let affected = sqlx::query("UPDATE user SET display_name = ? WHERE id = ?")
-        .bind(name)
+    // `AuthUser` + `ensure_self` already guarantee `user_id` exists and belongs to the
+    // caller, so a single unconditional UPDATE suffices — no separate existence check,
+    // and no need to inspect rows-affected (MySQL reports 0 for a write that doesn't
+    // change any column value, which would otherwise look like a missing row).
+    sqlx::query("UPDATE user SET display_name = ?, club_name = ? WHERE id = ?")
+        .bind(&display_name)
+        .bind(&club_name)
         .bind(user_id)
         .execute(&state.pool)
-        .await?
-        .rows_affected();
-    if affected == 0 {
-        return Err(AppError::NotFound);
-    }
+        .await?;
     Ok(Json(UserResponse {
         id: user_id,
-        display_name: name.to_string(),
+        display_name,
+        club_name,
     }))
 }
 
@@ -622,4 +649,37 @@ pub async fn club_info() -> Json<serde_json::Value> {
         "join": "Guests are always welcome. Come to a meeting to experience it, then talk to any officer about becoming a member.",
         "contact": "Scan our WeChat group QR code at a meeting, or reach out to any club officer."
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ensure_self, resolve_club_name};
+    use crate::error::AppError;
+
+    #[test]
+    fn profile_owner_is_enforced() {
+        assert!(ensure_self(7, 7).is_ok());
+        assert!(matches!(ensure_self(7, 8), Err(AppError::Unauthorized)));
+    }
+
+    #[test]
+    fn missing_club_keeps_current_value() {
+        assert_eq!(
+            resolve_club_name(None, Some("MISU".into())),
+            Some("MISU".into())
+        );
+    }
+
+    #[test]
+    fn explicit_blank_club_clears_current_value() {
+        assert_eq!(resolve_club_name(Some(None), Some("MISU".into())), None);
+    }
+
+    #[test]
+    fn explicit_club_value_replaces_current_value() {
+        assert_eq!(
+            resolve_club_name(Some(Some("Other TMC".into())), Some("MISU".into())),
+            Some("Other TMC".into())
+        );
+    }
 }

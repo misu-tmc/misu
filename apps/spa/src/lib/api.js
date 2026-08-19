@@ -75,6 +75,10 @@ export const bookingApi = {
 export const checkinApi = {
   status: (meetingId) => request(`/api/meetings/${meetingId}/checkin`),
   checkin: (meetingId) => request(`/api/meetings/${meetingId}/checkin`, { method: 'POST' }),
+  umbrella: (meetingId) => request('/api/checkin', {
+    method: 'POST',
+    body: meetingId === null ? {} : { meeting_id: meetingId }
+  }),
   attendees: (meetingId) => request(`/api/meetings/${meetingId}/attendees`),
   createWalkIn: (meetingId, displayName) => request(`/api/meetings/${meetingId}/attendees`, {
     method: 'POST', body: { display_name: displayName }

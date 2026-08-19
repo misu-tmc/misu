@@ -322,18 +322,36 @@ fn parse_candidate_window(
 /// start then meeting ID. Pure and DB-free, so every boundary/blank/overnight/
 /// tie-break/malformed-data case is exercised directly by the unit tests
 /// above — this is the exact logic `incoming_published_id` ships below.
+///
+/// A candidate whose stored schedule fails to parse is a data-integrity bug
+/// in exactly that row, not a reason to fail check-in for every attendee:
+/// it is logged via `tracing::error!` (with the meeting ID and parse error,
+/// so the log carries enough detail to fix the row) and excluded from
+/// selection, while every other, well-formed open candidate is still
+/// considered. If no candidate is open (including because all of them are
+/// unschedulable), this returns `None`, never an error.
 fn resolve_incoming_meeting(
     candidates: Vec<CandidateMeetingRow>,
     now: chrono::NaiveDateTime,
-) -> AppResult<Option<i64>> {
+) -> Option<i64> {
     let mut open = Vec::new();
     for row in &candidates {
-        let (start, end) = parse_candidate_window(row)?;
-        if checkin_window_contains(start, end, now) {
-            open.push((start, row.id));
+        match parse_candidate_window(row) {
+            Ok((start, end)) => {
+                if checkin_window_contains(start, end, now) {
+                    open.push((start, row.id));
+                }
+            }
+            Err(err) => {
+                tracing::error!(
+                    meeting_id = row.id,
+                    error = ?err,
+                    "excluding unschedulable check-in candidate: failed to parse its schedule"
+                );
+            }
         }
     }
-    Ok(open.into_iter().min().map(|(_, id)| id))
+    open.into_iter().min().map(|(_, id)| id)
 }
 
 /// Load every `published` meeting scheduled from yesterday through tomorrow
@@ -356,13 +374,18 @@ async fn incoming_published_candidates(
 
 /// Earliest published meeting whose check-in window contains `now`, if any —
 /// fetches yesterday-through-tomorrow candidates, then defers to the pure,
-/// unit-tested `resolve_incoming_meeting` for the actual selection.
+/// unit-tested `resolve_incoming_meeting` for the actual selection. Only the
+/// candidate fetch can fail here: `resolve_incoming_meeting` itself is
+/// infallible, logging and excluding any unschedulable row instead of
+/// erroring, so a single meeting's malformed schedule can never turn this
+/// into a 500 for every umbrella check-in — it falls back to `None`, which
+/// the umbrella handler turns into a normal "no meeting open" conflict.
 pub async fn incoming_published_id(
     pool: &MySqlPool,
     now: chrono::NaiveDateTime,
 ) -> AppResult<Option<i64>> {
     let candidates = incoming_published_candidates(pool, now.date()).await?;
-    resolve_incoming_meeting(candidates, now)
+    Ok(resolve_incoming_meeting(candidates, now))
 }
 
 /// Load a meeting's lifecycle status by ID, or `None` if it does not exist.
@@ -456,19 +479,16 @@ mod tests {
         let start = dt("2026-08-19", "19:00");
         let candidates = vec![candidate(1, "2026-08-19", "19:00", "")];
         assert_eq!(
-            resolve_incoming_meeting(candidates.clone(), start - Duration::minutes(31)).unwrap(),
+            resolve_incoming_meeting(candidates.clone(), start - Duration::minutes(31)),
             None
         );
         assert_eq!(
-            resolve_incoming_meeting(candidates.clone(), start - Duration::minutes(30)).unwrap(),
+            resolve_incoming_meeting(candidates.clone(), start - Duration::minutes(30)),
             Some(1)
         );
+        assert_eq!(resolve_incoming_meeting(candidates.clone(), start), Some(1));
         assert_eq!(
-            resolve_incoming_meeting(candidates.clone(), start).unwrap(),
-            Some(1)
-        );
-        assert_eq!(
-            resolve_incoming_meeting(candidates, start + Duration::minutes(1)).unwrap(),
+            resolve_incoming_meeting(candidates, start + Duration::minutes(1)),
             None
         );
     }
@@ -478,11 +498,11 @@ mod tests {
         // Scheduled 23:00 -> 00:30: an overnight meeting.
         let candidates = vec![candidate(1, "2026-08-19", "23:00", "00:30")];
         assert_eq!(
-            resolve_incoming_meeting(candidates.clone(), dt("2026-08-20", "00:30")).unwrap(),
+            resolve_incoming_meeting(candidates.clone(), dt("2026-08-20", "00:30")),
             Some(1)
         );
         assert_eq!(
-            resolve_incoming_meeting(candidates, dt("2026-08-20", "00:31")).unwrap(),
+            resolve_incoming_meeting(candidates, dt("2026-08-20", "00:31")),
             None
         );
     }
@@ -494,14 +514,40 @@ mod tests {
             candidate(20, "2026-08-19", "19:00", "20:00"),
             candidate(10, "2026-08-19", "19:00", "20:00"),
         ];
-        assert_eq!(resolve_incoming_meeting(candidates, now).unwrap(), Some(10));
+        assert_eq!(resolve_incoming_meeting(candidates, now), Some(10));
     }
 
     #[test]
-    fn malformed_scheduling_data_is_an_explicit_internal_error_not_a_silent_skip() {
-        let candidates = vec![candidate(1, "not-a-date", "19:00", "")];
-        let err = resolve_incoming_meeting(candidates, dt("2026-08-19", "19:00")).unwrap_err();
+    fn parse_candidate_window_surfaces_malformed_scheduling_data_as_an_explicit_error() {
+        // `resolve_incoming_meeting` no longer propagates this — it logs and
+        // excludes the row instead — but `parse_candidate_window` itself must
+        // keep returning a detailed error so that log has something to report.
+        let row = candidate(1, "not-a-date", "19:00", "");
+        let err = parse_candidate_window(&row).unwrap_err();
         assert!(matches!(err, AppError::Internal(_)));
+    }
+
+    #[test]
+    fn malformed_candidates_are_logged_and_excluded_valid_open_candidate_still_selected() {
+        let now = dt("2026-08-19", "19:00");
+        let candidates = vec![
+            candidate(1, "2026-08-19", "", ""),      // blank start_time
+            candidate(2, "not-a-date", "19:00", ""), // malformed date
+            candidate(3, "2026-08-19", "19:00", ""), // valid and open
+        ];
+        assert_eq!(resolve_incoming_meeting(candidates, now), Some(3));
+    }
+
+    #[test]
+    fn malformed_only_candidates_resolve_to_none_not_an_error() {
+        let candidates = vec![
+            candidate(1, "2026-08-19", "", ""),      // blank start_time
+            candidate(2, "not-a-date", "19:00", ""), // malformed date
+        ];
+        assert_eq!(
+            resolve_incoming_meeting(candidates, dt("2026-08-19", "19:00")),
+            None
+        );
     }
 
     #[test]

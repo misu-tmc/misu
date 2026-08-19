@@ -62,9 +62,12 @@ When `meeting_id` is omitted:
   earlier than the scheduled start time is treated as ending the next
   calendar day (an overnight meeting, for example 23:00–00:30);
 - order overlapping matches by scheduled start and then meeting ID;
-- a candidate whose stored date or time cannot be parsed is an explicit
-  internal error, never a silently skipped row;
-- return a conflict-style error when no meeting is open.
+- a candidate whose stored date or time cannot be parsed is logged (with its
+  meeting ID and parse error) and excluded from selection as unschedulable —
+  never silently ignored, but also never allowed to fail check-in for every
+  other, well-formed candidate;
+- return a conflict-style error when no meeting is open, including when every
+  candidate is unschedulable or otherwise not open.
 
 Attendance remains one row per `(meeting_id, user_id)`. Repeated requests refresh
 the timestamp without creating duplicates.
@@ -114,8 +117,11 @@ never introduced, so there is nothing to uninstall, delete, or edit:
   duration), including its own boundary cases.
 - A scheduled end time earlier than the scheduled start time rolls over to
   the next calendar day (an overnight meeting).
-- A candidate with an unparsable stored date or time surfaces as an explicit
-  error rather than being silently excluded from selection.
+- A candidate with an unparsable stored date or time is logged and excluded,
+  while any other, well-formed open candidate is still selected — it never
+  silently disappears and never fails the whole request.
+- When every candidate is unschedulable or otherwise not open, resolution
+  returns none, not an error.
 - Earliest selection when windows overlap, including an explicit tie-break by
   meeting ID when scheduled starts are equal.
 - Explicit meeting ID success, draft, unknown, and invalid values.

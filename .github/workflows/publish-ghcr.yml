@@ -2,10 +2,7 @@ name: Publish container image
 
 on:
   schedule:
-    # Daily at 03:00 UTC. The check-for-new-commits job skips the build
-    # entirely when master hasn't moved since the last successful publish,
-    # so this doesn't spend runner minutes on unchanged code.
-    - cron: "0 3 * * *"
+    - cron: "0 8 * * *"
   workflow_dispatch: {}
 
 permissions:

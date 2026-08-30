@@ -175,7 +175,7 @@ export function LoginPage() {
             <p>A private sign-in key will be kept only in this browser.</p>
             <form class="login-stack" onSubmit={createAccount}>
               <div class="field"><label for="display-name">Your display name</label><input id="display-name" name="display_name" maxlength="255" autocomplete="name" required /></div>
-              <div class="field"><label for="club-name">Club (optional)</label><input id="club-name" name="club_name" maxlength="255" autocomplete="organization" /></div>
+              <div class="field"><label for="club-name">Club (optional)</label><input id="club-name" name="club_name" autocomplete="organization" /></div>
               <button class="btn btn-primary btn-wide" disabled={busy}>Create account</button>
               <button class="btn btn-ghost btn-wide" type="button" onClick={() => showChoice()}>Back</button>
             </form>

@@ -76,7 +76,7 @@ export function MePage() {
         </div>
         <form onSubmit={saveProfile}>
           <div class="field"><label for="profile-name">Display name</label><input id="profile-name" value={name} maxlength="255" onInput={(event) => setName(event.currentTarget.value)} required /></div>
-          <div class="field"><label for="profile-club">Club (optional)</label><input id="profile-club" value={club} maxlength="255" autocomplete="organization" onInput={(event) => setClub(event.currentTarget.value)} /></div>
+          <div class="field"><label for="profile-club">Club (optional)</label><input id="profile-club" value={club} autocomplete="organization" onInput={(event) => setClub(event.currentTarget.value)} /></div>
           <button class="btn btn-primary" disabled={saving}>Save profile</button>
         </form>
         {message && <p class="form-message" role="status">{message}</p>}

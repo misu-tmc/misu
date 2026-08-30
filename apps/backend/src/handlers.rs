@@ -291,15 +291,23 @@ pub async fn update_user(
     let club_name = resolve_club_name(club_update, user.club_name);
 
     // `AuthUser` + `ensure_self` already guarantee `user_id` exists and belongs to the
-    // caller, so a single unconditional UPDATE suffices — no separate existence check,
-    // and no need to inspect rows-affected (MySQL reports 0 for a write that doesn't
-    // change any column value, which would otherwise look like a missing row).
-    sqlx::query("UPDATE user SET display_name = ?, club_name = ? WHERE id = ?")
-        .bind(&display_name)
-        .bind(&club_name)
-        .bind(user_id)
-        .execute(&state.pool)
-        .await?;
+    // caller, so a single UPDATE suffices — no separate existence check or follow-up
+    // read is required. When `club_name` was omitted, keep the stored value unchanged
+    // rather than writing the stale `AuthUser` value back on top of a newer update.
+    if club_update.is_some() {
+        sqlx::query("UPDATE user SET display_name = ?, club_name = ? WHERE id = ?")
+            .bind(&display_name)
+            .bind(&club_name)
+            .bind(user_id)
+            .execute(&state.pool)
+            .await?;
+    } else {
+        sqlx::query("UPDATE user SET display_name = ? WHERE id = ?")
+            .bind(&display_name)
+            .bind(user_id)
+            .execute(&state.pool)
+            .await?;
+    }
     Ok(Json(UserResponse {
         id: user_id,
         display_name,

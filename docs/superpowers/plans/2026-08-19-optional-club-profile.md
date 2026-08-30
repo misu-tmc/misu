@@ -50,7 +50,7 @@ Execution resumes at Task 2.
 - Modify: `apps/backend/src/auth.rs`
 - Modify: `apps/backend/src/handlers.rs`
 
-- [ ] **Step 1: Write failing normalization and ownership tests**
+- [x] **Step 1: Write failing normalization and ownership tests**
 
 Add tests in `auth.rs`:
 
@@ -87,7 +87,7 @@ fn missing_club_keeps_current_value() {
 }
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```powershell
 Set-Location apps\backend
@@ -97,7 +97,7 @@ cargo test
 Expected: compilation fails because the helpers and `club_name` contract do not
 exist.
 
-- [ ] **Step 3: Add the migration and response field**
+- [x] **Step 3: Add the migration and response field**
 
 `apps/backend/migrations/0013_user_club_name.sql`:
 
@@ -116,7 +116,7 @@ pub struct UserResponse {
 }
 ```
 
-- [ ] **Step 4: Normalize and store the field during device registration**
+- [x] **Step 4: Normalize and store the field during device registration**
 
 Add:
 
@@ -147,7 +147,7 @@ sqlx::query("INSERT INTO user(display_name, club_name) VALUES (?, ?)")
 
 Keep user and credential insertion in the existing transaction.
 
-- [ ] **Step 5: Carry club data through all auth providers**
+- [x] **Step 5: Carry club data through all auth providers**
 
 Select and serialize `u.club_name` in:
 
@@ -159,7 +159,7 @@ Select and serialize `u.club_name` in:
 
 New WeChat users keep `NULL`.
 
-- [ ] **Step 6: Implement one-query self profile updates**
+- [x] **Step 6: Implement one-query self profile updates**
 
 Use:
 
@@ -194,7 +194,7 @@ sqlx::query("UPDATE user SET display_name = ?, club_name = ? WHERE id = ?")
 Return the normalized values directly. Do not add existence probes or follow-up
 reads.
 
-- [ ] **Step 7: Verify and commit backend support**
+- [x] **Step 7: Verify and commit backend support**
 
 ```powershell
 Set-Location apps\backend
@@ -218,7 +218,7 @@ Expected: all backend tests pass.
 - Modify: `apps/spa/src/pages/MePage.jsx`
 - Create: `apps/spa/src/pages/MePage.test.jsx`
 
-- [ ] **Step 1: Write failing generic registration tests**
+- [x] **Step 1: Write failing generic registration tests**
 
 Add a Login page test that opens the normal create view, fills both fields, and
 expects:
@@ -235,7 +235,7 @@ expect(register).toHaveBeenCalledWith({
 
 The test must not use a check-in `next` target.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```powershell
 Set-Location apps\spa
@@ -244,7 +244,7 @@ npm test -- src/pages/LoginPage.test.jsx
 
 Expected: no generic Club field exists and the payload omits `club_name`.
 
-- [ ] **Step 3: Add the generic club field**
+- [x] **Step 3: Add the generic club field**
 
 In the existing `create` view add:
 
@@ -271,7 +271,7 @@ await authApi.register({
 });
 ```
 
-- [ ] **Step 4: Write failing profile tests**
+- [x] **Step 4: Write failing profile tests**
 
 Test that the profile loads `club_name`, sends:
 
@@ -284,13 +284,13 @@ Test that the profile loads `club_name`, sends:
 
 and sends `club_name: ''` when cleared.
 
-- [ ] **Step 5: Implement profile editing**
+- [x] **Step 5: Implement profile editing**
 
 Change `usersApi.update` to accept a profile object. Add local club state and the
 optional input to `MePage`; trim both fields, submit the object, then synchronize
 the auth signal and local fields from the response.
 
-- [ ] **Step 6: Verify and commit the SPA**
+- [x] **Step 6: Verify and commit the SPA**
 
 ```powershell
 Set-Location apps\spa
@@ -308,7 +308,7 @@ git commit -m "feat(spa): edit optional club profiles" `
 **Files:**
 - No source changes.
 
-- [ ] **Step 1: Verify independent branch scope**
+- [x] **Step 1: Verify independent branch scope**
 
 ```powershell
 git -c core.whitespace=cr-at-eol diff --check origin/master..HEAD
@@ -318,7 +318,7 @@ git diff --name-only origin/master..HEAD
 Expected: only optional-club backend, generic auth/profile SPA, tests, and this
 PR's spec/plan.
 
-- [ ] **Step 2: Run full independent validation**
+- [x] **Step 2: Run full independent validation**
 
 ```powershell
 Set-Location apps\backend
@@ -328,7 +328,7 @@ Set-Location ..\spa
 npm run validate
 ```
 
-- [ ] **Step 3: Repurpose PR #1 safely**
+- [x] **Step 3: Repurpose PR #1 safely**
 
 ```powershell
 git push --force-with-lease `

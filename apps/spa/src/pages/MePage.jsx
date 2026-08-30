@@ -8,6 +8,7 @@ import { PageLoading } from '../components/PageState.jsx';
 export function MePage() {
   const [meetings, setMeetings] = useState([]);
   const [name, setName] = useState(authUser.value?.display_name || '');
+  const [club, setClub] = useState(authUser.value?.club_name || '');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -28,11 +29,14 @@ export function MePage() {
     event.preventDefault();
     const nextName = name.trim();
     if (!nextName) return;
+    const nextClub = club.trim();
     setSaving(true);
     setMessage('');
     try {
-      const user = await usersApi.update(authUser.value.id, nextName);
+      const user = await usersApi.update(authUser.value.id, { display_name: nextName, club_name: nextClub });
       authUser.value = user;
+      setName(user.display_name);
+      setClub(user.club_name || '');
       setMessage('Profile saved.');
     } catch (err) {
       setMessage(err.message || 'Could not save profile.');
@@ -72,6 +76,7 @@ export function MePage() {
         </div>
         <form onSubmit={saveProfile}>
           <div class="field"><label for="profile-name">Display name</label><input id="profile-name" value={name} maxlength="255" onInput={(event) => setName(event.currentTarget.value)} required /></div>
+          <div class="field"><label for="profile-club">Club (optional)</label><input id="profile-club" value={club} autocomplete="organization" onInput={(event) => setClub(event.currentTarget.value)} /></div>
           <button class="btn btn-primary" disabled={saving}>Save profile</button>
         </form>
         {message && <p class="form-message" role="status">{message}</p>}

@@ -84,12 +84,13 @@ export function LoginPage() {
     const data = new FormData(event.currentTarget);
     const displayName = String(data.get('display_name') || '').trim();
     if (!displayName) return;
+    const clubName = String(data.get('club_name') || '').trim();
     setBusy(true);
     setError('');
     let deviceRegistered = false;
     try {
       const generated = await generateCredential();
-      await authApi.register({ display_name: displayName, ...generated.request });
+      await authApi.register({ display_name: displayName, club_name: clubName, ...generated.request });
       deviceRegistered = true;
       finish(await confirmedSession());
     } catch (err) {
@@ -174,6 +175,7 @@ export function LoginPage() {
             <p>A private sign-in key will be kept only in this browser.</p>
             <form class="login-stack" onSubmit={createAccount}>
               <div class="field"><label for="display-name">Your display name</label><input id="display-name" name="display_name" maxlength="255" autocomplete="name" required /></div>
+              <div class="field"><label for="club-name">Club (optional)</label><input id="club-name" name="club_name" autocomplete="organization" /></div>
               <button class="btn btn-primary btn-wide" disabled={busy}>Create account</button>
               <button class="btn btn-ghost btn-wide" type="button" onClick={() => showChoice()}>Back</button>
             </form>

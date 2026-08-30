@@ -4,6 +4,7 @@ use serde::Serialize;
 pub struct UserResponse {
     pub id: i64,
     pub display_name: String,
+    pub club_name: Option<String>,
 }
 
 #[derive(Serialize)]

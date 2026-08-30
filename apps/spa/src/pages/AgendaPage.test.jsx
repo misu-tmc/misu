@@ -50,6 +50,21 @@ describe('AgendaPage', () => {
     );
   });
 
+  it('does not render separators below agenda rows', () => {
+    expect(componentsCss).toMatch(
+      /\.print-agenda-panel td\s*\{[^}]*\bborder-bottom:\s*0;/
+    );
+  });
+
+  it('gives prepared speeches more room and separates each speech', () => {
+    expect(componentsCss).toMatch(
+      /\.print-agenda-back-body\s*\{[^}]*grid-template-rows:\s*13mm minmax\(0,\s*1fr\) 100mm 33mm;/
+    );
+    expect(componentsCss).toMatch(
+      /\.print-agenda-speeches article \+ article\s*\{[^}]*margin-top:\s*2\.5mm;/
+    );
+  });
+
   it('renders the printable meeting and export controls', async () => {
     render(<AgendaPage params={{ id: '42' }} />);
 

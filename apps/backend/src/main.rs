@@ -58,7 +58,6 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/healthz", get(handlers::healthz))
         .route("/api/auth/wechat", post(auth::auth_wechat))
-        .route("/api/auth/login", post(auth::auth_login))
         .route("/api/auth/logout", post(auth::auth_logout))
         .route("/api/auth/me", get(auth::auth_me))
         .route(

@@ -114,8 +114,8 @@ relationship. See `todo.md`.
 
 Maps a WeChat `openid` to a `user`. Auth is **pluggable** (see `../auth.md`): a user may
 authenticate through several providers, so provider-specific identifiers live in their own
-tables and keep `user` thin. A web user/password provider would add its own credential
-table the same way.
+tables and keep `user` thin. The device credential provider adds its own credential table
+the same way.
 
 | Column    | Type    | Notes                              |
 | --------- | ------- | ---------------------------------- |

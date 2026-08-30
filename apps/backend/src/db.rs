@@ -54,7 +54,7 @@ pub async fn connect(config: &Config) -> anyhow::Result<MySqlPool> {
         .run(&pool)
         .await
         .context("failed to apply MySQL migrations")?;
-    seed(&pool, config).await?;
+    seed(&pool).await?;
     Ok(pool)
 }
 
@@ -96,7 +96,7 @@ fn insert_id(result: MySqlQueryResult) -> anyhow::Result<i64> {
 
 /// Seed the role catalog and, in an empty database, a couple of sample meetings so
 /// the mini program has something to show on first run.
-async fn seed(pool: &MySqlPool, config: &Config) -> anyhow::Result<()> {
+async fn seed(pool: &MySqlPool) -> anyhow::Result<()> {
     let roles = [
         ("TOE", None),
         (
@@ -134,8 +134,6 @@ async fn seed(pool: &MySqlPool, config: &Config) -> anyhow::Result<()> {
     .execute(pool)
     .await?;
 
-    seed_web_admin(pool, config).await?;
-
     let meeting_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM meeting")
         .fetch_one(pool)
         .await?;
@@ -143,37 +141,6 @@ async fn seed(pool: &MySqlPool, config: &Config) -> anyhow::Result<()> {
         seed_sample_meetings(pool).await?;
     }
 
-    Ok(())
-}
-
-/// Bootstrap a web user (username/password) so the admin surface is reachable. Uses the
-/// configured credentials, or falls back to `admin`/`admin` in DEV mode. No-op if the
-/// username already has a credential.
-async fn seed_web_admin(pool: &MySqlPool, config: &Config) -> anyhow::Result<()> {
-    let (username, password, explicit) =
-        match (&config.seed_web_admin_user, &config.seed_web_admin_password) {
-            (Some(u), Some(p)) => (u.clone(), p.clone(), true),
-            _ if config.dev_mode() => {
-                tracing::warn!(
-                "seeding DEV web admin admin/admin (set MISU_WEB_ADMIN_USER/PASSWORD to override)"
-            );
-                ("admin".to_string(), "admin".to_string(), false)
-            }
-            _ => return Ok(()),
-        };
-
-    if crate::auth::web_username_exists(pool, &username).await? {
-        // When credentials are explicitly configured (production), keep the stored
-        // password in sync with `.env` so rotating MISU_WEB_ADMIN_PASSWORD takes effect
-        // on the next startup. The DEV fallback (admin/admin) stays insert-only.
-        if explicit {
-            crate::auth::set_web_password(pool, &username, &password).await?;
-            tracing::info!("updated web admin '{username}' password from configured credentials");
-        }
-        return Ok(());
-    }
-    let _user_id = crate::auth::create_web_user(pool, &username, &password, "Site Admin").await?;
-    tracing::info!("created web admin user '{username}'");
     Ok(())
 }
 

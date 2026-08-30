@@ -71,14 +71,21 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate image metadata
-        id: metadata
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,format=long
-            type=raw,value=latest
+      - name: Generate tag list
+        run: |
+          echo "TAGS<<EOF" >> "$GITHUB_ENV"
+          # OCI image names must be lowercase; GitHub owner/repo casing varies.
+          IMAGE_NAME_LC="${IMAGE_NAME,,}"
+          DATE="$(date +'%Y%m%d')"
+
+          echo "${IMAGE_NAME_LC}:latest" >> "$GITHUB_ENV"
+          echo "${IMAGE_NAME_LC}:${DATE}.${RUN_ID}" >> "$GITHUB_ENV"
+          echo "${IMAGE_NAME_LC}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+          echo "EOF" >> "$GITHUB_ENV"
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          RUN_ID: ${{ github.run_id }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
@@ -86,7 +93,6 @@ jobs:
           context: apps
           file: apps/Dockerfile
           push: true
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
+          tags: ${{ env.TAGS }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

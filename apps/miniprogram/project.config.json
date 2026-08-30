@@ -1,7 +1,12 @@
 {
   "description": "MISU WeChat mini program",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "glob",
+        "value": "**/*.test.js"
+      }
+    ],
     "include": []
   },
   "setting": {

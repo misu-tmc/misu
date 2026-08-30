@@ -349,17 +349,48 @@ pub async fn checkin(
         return Err(AppError::NotFound);
     }
 
-    sqlx::query(
-        "INSERT INTO attendance(meeting_id, user_id, checked_in_at, source) \
-         VALUES (?, ?, UTC_TIMESTAMP(), 'self') \
-         ON DUPLICATE KEY UPDATE checked_in_at = VALUES(checked_in_at)",
-    )
-    .bind(meeting_id)
-    .bind(user.id)
-    .execute(&state.pool)
-    .await?;
-
+    meetings::record_attendance(&state.pool, user.id, meeting_id).await?;
     Ok(Json(json!({ "checked_in": true })))
+}
+
+#[derive(Deserialize)]
+pub struct CheckinReq {
+    pub meeting_id: Option<i64>,
+}
+
+/// Normalize the requested meeting ID: a positive ID is used as-is, zero or
+/// negative is a bad request, and a missing ID defers to automatic selection.
+fn resolve_requested_meeting_id(meeting_id: Option<i64>) -> AppResult<Option<i64>> {
+    match meeting_id {
+        Some(id) if id > 0 => Ok(Some(id)),
+        Some(_) => Err(AppError::BadRequest("invalid meeting id".into())),
+        None => Ok(None),
+    }
+}
+
+/// `POST /api/checkin` — resolve the incoming meeting (explicit ID or the
+/// currently open published meeting) and record attendance for it.
+pub async fn umbrella_checkin(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(req): Json<CheckinReq>,
+) -> AppResult<Json<serde_json::Value>> {
+    let meeting_id = match resolve_requested_meeting_id(req.meeting_id)? {
+        Some(id) => {
+            let status = meetings::load_status(&state.pool, id).await?;
+            meetings::ensure_open_for_checkin(status.as_deref())?;
+            id
+        }
+        None => meetings::incoming_published_id(&state.pool, chrono::Local::now().naive_local())
+            .await?
+            .ok_or_else(|| {
+                AppError::Conflict("No meeting is currently open for check-in.".into())
+            })?,
+    };
+    meetings::record_attendance(&state.pool, user.id, meeting_id).await?;
+    Ok(Json(
+        json!({ "checked_in": true, "meeting_id": meeting_id }),
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -660,7 +691,7 @@ pub async fn club_info() -> Json<serde_json::Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ensure_self, resolve_club_name};
+    use super::{ensure_self, resolve_club_name, resolve_requested_meeting_id};
     use crate::error::AppError;
 
     #[test]
@@ -688,5 +719,19 @@ mod tests {
             resolve_club_name(Some(Some("Other TMC".into())), Some("MISU".into())),
             Some("Other TMC".into())
         );
+    }
+
+    #[test]
+    fn requested_meeting_id_is_normalized() {
+        assert_eq!(resolve_requested_meeting_id(None).unwrap(), None);
+        assert_eq!(resolve_requested_meeting_id(Some(42)).unwrap(), Some(42));
+        assert!(matches!(
+            resolve_requested_meeting_id(Some(0)),
+            Err(AppError::BadRequest(_))
+        ));
+        assert!(matches!(
+            resolve_requested_meeting_id(Some(-1)),
+            Err(AppError::BadRequest(_))
+        ));
     }
 }

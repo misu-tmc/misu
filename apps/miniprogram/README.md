@@ -12,6 +12,14 @@ authenticated user.
    names…"** so the tool can reach `http://127.0.0.1:8080`.
 4. Keep `apiTransport: 'request'` and set the backend `apiBase` in [app.js](app.js).
 
+## Testing
+
+Run the check-in page's unit tests with Node's built-in test runner:
+
+```
+node --test pages/checkin/checkin.test.js
+```
+
 ## API transport
 
 The transport is selected in `globalData` in [app.js](app.js); pages and endpoint

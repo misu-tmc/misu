@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'wouter-preact';
-import { checkinApi, meetingsApi } from '../lib/api.js';
+import { checkinApi } from '../lib/api.js';
+import { optionalMeetingId } from '../lib/checkinLink.js';
 import { PageError, PageLoading } from '../components/PageState.jsx';
 
 export function CheckinPage() {
@@ -11,13 +12,12 @@ export function CheckinPage() {
     let active = true;
     async function checkIn() {
       try {
-        let meetingId = Number(new URLSearchParams(window.location.search).get('meetingId')) || null;
-        if (!meetingId) {
-          const meetings = await meetingsApi.upcoming();
-          meetingId = meetings[0]?.id || null;
+        const requestedId = optionalMeetingId(window.location.search);
+        const result = await checkinApi.umbrella(requestedId);
+        const meetingId = Number(result?.meeting_id);
+        if (!Number.isSafeInteger(meetingId) || meetingId <= 0) {
+          throw new Error('This check-in link is invalid.');
         }
-        if (!meetingId) throw new Error('No upcoming meeting is available.');
-        await checkinApi.checkin(meetingId);
         sessionStorage.setItem('misu:meetingId', String(meetingId));
         if (active) navigate(`/app/meetings/${meetingId}`, { replace: true });
       } catch (err) {

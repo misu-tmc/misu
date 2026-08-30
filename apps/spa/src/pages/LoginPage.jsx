@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { useLocation } from 'wouter-preact';
 import { authApi, ApiError } from '../lib/api.js';
 import {
   clearCredential,
@@ -8,12 +9,8 @@ import {
   storedCredential,
   trySilentLogin
 } from '../lib/authDevice.js';
+import { resolveNextPath } from '../lib/safeNextPath.js';
 import { authReady, authUser } from '../state/auth.js';
-
-export function safeNextPath(search) {
-  const value = new URLSearchParams(search).get('next');
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/app/booking';
-}
 
 export function LoginPage() {
   const [view, setView] = useState('loading');
@@ -22,6 +19,7 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [user, setUser] = useState(null);
   const [migrationCode, setMigrationCode] = useState('');
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     let active = true;
@@ -67,6 +65,11 @@ export function LoginPage() {
     authReady.value = true;
     setUser(nextUser);
     setError('');
+    const { path, hasExplicitNext } = resolveNextPath(window.location.search);
+    if (hasExplicitNext) {
+      navigate(path, { replace: true });
+      return;
+    }
     setView('account');
   }
 
@@ -203,7 +206,7 @@ export function LoginPage() {
             <h1>Welcome, {user?.display_name || 'friend'}</h1>
             <p>This browser can securely sign in to your MISU account.</p>
             <div class="login-stack">
-              <a class="btn btn-primary btn-wide" href={safeNextPath(window.location.search)}>Continue</a>
+              <a class="btn btn-primary btn-wide" href={resolveNextPath(window.location.search).path}>Continue</a>
               <button class="btn btn-secondary btn-wide" type="button" disabled={busy} onClick={createMigrationCode}>Connect another device</button>
             </div>
             {migrationCode && (

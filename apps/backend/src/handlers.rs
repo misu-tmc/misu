@@ -252,9 +252,6 @@ pub async fn update_speech(
 #[derive(Deserialize)]
 pub struct UpdateUserReq {
     pub display_name: String,
-    /// `None` (field absent or JSON `null`) preserves the current stored value; an
-    /// explicitly supplied empty string clears the club to `NULL`.
-    #[serde(default)]
     pub club_name: Option<String>,
 }
 
@@ -267,13 +264,6 @@ fn ensure_self(auth_user_id: i64, path_user_id: i64) -> AppResult<()> {
     Ok(())
 }
 
-/// Resolve the club_name to persist: an explicit `update` (even `Some(None)` to clear
-/// it) takes precedence; a missing update (`None`, meaning the client did not send
-/// `club_name` at all) preserves the authenticated user's current club_name unchanged.
-fn resolve_club_name(update: Option<Option<String>>, current: Option<String>) -> Option<String> {
-    update.unwrap_or(current)
-}
-
 pub async fn update_user(
     State(state): State<AppState>,
     user: AuthUser,
@@ -282,32 +272,18 @@ pub async fn update_user(
 ) -> AppResult<Json<UserResponse>> {
     ensure_self(user.id, user_id)?;
     let display_name = normalize_required_field(&req.display_name, "display name")?;
-    // `Some(_)` means the field was explicitly supplied (even as ""); `None` means it
-    // was missing/null and the stored club_name must be left untouched.
-    let club_update = match &req.club_name {
-        None => None,
-        Some(value) => Some(normalize_optional_field(Some(value.as_str()), "club name")?),
-    };
-    let club_name = resolve_club_name(club_update, user.club_name);
+    let club_name = normalize_optional_field(req.club_name.as_deref(), "club name")?;
 
     // `AuthUser` + `ensure_self` already guarantee `user_id` exists and belongs to the
     // caller, so a single UPDATE suffices — no separate existence check or follow-up
-    // read is required. When `club_name` was omitted, keep the stored value unchanged
-    // rather than writing the stale `AuthUser` value back on top of a newer update.
-    if club_update.is_some() {
-        sqlx::query("UPDATE user SET display_name = ?, club_name = ? WHERE id = ?")
-            .bind(&display_name)
-            .bind(&club_name)
-            .bind(user_id)
-            .execute(&state.pool)
-            .await?;
-    } else {
-        sqlx::query("UPDATE user SET display_name = ? WHERE id = ?")
-            .bind(&display_name)
-            .bind(user_id)
-            .execute(&state.pool)
-            .await?;
-    }
+    // read is required.
+    sqlx::query("UPDATE user SET display_name = ?, club_name = ? WHERE id = ?")
+        .bind(&display_name)
+        .bind(&club_name)
+        .bind(user_id)
+        .execute(&state.pool)
+        .await?;
+
     Ok(Json(UserResponse {
         id: user_id,
         display_name,
@@ -660,33 +636,12 @@ pub async fn club_info() -> Json<serde_json::Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ensure_self, resolve_club_name};
+    use super::ensure_self;
     use crate::error::AppError;
 
     #[test]
     fn profile_owner_is_enforced() {
         assert!(ensure_self(7, 7).is_ok());
         assert!(matches!(ensure_self(7, 8), Err(AppError::Unauthorized)));
-    }
-
-    #[test]
-    fn missing_club_keeps_current_value() {
-        assert_eq!(
-            resolve_club_name(None, Some("MISU".into())),
-            Some("MISU".into())
-        );
-    }
-
-    #[test]
-    fn explicit_blank_club_clears_current_value() {
-        assert_eq!(resolve_club_name(Some(None), Some("MISU".into())), None);
-    }
-
-    #[test]
-    fn explicit_club_value_replaces_current_value() {
-        assert_eq!(
-            resolve_club_name(Some(Some("Other TMC".into())), Some("MISU".into())),
-            Some("Other TMC".into())
-        );
     }
 }

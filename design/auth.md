@@ -3,15 +3,15 @@
 ## Principles
 
 - **Simple** — keep auth as minimal as possible.
-- **Pluggable** — the implementation can be swapped (user/password now, WeChat identity
-  later) without touching the rest of the app.
+- **Pluggable** — the implementation can be swapped (device credentials, WeChat identity)
+  without touching the rest of the app.
 - **Independent** — auth is a self-contained component that relies on as little of the
   rest of the system as possible. The dependency points inward (app → auth), never the
   reverse.
 
 Every user-facing and admin-facing page requires authentication first. The web surface
-uses the device credential provider. The older Mini Program and password providers remain
-in the backend temporarily while their user-model migration is decided.
+uses the device credential provider, and the Mini Program uses the WeChat identity
+provider.
 
 ## Auth contract (shared across surfaces)
 
@@ -25,9 +25,9 @@ established.
 | `login(...)`         | establishes a session, returns the identity         |
 | `logout()`           | clears the session                                  |
 
-- A **provider** is anything that implements this contract. Device credentials, legacy
-  passwords, and WeChat identities all resolve to the same identity shape, so nothing
-  downstream depends on the login mechanism.
+- A **provider** is anything that implements this contract. Device credentials and WeChat
+  identities all resolve to the same identity shape, so nothing downstream depends on the
+  login mechanism.
 - The only thing auth hands the rest of the system is a `user.id`. That is the whole
   coupling surface.
 - Auth depends on nothing in the app except the `user` table (to resolve/create the
@@ -127,15 +127,12 @@ The WeChat identity provider exchanges the WeChat login code for a session
 
 ## Implementation (current)
 
-Three providers behind the shared contract, all resolving to a `user.id` and a row in the
+Two providers behind the shared contract, all resolving to a `user.id` and a row in the
 shared `auth_session` store:
 
 - **WeChat** (`wechat_identity`): `POST /api/auth/wechat { code }` exchanges the code for
   an `openid`, upserts the user, and returns an opaque **bearer token** the mini program
   sends as `Authorization: Bearer <token>`.
-- **Deprecated web username/password** (`web_credential`): the backend endpoint remains
-  temporarily for compatibility, but `/login` no longer presents password authentication.
-  The user and management model will replace this transitional mechanism later.
 - **Web device credential** (`device_credential`): `/login` silently challenges a known
   browser key, or offers account creation and migration-code redemption. Successful
   registration, verification, and migration establish the same HttpOnly cookie session.
@@ -144,7 +141,3 @@ The `AuthUser` extractor resolves either transport (bearer or cookie) against th
 `auth_session` table — the rest of the app only sees `user.id`. Web management pages
 redirect to `/login` without a session. At this stage there are **no permission scopes**:
 any authenticated user may perform any action. The user model will refine this later.
-
-**Bootstrap**: the first web admin is seeded from `MISU_WEB_ADMIN_USER` /
-`MISU_WEB_ADMIN_PASSWORD` (or `admin`/`admin` in DEV mode). Passwords are stored only as
-bcrypt hashes.

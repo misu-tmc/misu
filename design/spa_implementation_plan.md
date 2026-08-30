@@ -54,7 +54,6 @@ each route switches to Preact only after it reaches implementation parity.
 Auth:
 
 - `POST /api/auth/wechat`
-- `POST /api/auth/login` (deprecated compatibility)
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `POST /api/auth/device/register`

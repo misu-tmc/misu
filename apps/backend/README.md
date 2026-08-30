@@ -99,12 +99,6 @@ protocol use the gateway-injected `X-WX-OPENID` and do not call `jscode2session`
 `WECHAT_APPID` / `WECHAT_SECRET` remain necessary for direct HTTP mini program requests.
 Never include the app secret in application logs or commit it to the repository.
 
-### Deprecated password provider
-
-The older **username/password** provider remains temporarily in the backend while the
-user and management model is revisited. Passwords are bcrypt-hashed in `web_credential`,
-but `/login` no longer exposes a password form. New web authentication uses device keys.
-
 ### Device-bound web login
 
 All web authentication starts at `/login`. A first-time visitor can create an account and a local
@@ -120,7 +114,6 @@ the previous records.
 | ------ | ---- | ---- | ------- |
 | GET  | `/healthz` | — | liveness |
 | POST | `/api/auth/wechat` | — | `{ code }` → `{ token, user }` (mini program) |
-| POST | `/api/auth/login` | — | deprecated password compatibility endpoint |
 | POST | `/api/auth/logout` | Session | clear the web session + cookie |
 | GET | `/api/auth/me` | Session | current web identity |
 | POST | `/api/auth/device/register` | — | create an account and bind its first browser key |
@@ -183,7 +176,7 @@ Web admin JSON APIs (require an authenticated session):
 - `src/config.rs` — env-based configuration.
 - `migrations/` — versioned MySQL schema.
 - `src/db.rs` — MySQL pool, migration runner, and seed data.
-- `src/auth.rs` — WeChat, password and device credentials, sessions, and the `AuthUser` extractor.
+- `src/auth.rs` — WeChat and device credentials, sessions, and the `AuthUser` extractor.
 - `src/handlers.rs` — app route handlers and JSON DTOs.
 - `src/admin.rs` — web admin pages + admin-scoped `/api/*` handlers.
 - `src/error.rs` — error → HTTP mapping.

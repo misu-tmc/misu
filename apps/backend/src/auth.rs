@@ -192,12 +192,6 @@ fn cloud_openid(headers: &HeaderMap) -> Option<String> {
         .map(str::to_owned)
 }
 
-#[derive(Deserialize)]
-pub struct WebLoginReq {
-    pub username: String,
-    pub password: String,
-}
-
 fn secure_attr(secure: bool) -> &'static str {
     if secure {
         "; Secure"
@@ -277,34 +271,6 @@ mod tests {
         assert!(normalize_required_field("   ", "display name").is_err());
         assert!(normalize_required_field(&"x".repeat(256), "display name").is_err());
     }
-}
-
-pub async fn auth_login(
-    axum::extract::State(state): axum::extract::State<AppState>,
-    Json(req): Json<WebLoginReq>,
-) -> AppResult<Response> {
-    let username = req.username.trim();
-    if username.is_empty() || req.password.is_empty() {
-        return Err(AppError::BadRequest(
-            "username and password are required".into(),
-        ));
-    }
-    let (user_id, display_name, club_name) = verify_web_login(&state.pool, username, &req.password)
-        .await?
-        .ok_or(AppError::Unauthorized)?;
-
-    let token = create_session(&state.pool, user_id).await?;
-    let mut resp = Json(json!({
-        "user": { "id": user_id, "display_name": display_name, "club_name": club_name }
-    }))
-    .into_response();
-    resp.headers_mut().insert(
-        SET_COOKIE,
-        session_cookie(&token, state.config.secure_cookies())
-            .parse()
-            .unwrap(),
-    );
-    Ok(resp)
 }
 
 pub async fn auth_logout(
@@ -660,99 +626,6 @@ pub async fn auth_device_migrate(
     transaction.commit().await?;
 
     device_login_response(&state, user.0, user.1, user.2).await
-}
-
-// ---------------------------------------------------------------------------
-// Web (username/password) provider
-// ---------------------------------------------------------------------------
-
-/// Hash a plaintext password for storage.
-pub fn hash_password(password: &str) -> Result<String, AppError> {
-    bcrypt::hash(password, bcrypt::DEFAULT_COST)
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("password hash failed: {e}")))
-}
-
-/// Verify a plaintext password against a stored bcrypt hash.
-fn verify_password(password: &str, hash: &str) -> bool {
-    bcrypt::verify(password, hash).unwrap_or(false)
-}
-
-/// Verify a web login. Returns `(user_id, display_name, club_name)` on success, `None`
-/// on any mismatch (unknown username or wrong password — indistinguishable to the caller).
-pub async fn verify_web_login(
-    pool: &MySqlPool,
-    username: &str,
-    password: &str,
-) -> Result<Option<(i64, String, Option<String>)>, AppError> {
-    let row = sqlx::query_as::<_, (i64, String, Option<String>, String)>(
-        "SELECT u.id, u.display_name, u.club_name, c.password_hash FROM web_credential c \
-         JOIN user u ON u.id = c.user_id WHERE c.username = ?",
-    )
-    .bind(username)
-    .fetch_optional(pool)
-    .await?;
-
-    Ok(match row {
-        Some((id, name, club_name, hash)) if verify_password(password, &hash) => {
-            Some((id, name, club_name))
-        }
-        _ => None,
-    })
-}
-
-/// Create a web user with a username/password credential. Returns the new `user.id`.
-pub async fn create_web_user(
-    pool: &MySqlPool,
-    username: &str,
-    password: &str,
-    display_name: &str,
-) -> Result<i64, AppError> {
-    let hash = hash_password(password)?;
-    let user_id = sqlx::query("INSERT INTO user(display_name) VALUES (?)")
-        .bind(display_name)
-        .execute(pool)
-        .await?
-        .last_insert_id() as i64;
-    sqlx::query("INSERT INTO web_credential(username, user_id, password_hash) VALUES (?, ?, ?)")
-        .bind(username)
-        .bind(user_id)
-        .bind(hash)
-        .execute(pool)
-        .await?;
-    Ok(user_id)
-}
-
-/// Update the stored password for an existing web credential. Returns the credential's
-/// `user.id`. Errors if no credential exists for the username.
-pub async fn set_web_password(
-    pool: &MySqlPool,
-    username: &str,
-    password: &str,
-) -> Result<i64, AppError> {
-    let user_id: Option<i64> =
-        sqlx::query_scalar("SELECT user_id FROM web_credential WHERE username = ?")
-            .bind(username)
-            .fetch_optional(pool)
-            .await?;
-    let user_id = user_id.ok_or_else(|| {
-        AppError::Internal(anyhow::anyhow!("web credential '{username}' not found"))
-    })?;
-    let hash = hash_password(password)?;
-    sqlx::query("UPDATE web_credential SET password_hash = ? WHERE username = ?")
-        .bind(hash)
-        .bind(username)
-        .execute(pool)
-        .await?;
-    Ok(user_id)
-}
-
-/// Whether a web credential already exists for a username.
-pub async fn web_username_exists(pool: &MySqlPool, username: &str) -> Result<bool, AppError> {
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM web_credential WHERE username = ?")
-        .bind(username)
-        .fetch_one(pool)
-        .await?;
-    Ok(count > 0)
 }
 
 /// Delete a session by its token (logout).

@@ -11,16 +11,12 @@ pub struct Config {
     pub db_name: String,
     pub wechat_appid: Option<String>,
     pub wechat_secret: Option<String>,
-    /// Bootstrap web admin credentials (username/password). When set, a web admin user is
-    /// created on startup if the username does not already exist.
-    pub seed_web_admin_user: Option<String>,
-    pub seed_web_admin_password: Option<String>,
     /// Directory holding static assets (logos, QR codes, print images).
     pub static_dir: String,
     /// Directory holding the standalone SPA files served under `/app`.
     pub spa_dir: String,
     /// Explicit DEV auth toggle (`MISU_DEV_MODE`). When on, WeChat `code` is treated as
-    /// a fake openid and the fallback web admin is seeded. Never enable in production.
+    /// a fake openid. Never enable in production.
     dev_mode: bool,
     /// Whether web session cookies include the `Secure` attribute.
     secure_cookies: bool,
@@ -63,8 +59,6 @@ impl Config {
             db_name: non_empty("MISU_DB_NAME").unwrap_or_else(|| "misu".to_string()),
             wechat_appid: non_empty("WECHAT_APPID"),
             wechat_secret: non_empty("WECHAT_SECRET"),
-            seed_web_admin_user: non_empty("MISU_WEB_ADMIN_USER"),
-            seed_web_admin_password: non_empty("MISU_WEB_ADMIN_PASSWORD"),
             static_dir: non_empty("MISU_STATIC_DIR").unwrap_or_else(|| "static".to_string()),
             spa_dir: non_empty("MISU_SPA_DIR").unwrap_or_else(|| "../spa/dist".to_string()),
             secure_cookies: optional_env_bool("MISU_COOKIE_SECURE").unwrap_or(!dev_mode),

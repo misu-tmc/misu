@@ -1,0 +1,95 @@
+name: Publish container image
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+  actions: write
+
+concurrency:
+  group: publish-ghcr-master
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      has_new_commits: ${{ steps.compare.outputs.has_new_commits }}
+    steps:
+      - name: Compare master against the last successful publish
+        id: compare
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "publish-ghcr.yml",
+              status: "success",
+              per_page: 1,
+            });
+            const { data: master } = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: "master",
+            });
+            const lastBuiltSha = runs.workflow_runs[0]?.head_sha;
+            const hasNewCommits = lastBuiltSha !== master.commit.sha;
+            core.info(
+              `master is at ${master.commit.sha}; last successful publish built ${lastBuiltSha ?? "(none)"}`,
+            );
+            core.setOutput("has_new_commits", hasNewCommits);
+
+  publish:
+    needs: check
+    if: needs.check.outputs.has_new_commits == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate tag list
+        run: |
+          echo "TAGS<<EOF" >> "$GITHUB_ENV"
+          # OCI image names must be lowercase; GitHub owner/repo casing varies.
+          IMAGE_NAME_LC="${IMAGE_NAME,,}"
+          DATE="$(date +'%Y%m%d')"
+
+          echo "${IMAGE_NAME_LC}:latest" >> "$GITHUB_ENV"
+          echo "${IMAGE_NAME_LC}:${DATE}.${RUN_ID}" >> "$GITHUB_ENV"
+          echo "${IMAGE_NAME_LC}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+          echo "EOF" >> "$GITHUB_ENV"
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          RUN_ID: ${{ github.run_id }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: apps
+          file: apps/Dockerfile
+          push: true
+          tags: ${{ env.TAGS }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

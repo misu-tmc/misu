@@ -710,7 +710,10 @@ body.editor-detail-layout #page { padding-bottom: 0; }
   border: 1px solid #f0f0f2; border-radius: 8px; background: #fff;
   transition: box-shadow .18s, opacity .18s, transform .18s;
 }
-.editor-row.dragging { z-index: 5; opacity: .96; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.editor-row.dragging {
+  z-index: 5; opacity: .96; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  transition: none; will-change: transform;
+}
 .drag-handle {
   flex: 0 0 auto; width: auto; padding: 3px 0 0; border: 0;
   background: transparent; color: #b9b9c0; font: 500 17px/1 var(--font);

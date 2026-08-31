@@ -227,42 +227,106 @@ export function EditorPage({ params }) {
     });
   }
 
-  function startDrag(type, index, event) {
+  // A neighbour only takes the dragged row's place once the pointer crosses its
+  // middle, so a row never flips back and forth while the pointer rests on an edge.
+  function dragTargetIndex(drag) {
+    const rows = Array.from(document.querySelectorAll(`[data-drag-type="${drag.type}"]`));
+    let target = drag.index;
+    for (let index = 0; index < rows.length; index += 1) {
+      if (index === drag.index) continue;
+      const rect = rows[index].getBoundingClientRect();
+      const middle = rect.top + rect.height / 2;
+      if (index < drag.index) {
+        if (drag.clientY < middle) return index;
+      } else if (drag.clientY > middle) {
+        target = index;
+      }
+    }
+    return target;
+  }
+
+  function updateDrag() {
+    const drag = dragRef.current;
+    if (!drag) return;
+    drag.frame = 0;
+    const edge = 84;
+    if (drag.clientY < edge) window.scrollBy({ top: -18, behavior: 'auto' });
+    else if (drag.clientY > window.innerHeight - edge) window.scrollBy({ top: 18, behavior: 'auto' });
+    // Keep the row glued to the pointer. Measuring the live position and undoing
+    // the offset already applied re-bases the row after every reorder or scroll.
+    if (drag.node?.isConnected) {
+      const baseTop = drag.node.getBoundingClientRect().top - drag.offset;
+      drag.offset = drag.clientY - drag.grabOffset - baseTop;
+      drag.node.style.transform = `translateY(${drag.offset}px)`;
+    }
+    const targetIndex = dragTargetIndex(drag);
+    if (targetIndex === drag.index) return;
+    const fromIndex = drag.index;
+    drag.index = targetIndex;
+    moveEditorItem(drag.type, fromIndex, targetIndex);
+  }
+
+  function startDrag(type, index, key, event) {
     event.preventDefault();
     event.stopPropagation();
-    try {
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-    } catch (_) {
-      // Pointer capture is an enhancement; elementFromPoint reordering still works.
-    }
-    dragRef.current = { type, index, pointerId: event.pointerId };
-    setDragging({ type, index });
+    const node = event.currentTarget.closest(`[data-drag-type="${type}"]`);
+    const rowTop = node?.getBoundingClientRect().top ?? event.clientY;
+    dragRef.current = {
+      type,
+      key,
+      index,
+      node,
+      pointerId: event.pointerId,
+      clientY: event.clientY,
+      grabOffset: event.clientY - rowTop,
+      offset: 0,
+      frame: 0
+    };
+    setDragging({ type, key });
     if (type === 'role') setExpandedRole(null);
     else setExpandedSession(null);
   }
 
-  function moveDrag(type, event) {
+  function trackDrag(event) {
     const drag = dragRef.current;
-    if (!drag || drag.type !== type || drag.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    const edge = 84;
-    if (event.clientY < edge) window.scrollBy({ top: -18, behavior: 'auto' });
-    else if (event.clientY > window.innerHeight - edge) window.scrollBy({ top: 18, behavior: 'auto' });
-    const target = document
-      .elementFromPoint(event.clientX, event.clientY)
-      ?.closest(`[data-drag-type="${type}"]`);
-    const targetIndex = Number(target?.dataset.index);
-    if (!Number.isInteger(targetIndex) || targetIndex === drag.index) return;
-    moveEditorItem(type, drag.index, targetIndex);
-    drag.index = targetIndex;
-    setDragging({ type, index: targetIndex });
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    // A mouse released outside the window never delivers pointerup, so a move
+    // without a pressed button ends the drag instead of leaving the row stuck.
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+      endDrag(event);
+      return;
+    }
+    if (event.cancelable) event.preventDefault();
+    drag.clientY = event.clientY;
+    if (drag.frame) return;
+    drag.frame = window.requestAnimationFrame(updateDrag);
   }
 
   function endDrag(event) {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag.frame) window.cancelAnimationFrame(drag.frame);
+    if (drag.node) drag.node.style.transform = '';
     dragRef.current = null;
     setDragging(null);
   }
+
+  // Reordering moves the row element, which drops its pointer capture, so the
+  // gesture is followed on the document instead of on the drag handle itself.
+  // The handlers only read refs and state setters, so the pair registered for
+  // the lifetime of a drag stays correct across the renders a reorder causes.
+  useEffect(() => {
+    if (!dragging) return undefined;
+    document.addEventListener('pointermove', trackDrag, { passive: false });
+    document.addEventListener('pointerup', endDrag);
+    document.addEventListener('pointercancel', endDrag);
+    return () => {
+      document.removeEventListener('pointermove', trackDrag);
+      document.removeEventListener('pointerup', endDrag);
+      document.removeEventListener('pointercancel', endDrag);
+      if (dragRef.current?.frame) window.cancelAnimationFrame(dragRef.current.frame);
+    };
+  }, [dragging]);
 
   function startSwipe(type, index, event) {
     if (event.pointerType === 'mouse') return;
@@ -617,11 +681,11 @@ export function EditorPage({ params }) {
               {meeting.role_slots.map((slot, index) => {
                 const key = roleKey(slot, index);
                 const expanded = expandedRole === key;
-                const isDragging = dragging?.type === 'role' && dragging.index === index;
+                const isDragging = dragging?.type === 'role' && dragging.key === key;
                 const isSwiped = swipedRow?.type === 'role' && swipedRow.index === index;
                 return (
                   <article class={`editor-row ${expanded ? 'expanded' : ''} ${isDragging ? 'dragging' : ''} ${isSwiped ? 'swiped' : ''}`} key={key} data-drag-type="role" data-index={index}>
-                    <button class="drag-handle" type="button" aria-label={`Drag role ${index + 1}`} onPointerDown={(event) => startDrag('role', index, event)} onPointerMove={(event) => moveDrag('role', event)} onPointerUp={endDrag} onPointerCancel={endDrag}>⋮⋮</button>
+                    <button class="drag-handle" type="button" aria-label={`Drag role ${index + 1}`} onPointerDown={(event) => startDrag('role', index, key, event)}>⋮⋮</button>
                     <div class="editor-row-main" onPointerDown={(event) => startSwipe('role', index, event)} onPointerUp={(event) => endSwipe('role', index, event)} onPointerCancel={() => { swipeRef.current = null; }}>
                       <button class="row-expand-button" type="button" aria-expanded={expanded} onClick={() => toggleEditorRow('role', key)}>
                         <span class="row-summary-copy"><strong>{slot.role_name || slot.custom_label || slot.label || 'New role'}</strong><small>Assignee: {slot.taker_name || '—'}</small></span>
@@ -662,12 +726,12 @@ export function EditorPage({ params }) {
               {meeting.sessions.map((session, index) => {
                 const key = sessionKey(session, index);
                 const expanded = expandedSession === key;
-                const isDragging = dragging?.type === 'session' && dragging.index === index;
+                const isDragging = dragging?.type === 'session' && dragging.key === key;
                 const isSwiped = swipedRow?.type === 'session' && swipedRow.index === index;
                 const role = meeting.role_slots.find((slot) => slot._key === session._role_slot_key || slot.id === session.role_slot_id);
                 return (
                   <article class={`editor-row ${expanded ? 'expanded' : ''} ${isDragging ? 'dragging' : ''} ${isSwiped ? 'swiped' : ''}`} key={key} data-drag-type="session" data-index={index}>
-                    <button class="drag-handle" type="button" aria-label={`Drag session ${index + 1}`} onPointerDown={(event) => startDrag('session', index, event)} onPointerMove={(event) => moveDrag('session', event)} onPointerUp={endDrag} onPointerCancel={endDrag}>⋮⋮</button>
+                    <button class="drag-handle" type="button" aria-label={`Drag session ${index + 1}`} onPointerDown={(event) => startDrag('session', index, key, event)}>⋮⋮</button>
                     <div class="editor-row-main" onPointerDown={(event) => startSwipe('session', index, event)} onPointerUp={(event) => endSwipe('session', index, event)} onPointerCancel={() => { swipeRef.current = null; }}>
                       <button class="row-expand-button" type="button" aria-expanded={expanded} onClick={() => toggleEditorRow('session', key)}>
                         <span class="row-summary-copy"><strong><span class="session-start">{sessionStarts[index]}</span> {session.name || 'New session'}</strong><small>{session.duration_minutes}' · {role?.custom_label || role?.label || role?.role_name || '—'}</small></span>

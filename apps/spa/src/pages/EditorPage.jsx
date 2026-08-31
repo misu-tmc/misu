@@ -324,6 +324,7 @@ export function EditorPage({ params }) {
       document.removeEventListener('pointermove', trackDrag);
       document.removeEventListener('pointerup', endDrag);
       document.removeEventListener('pointercancel', endDrag);
+      if (dragRef.current?.frame) window.cancelAnimationFrame(dragRef.current.frame);
     };
   }, [dragging]);
 

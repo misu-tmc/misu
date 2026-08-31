@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assignCatalogRole, assignRoleUser, assignTopicUser, buildSessionsPayload, buildUpsertPayload, cloneAsTemplate, reorderItem, splitMeeting } from './editorModel.js';
+import { assignCatalogRole, assignRoleUser, assignTopicUser, buildSessionsPayload, buildUpsertPayload, cloneAsTemplate, emptyMeeting, reorderItem, splitMeeting } from './editorModel.js';
 
 const meeting = {
   id: 9, number: 10, title: 'Meeting', theme: '', keyword: '', date: '2026-08-01',
@@ -12,6 +12,10 @@ const meeting = {
 };
 
 describe('editor model', () => {
+  it('uses an unnumbered title for a blank meeting', () => {
+    expect(emptyMeeting(146).title).toBe('Regular Meeting');
+  });
+
   it('maps role slot IDs to positional indexes only for whole-document upserts', () => {
     const payload = buildUpsertPayload(meeting);
     expect(payload.sessions[0].role_slot_index).toBe(1);
@@ -23,9 +27,12 @@ describe('editor model', () => {
   });
 
   it('clears identities and advances date when cloning a meeting', () => {
-    const cloned = cloneAsTemplate(meeting);
+    const cloned = cloneAsTemplate({ ...meeting, theme: 'Previous theme', keyword: 'Previous keyword' });
     expect(cloned.id).toBeNull();
     expect(cloned.number).toBe(11);
+    expect(cloned.title).toBe('Meeting');
+    expect(cloned.theme).toBe('');
+    expect(cloned.keyword).toBe('');
     expect(cloned.date).toBe('2026-08-15');
     expect(cloned.role_slots[0].id).toBeNull();
     expect(buildUpsertPayload(cloned).sessions[0].role_slot_index).toBe(1);

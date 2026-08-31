@@ -169,4 +169,21 @@ describe('EditorPage accessible row delete controls', () => {
     fireEvent(rowMain, new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 2, clientX: 90, clientY: 20 }));
     await waitFor(() => expect(getRow().classList.contains('swiped')).toBe(false));
   });
+
+  it('renders editable native date and time fields without transparent picker overlays', async () => {
+    window.history.replaceState({}, '', '/app/meetings/42/edit?tab=info');
+    render(<EditorPage params={{ id: '42' }} />);
+
+    const date = await screen.findByLabelText('Date');
+    const start = screen.getByLabelText('Start');
+    const end = screen.getByLabelText('End');
+
+    fireEvent.input(date, { target: { value: '2026-08-15' } });
+    fireEvent.input(start, { target: { value: '18:30' } });
+    fireEvent.input(end, { target: { value: '20:30' } });
+
+    expect(date.value).toBe('2026-08-15');
+    expect(start.value).toBe('18:30');
+    expect(end.value).toBe('20:30');
+  });
 });

@@ -173,7 +173,12 @@ describe('EditorPage accessible row delete controls', () => {
 
 const ROW_TOP = 200;
 const ROW_HEIGHT = 40;
+const GRAB_OFFSET = 10;
 const EMPTY_RECT = { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) };
+
+// The row is held `GRAB_OFFSET` below its own top, so it trails the pointer by
+// exactly that much wherever its layout slot currently is.
+const shiftAfterMoving = (distance) => `translateY(${distance - GRAB_OFFSET}px)`;
 
 // jsdom has no layout, so lay the rows out on a virtual grid that follows the
 // live DOM order and the applied transform, the way a browser would measure it.
@@ -236,7 +241,7 @@ describe('EditorPage row reordering', () => {
       .map((node) => node.textContent);
     const row = container.querySelector('[data-drag-type="role"]');
     fireEvent(row.querySelector('.drag-handle'), new PointerEvent('pointerdown', {
-      bubbles: true, cancelable: true, pointerType: 'touch', pointerId: 7, clientY: ROW_TOP + 10
+      bubbles: true, cancelable: true, pointerType: 'touch', pointerId: 7, clientY: ROW_TOP + GRAB_OFFSET
     }));
     await waitFor(() => expect(row.classList.contains('dragging')).toBe(true));
     return { flushFrames, order, row };
@@ -256,12 +261,13 @@ describe('EditorPage row reordering', () => {
     movePointer(ROW_TOP + 65);
     await flushFrames();
     expect(order()).toEqual(['Chair', 'Timer', 'Grammarian']);
-    expect(row.style.transform).toBe('translateY(55px)');
+    expect(row.style.transform).toBe(shiftAfterMoving(65));
 
     movePointer(ROW_TOP + 105);
     await flushFrames();
     expect(order()).toEqual(['Chair', 'Grammarian', 'Timer']);
-    expect(row.style.transform).toBe('translateY(55px)');
+    // The row already sits one slot lower, so its visible offset drops by a row.
+    expect(row.style.transform).toBe(shiftAfterMoving(105 - ROW_HEIGHT));
 
     fireEvent(document, new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 7, clientY: ROW_TOP + 105 }));
     await waitFor(() => expect(row.classList.contains('dragging')).toBe(false));
@@ -276,7 +282,7 @@ describe('EditorPage row reordering', () => {
     movePointer(ROW_TOP + 50);
     await flushFrames();
     expect(order()).toEqual(['Timer', 'Chair', 'Grammarian']);
-    expect(row.style.transform).toBe('translateY(40px)');
+    expect(row.style.transform).toBe(shiftAfterMoving(50));
 
     movePointer(ROW_TOP + 61);
     await flushFrames();

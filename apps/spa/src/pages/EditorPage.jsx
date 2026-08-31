@@ -313,6 +313,8 @@ export function EditorPage({ params }) {
 
   // Reordering moves the row element, which drops its pointer capture, so the
   // gesture is followed on the document instead of on the drag handle itself.
+  // The handlers only read refs and state setters, so the pair registered for
+  // the lifetime of a drag stays correct across the renders a reorder causes.
   useEffect(() => {
     if (!dragging) return undefined;
     document.addEventListener('pointermove', trackDrag, { passive: false });

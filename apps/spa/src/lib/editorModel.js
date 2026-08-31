@@ -8,7 +8,7 @@ export function emptyMeeting(number = 1) {
     theme: '',
     keyword: '',
     date: '',
-    start_time: '19:00',
+    start_time: '18:45',
     end_time: '19:00',
     venue: '',
     status: 'draft',

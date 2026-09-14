@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { mainSlidesMeeting as meeting } from '../test/fixtures/mainSlidesMeeting.js';
 import template from './mainSlidesTemplate.json';
 import { buildMainSlidePlan } from './agendaSlides.js';
-import { buildMainAgendaSlides } from './slides.js';
+import { buildMainAgendaSlides, fitSlideParagraph } from './slides.js';
 import { buildMainAgendaPptx, mainAgendaPptxFilename } from './pptxTemplate.js';
 
 const P = 'http://schemas.openxmlformats.org/presentationml/2006/main';
@@ -150,6 +150,27 @@ describe('reference PowerPoint generation', () => {
     expect(allText).not.toContain('Warmup Host');
     expect(fields(await xml(result, parts[parts.length - 2]))['appreciation.photographer']).toEqual(['Photographer', 'TBD']);
     expect(await slideParts(await generate({ ...changed, sessions: [] }))).toHaveLength(21);
+  }, 30000);
+
+  it('fits wide bold titles on their own line above the presenter', async () => {
+    const title = 'Women empowering women in our community';
+    const style = template.slides[24].fields[0].paragraphs[0];
+    const fontSize = fitSlideParagraph(title, style);
+    expect(fontSize).toBeLessThan(44);
+    expect(fontSize).toBeGreaterThanOrEqual(40);
+    // Chromium measures this bold Arial title at 974.5957px at 44px.
+    expect(974.5957 * fontSize / 44).toBeLessThan(style.width);
+    expect(fitSlideParagraph(title, { ...style, bold: false })).toBe(44);
+    const changed = {
+      ...meeting,
+      role_slots: meeting.role_slots.map((slot) => slot.id === 6 ? { ...slot, speech: { title } } : slot)
+    };
+    const result = await generate(changed);
+    const parts = await slideParts(result);
+    const doc = await xml(result, parts[24]);
+    const shape = Array.from(doc.getElementsByTagNameNS(P, 'sp')).find((node) => node.getElementsByTagNameNS(P, 'cNvPr')[0]?.getAttribute('name') === 'MISU_FIELD:session');
+    expect(Number(shape.getElementsByTagNameNS(A, 'rPr')[0].getAttribute('sz'))).toBe(fontSize * 100);
+    expect(buildMainAgendaSlides(changed)[24].text[0].fontSize).toBe(fontSize);
   }, 30000);
 
   it('rejects invalid templates and makes safe meeting-specific filenames', async () => {

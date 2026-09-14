@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       has_new_commits: ${{ steps.compare.outputs.has_new_commits }}
+      sha: ${{ steps.compare.outputs.sha }}
     steps:
       - name: Compare master against the last successful publish
         id: compare
@@ -46,17 +47,30 @@ jobs:
               `master is at ${master.commit.sha}; last successful publish built ${lastBuiltSha ?? "(none)"}`,
             );
             core.setOutput("has_new_commits", hasNewCommits);
+            core.setOutput("sha", master.commit.sha);
 
-  publish:
+  build:
     needs: check
     if: needs.check.outputs.has_new_commits == 'true'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          ref: master
+          ref: ${{ needs.check.outputs.sha }}
+
+      - name: Prepare image name
+        id: image
+        run: echo "name=${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -68,29 +82,70 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate tag list
-        run: |
-          echo "TAGS<<EOF" >> "$GITHUB_ENV"
-          # OCI image names must be lowercase; GitHub owner/repo casing varies.
-          IMAGE_NAME_LC="${IMAGE_NAME,,}"
-          DATE="$(date +'%Y%m%d')"
-
-          echo "${IMAGE_NAME_LC}:latest" >> "$GITHUB_ENV"
-          echo "${IMAGE_NAME_LC}:${DATE}.${RUN_ID}" >> "$GITHUB_ENV"
-          echo "${IMAGE_NAME_LC}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
-
-          echo "EOF" >> "$GITHUB_ENV"
-        env:
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          RUN_ID: ${{ github.run_id }}
-
-      - name: Build and push image
+      - name: Build and push image by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: apps
           file: apps/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ env.TAGS }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=misu-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=misu-${{ matrix.arch }}
+
+      - name: Export image digest
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          printf '%s\n' "$DIGEST" > "$RUNNER_TEMP/digests/$ARCH"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          ARCH: ${{ matrix.arch }}
+
+      - name: Upload image digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+
+  publish:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download image digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-platform manifest
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          # OCI image names must be lowercase; GitHub owner/repo casing varies.
+          IMAGE_NAME_LC="${IMAGE_NAME,,}"
+          DATE="$(date +'%Y%m%d')"
+          AMD64_DIGEST="$(cat amd64)"
+          ARM64_DIGEST="$(cat arm64)"
+
+          docker buildx imagetools create \
+            --tag "${IMAGE_NAME_LC}:latest" \
+            --tag "${IMAGE_NAME_LC}:${DATE}.${RUN_ID}" \
+            --tag "${IMAGE_NAME_LC}:sha-${SOURCE_SHA}" \
+            "${IMAGE_NAME_LC}@${AMD64_DIGEST}" \
+            "${IMAGE_NAME_LC}@${ARM64_DIGEST}"
+
+          docker buildx imagetools inspect "${IMAGE_NAME_LC}:sha-${SOURCE_SHA}"
+        env:
+          RUN_ID: ${{ github.run_id }}
+          SOURCE_SHA: ${{ needs.check.outputs.sha }}

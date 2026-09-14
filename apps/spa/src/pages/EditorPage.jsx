@@ -635,6 +635,7 @@ export function EditorPage({ params }) {
         </div>
         <div class="editor-heading-actions">
           {meeting.id && <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meeting.id}/agenda`} target="_blank" rel="noreferrer">Printed agenda</a>}
+          {meeting.id && <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meeting.id}/slides`} target="_blank" rel="noreferrer" title="Uses saved meeting data">Main slides<span class="sr-only"> (opens in a new tab)</span></a>}
           <span class={`editor-status editor-status-${meeting.status}`}>{meeting.status}</span>
           <button class={`btn editor-publish-button ${meeting.status === 'published' ? 'published' : ''}`} type="button" disabled={saving} onClick={togglePublish}>{meeting.status === 'published' ? 'Unpublish' : 'Publish'}</button>
         </div>

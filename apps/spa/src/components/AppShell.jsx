@@ -7,7 +7,7 @@ function isMeetingDetail(location) {
 }
 
 function isMeetingWorkspace(location) {
-  return /^\/app\/meetings\/(?:new|\d+\/(?:edit|agenda))\/?$/.test(location);
+  return /^\/app\/meetings\/(?:new|\d+\/(?:edit|agenda|slides))\/?$/.test(location);
 }
 
 function belongsToMeetingTab(location) {

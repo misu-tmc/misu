@@ -1,0 +1,27 @@
+.main-slides-layout #page { max-width: 1480px; }
+.main-slides { padding: 12px; }
+.main-slides-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.main-slides-meeting { margin: 16px 0 4px; font-size: 22px; }
+.main-slides-hint { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+.main-slides-surface { width: 100%; background: #073946; color: #fff; }
+.reference-slide { position: relative; width: 100%; aspect-ratio: 16 / 9; container-type: inline-size; }
+.reference-slide-background { display: block; width: 100%; height: 100%; }
+.reference-slide-text { position: absolute; margin: 0; padding: 0; line-height: 1.2; white-space: pre-line; overflow-wrap: anywhere; }
+.reference-slide-portrait { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #d9e8ee; color: #073946; font-family: Arial, sans-serif; font-weight: 700; }
+.main-slides-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; }
+.main-slides-controls p { margin: 0; text-align: center; font-size: 13px; }
+.main-slides-controls button { min-height: 44px; padding: 8px 12px; color: #073946; background: #fff; border: 1px solid #fff; border-radius: 4px; cursor: pointer; }
+.main-slides-controls button:disabled { opacity: 0.5; cursor: default; }
+.main-slides-controls button:focus-visible { outline: 3px solid #feee9f; outline-offset: 2px; }
+.main-slides-transcript { margin-top: 12px; white-space: pre-line; }
+.main-slides-transcript summary { cursor: pointer; padding: 8px 0; }
+.main-slides-surface:fullscreen { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; }
+.main-slides-surface:fullscreen .reference-slide { width: min(100vw, calc((100vh - 68px) * 16 / 9)); flex-shrink: 0; }
+.main-slides-surface:fullscreen .main-slides-controls { align-self: stretch; min-height: 52px; }
+@media (min-width: 760px) {
+  .main-slides { padding: 24px; }
+  .main-slides-controls p { font-size: 16px; }
+}
+@media print {
+  .main-slides-toolbar, .main-slides-hint, .main-slides-controls, .main-slides-transcript { display: none; }
+}

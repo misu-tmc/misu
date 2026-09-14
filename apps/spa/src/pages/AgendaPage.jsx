@@ -146,6 +146,7 @@ export function AgendaPage({ params }) {
       <div class="print-agenda-page">
         <div class="print-agenda-toolbar no-print">
           <Link class="btn btn-ghost btn-sm" href={`/app/meetings/${meetingId}/edit`}>Editor</Link>
+          <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meetingId}/slides`} target="_blank" rel="noreferrer">Main slides<span class="sr-only"> (opens in a new tab)</span></a>
           <button class="btn btn-secondary btn-sm" type="button" onClick={() => window.print()}>Save PDF</button>
           <button class="btn btn-primary btn-sm" type="button" disabled={exporting} onClick={savePngs}>{exporting ? 'Saving…' : 'Save PNGs'}</button>
         </div>

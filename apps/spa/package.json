@@ -13,16 +13,17 @@
     "validate": "npm run test && npm run build && npm run validate:dist"
   },
   "dependencies": {
-    "preact": "^10.26.9",
     "@preact/signals": "^2.2.1",
     "html-to-image": "^1.11.13",
+    "jszip": "^3.10.1",
+    "preact": "^10.26.9",
     "wouter-preact": "^3.7.1"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.2",
     "@testing-library/preact": "^3.2.4",
     "jsdom": "^26.1.0",
-    "vitest": "^3.2.4",
-    "vite": "^7.1.2"
+    "vite": "^7.1.2",
+    "vitest": "^3.2.4"
   }
 }

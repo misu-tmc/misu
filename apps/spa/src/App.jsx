@@ -8,6 +8,7 @@ import { authReady, authUser } from './state/auth.js';
 import { BookingPage } from './pages/BookingPage.jsx';
 import { AboutPage } from './pages/AboutPage.jsx';
 import { AgendaPage } from './pages/AgendaPage.jsx';
+import { SlidesPage } from './pages/SlidesPage.jsx';
 import { CheckinPage } from './pages/CheckinPage.jsx';
 import { EditorPage } from './pages/EditorPage.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
@@ -79,6 +80,7 @@ function ProtectedApp() {
         <Route path="/app/meetings/new" component={EditorPage} />
         <Route path="/app/meetings/:id/edit" component={EditorPage} />
         <Route path="/app/meetings/:id/agenda" component={AgendaPage} />
+        <Route path="/app/meetings/:id/slides" component={SlidesPage} />
         <Route path="/app/meetings/:id" component={MeetingPage} />
         <Route path="/app/users"><Redirect to="/app/misu/users" /></Route>
         <Route component={NotFoundPage} />

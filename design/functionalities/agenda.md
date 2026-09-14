@@ -15,9 +15,72 @@ Outputs:
 - **Viewing version**: plain responsive HTML, friendly to mobile devices.
 - **Printing version**: a single-sided A4 agenda, implemented as HTML/CSS as one printable
 	page.
+- **Main slides**: an editable PowerPoint deck and browser preview using the original
+	MISU main-slide layouts.
 
 The agenda is draft by default and can be viewed/edited by any signed-in user. It is
 published when ready; after publishing, any signed-in user may still edit it.
+
+## Main Slides
+
+The editor and printed agenda link to `/app/meetings/:id/slides`. The page previews the
+saved meeting and downloads `MISU Main Agenda <number>.pptx`. Downloading reloads the
+meeting so newly saved sessions and assignments are included.
+
+The template is derived from **Main Slides MISU 20260831.pptx**, not a reconstruction of
+its design. The 39 source layouts retain their native text paragraphs, artwork, masters,
+portraits, QR codes, notes, transitions and animated media. Static club information and
+officer teams remain as supplied in that reference; they are not meeting role assignments.
+The original cover is unchanged, with meeting metadata shown in the browser toolbar and
+PowerPoint document properties.
+
+Generation uses the same agenda derivation as the printed agenda:
+
+- Sessions follow saved position order, with unassigned optional roles omitted.
+- Prepared speeches use their agenda override or speech title and assigned speaker.
+- Warm Up precedes the club introduction when scheduled that way. An explicit club/TM
+  introduction or Opening Remarks session anchors the introduction block and supplies its
+  presenter; otherwise an introduction is inserted after the first warm-up session (or before
+  the agenda if no warm-up is scheduled), without
+  inventing an old presenter. Its updated date comes from the meeting.
+- Familiar facilitator, prepared-speech, table-topic and evaluation groups use their original
+  dividers, including single-session groups. Other multi-session groups receive one divider
+  unless their first session already supplies that heading.
+- Consecutive individual evaluations and consecutive facilitator reports are paired using
+  the original two-line layouts. Pairs never cross a group boundary. Odd counts leave the
+  unused line blank. Names are taken from the actual linked slots, never inferred from the
+  reference speakers or their order.
+- A generic Table Topics session uses the meeting theme; custom agenda titles are retained.
+- Social, voting, awarding and closing sessions use the matching reference layouts.
+  A scheduled closing is not followed by a second automatic Closing Remark.
+- Appreciation retains the **Meeting Manager** and **Photographer** labels while replacing
+  their assigned names. Required unassigned roles display **TBD**; sessions without a role
+  display **All**, except title-only divider layouts.
+  Reference headshots are retained only for their actual owners. Other assignees receive
+  initial-based placeholders in the same circular frames, rather than another person's photo.
+
+The generator clones only the pages required by the agenda, without a fixed session limit.
+It removes unused source pages, updates slide IDs and notes backlinks, validates internal
+relationships, preserves individual paragraph styling, and reduces oversized text to fit.
+Text that cannot fit legibly produces an explicit error rather than a clipped download.
+Always start from the immutable template, not a previously generated meeting deck.
+
+Browser previews use reference slide backgrounds with positioned dynamic text and share
+the PowerPoint slide plan. They support keyboard navigation, fullscreen and a readable
+slide transcript on mobile. The preview uses still backgrounds; the downloaded PowerPoint
+retains native animation and editable text.
+
+To rebuild the checked-in template and browser assets on Windows with PowerPoint installed:
+
+```powershell
+.\apps\spa\scripts\create-main-agenda-template.ps1 `
+  -SourcePath 'C:\path\Main Slides MISU 20260831.pptx' `
+  -OutputPath '.\apps\backend\static\main-slides\main-agenda-template.pptx'
+```
+
+The script also generates the preview PNGs and SPA layout manifest. The original reference
+file is never modified. Normal downloads run entirely in the browser using the checked-in
+assets and do not require PowerPoint or a server-side document conversion service.
 
 ## Print Agenda Design
 

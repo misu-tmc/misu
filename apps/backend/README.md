@@ -32,6 +32,18 @@ For frontend development, run `npm run dev` in `apps/spa`; Vite serves the app u
 production backend serves `apps/spa/dist` under `/app` and serves the same shell at
 `/login`.
 
+### Container publishing
+
+The scheduled/manual `.github/workflows/publish-ghcr.yml` workflow builds
+`apps/Dockerfile` for `linux/amd64` and `linux/arm64` on native GitHub-hosted runners
+(`ubuntu-24.04` and `ubuntu-24.04-arm`), avoiding emulated Rust compilation.
+Both builds use the same resolved `master` commit and separate architecture-scoped
+BuildKit caches, including the Dockerfile's compiled Rust dependency layer.
+After both builds succeed, their image digests are merged into one multi-platform
+image with the existing `latest`, `YYYYMMDD.RUN_ID`, and `sha-<built-commit>` tags.
+Verify the published platforms with
+`docker buildx imagetools inspect ghcr.io/misu-tmc/misu:latest`.
+
 ### Safari and local HTTPS
 
 Device-key sign-in uses Web Crypto and IndexedDB. Safari supports both, but phones only

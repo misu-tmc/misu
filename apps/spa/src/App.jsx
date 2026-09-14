@@ -75,6 +75,7 @@ function ProtectedApp() {
         <Route path="/app/me" component={MePage} />
         <Route path="/app/misu/about" component={AboutPage} />
         <Route path="/app/misu/users" component={UsersPage} />
+        <Route path="/app/misu/meetings"><MeetingListPage scope="all" /></Route>
         <Route path="/app/misu" component={MisuPage} />
         <Route path="/app/meetings/new" component={EditorPage} />
         <Route path="/app/meetings/:id/edit" component={EditorPage} />

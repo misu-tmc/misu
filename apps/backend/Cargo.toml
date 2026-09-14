@@ -21,3 +21,8 @@ dotenvy = "0.15"
 base64 = "0.22"
 p256 = { version = "0.13", features = ["ecdsa"] }
 sha2 = "0.10"
+argon2 = { version = "0.5", features = ["std"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

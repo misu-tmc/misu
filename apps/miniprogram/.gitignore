@@ -1,2 +1,3 @@
 # WeChat DevTools per-developer local settings
 project.private.config.json
+node_modules/

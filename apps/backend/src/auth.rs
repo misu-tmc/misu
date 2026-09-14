@@ -1,8 +1,9 @@
 use axum::{
     async_trait,
-    extract::{FromRef, FromRequestParts},
+    extract::{FromRef, FromRequestParts, Request, State},
     http::request::Parts,
-    http::{header::SET_COOKIE, HeaderMap},
+    http::{header::SET_COOKIE, HeaderMap, Method},
+    middleware::Next,
     response::{IntoResponse, Response},
     Json,
 };
@@ -27,6 +28,8 @@ pub struct AuthUser {
     #[allow(dead_code)]
     pub display_name: String,
     pub club_name: Option<String>,
+    pub email: Option<String>,
+    pub role: String,
 }
 
 #[async_trait]
@@ -38,11 +41,14 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        if let Some(user) = parts.extensions.get::<AuthUser>() {
+            return Ok(user.clone());
+        }
         let pool = MySqlPool::from_ref(state);
         let token = session_token(parts).ok_or(AppError::Unauthorized)?;
 
-        let row = sqlx::query_as::<_, (i64, String, Option<String>)>(
-            "SELECT u.id, u.display_name, u.club_name FROM auth_session s \
+        let row = sqlx::query_as::<_, UserResponse>(
+            "SELECT u.id, u.display_name, u.club_name, u.email, u.role FROM auth_session s \
              JOIN user u ON u.id = s.user_id WHERE s.token = ?",
         )
         .bind(&token)
@@ -50,14 +56,57 @@ where
         .await?;
 
         match row {
-            Some((id, display_name, club_name)) => Ok(AuthUser {
-                id,
-                display_name,
-                club_name,
+            Some(user) => Ok(AuthUser {
+                id: user.id,
+                display_name: user.display_name,
+                club_name: user.club_name,
+                email: user.email,
+                role: user.role,
             }),
             None => Err(AppError::Unauthorized),
         }
     }
+}
+
+impl From<AuthUser> for UserResponse {
+    fn from(user: AuthUser) -> Self {
+        Self {
+            id: user.id,
+            display_name: user.display_name,
+            club_name: user.club_name,
+            email: user.email,
+            role: user.role,
+        }
+    }
+}
+
+fn requires_editor(method: &Method, path: &str) -> bool {
+    !matches!(*method, Method::GET | Method::HEAD | Method::OPTIONS)
+        && !path.starts_with("/api/auth/")
+}
+
+fn ensure_editor(role: &str) -> AppResult<()> {
+    if role == "editor" {
+        Ok(())
+    } else {
+        Err(AppError::Forbidden("guest accounts are read-only".into()))
+    }
+}
+
+/// Default-deny all non-auth writes, including any future content routes.
+pub async fn content_write_guard(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> AppResult<Response> {
+    if !requires_editor(request.method(), request.uri().path()) {
+        return Ok(next.run(request).await);
+    }
+    let (mut parts, body) = request.into_parts();
+    let user = AuthUser::from_request_parts(&mut parts, &state).await?;
+    ensure_editor(&user.role)?;
+    parts.extensions.insert(user);
+    Ok(next.run(Request::from_parts(parts, body)).await)
 }
 
 // ---------------------------------------------------------------------------
@@ -159,28 +208,81 @@ pub async fn auth_wechat(
     axum::extract::State(state): axum::extract::State<AppState>,
     headers: HeaderMap,
     Json(req): Json<WechatLoginReq>,
-) -> AppResult<Json<LoginResp>> {
+) -> AppResult<Response> {
     if req.code.trim().is_empty() {
         return Err(AppError::BadRequest("missing code".into()));
     }
     // callContainer's private protocol injects a gateway-authenticated OpenID. Direct
     // HTTP/local requests do not have it and retain the jscode2session fallback.
-    let openid = match cloud_openid(&headers) {
+    let openid = match state
+        .config
+        .trust_wechat_gateway
+        .then(|| cloud_openid(&headers))
+        .flatten()
+    {
         Some(openid) => openid,
         None => resolve_openid(&state.config, req.code.trim()).await?,
     };
-    let (user_id, display_name, club_name, _created) =
-        upsert_wechat_user(&state.pool, &openid).await?;
+    let user_id =
+        sqlx::query_scalar::<_, i64>("SELECT user_id FROM wechat_identity WHERE openid = ?")
+            .bind(openid)
+            .fetch_optional(&state.pool)
+            .await?
+            .ok_or_else(|| {
+                AppError::Forbidden("register with email before linking WeChat".into())
+            })?;
+    login_response(&state, user_id).await
+}
 
-    let token = create_session(&state.pool, user_id).await?;
-    Ok(Json(LoginResp {
-        token,
-        user: UserResponse {
-            id: user_id,
-            display_name,
-            club_name,
-        },
-    }))
+pub async fn auth_wechat_link(
+    State(state): State<AppState>,
+    user: AuthUser,
+    headers: HeaderMap,
+    Json(req): Json<WechatLoginReq>,
+) -> AppResult<Response> {
+    if user.email.is_none() {
+        return Err(AppError::BadRequest(
+            "link an email before linking WeChat".into(),
+        ));
+    }
+    if req.code.trim().is_empty() {
+        return Err(AppError::BadRequest("missing code".into()));
+    }
+    let openid = match state
+        .config
+        .trust_wechat_gateway
+        .then(|| cloud_openid(&headers))
+        .flatten()
+    {
+        Some(openid) => openid,
+        None => resolve_openid(&state.config, req.code.trim()).await?,
+    };
+    let mut tx = state.pool.begin().await?;
+    // Serialize links to this account; the OpenID primary key also excludes cross-account races.
+    sqlx::query("SELECT id FROM user WHERE id = ? FOR UPDATE")
+        .bind(user.id)
+        .fetch_one(&mut *tx)
+        .await?;
+    let existing =
+        sqlx::query_scalar::<_, String>("SELECT openid FROM wechat_identity WHERE user_id = ?")
+            .bind(user.id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    if existing.is_some() {
+        return Err(AppError::Conflict(
+            "account already has a WeChat identity".into(),
+        ));
+    }
+    sqlx::query("INSERT INTO wechat_identity(openid, user_id) VALUES (?, ?)")
+        .bind(openid)
+        .bind(user.id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|error| {
+            crate::email_auth::credential_conflict(error, "WeChat identity already linked")
+        })?;
+    tx.commit().await?;
+    login_response(&state, user.id).await
 }
 
 fn cloud_openid(headers: &HeaderMap) -> Option<String> {
@@ -220,6 +322,25 @@ mod tests {
         cleared_cookie, normalize_optional_field, normalize_required_field, session_cookie,
         MigrateDeviceReq,
     };
+
+    #[test]
+    fn content_write_policy_is_fail_closed() {
+        use super::{ensure_editor, requires_editor};
+        use axum::http::Method;
+
+        for role in ["guest", "", "admin", "Editor", "unknown"] {
+            assert!(ensure_editor(role).is_err());
+        }
+        assert!(ensure_editor("editor").is_ok());
+        for method in [Method::POST, Method::PUT, Method::PATCH, Method::DELETE] {
+            assert!(requires_editor(&method, "/api/future-content"));
+            assert!(requires_editor(&method, "/legacy-write"));
+            assert!(!requires_editor(&method, "/api/auth/email/link"));
+        }
+        for method in [Method::GET, Method::HEAD, Method::OPTIONS] {
+            assert!(!requires_editor(&method, "/api/meetings"));
+        }
+    }
 
     #[test]
     fn local_http_cookie_omits_secure_attribute() {
@@ -305,13 +426,7 @@ pub struct CurrentUserResp {
 /// Return the current web identity. The login page uses this before attempting a
 /// device challenge because a valid HttpOnly session needs no additional work.
 pub async fn auth_me(user: AuthUser) -> Json<CurrentUserResp> {
-    Json(CurrentUserResp {
-        user: UserResponse {
-            id: user.id,
-            display_name: user.display_name,
-            club_name: user.club_name,
-        },
-    })
+    Json(CurrentUserResp { user: user.into() })
 }
 
 #[derive(Deserialize)]
@@ -319,15 +434,6 @@ pub struct DeviceCredentialReq {
     pub credential_id: String,
     pub public_key: String,
     pub device_name: String,
-}
-
-#[derive(Deserialize)]
-pub struct RegisterDeviceReq {
-    pub display_name: String,
-    #[serde(default)]
-    pub club_name: Option<String>,
-    #[serde(flatten)]
-    pub credential: DeviceCredentialReq,
 }
 
 #[derive(Deserialize)]
@@ -407,16 +513,18 @@ fn normalize_migration_code(code: &str) -> Result<String, AppError> {
     Ok(normalized)
 }
 
-async fn device_login_response(
-    state: &AppState,
-    user_id: i64,
-    display_name: String,
-    club_name: Option<String>,
-) -> AppResult<Response> {
+pub(crate) async fn login_response(state: &AppState, user_id: i64) -> AppResult<Response> {
+    let user = sqlx::query_as::<_, UserResponse>(
+        "SELECT id, display_name, club_name, email, role FROM user WHERE id = ?",
+    )
+    .bind(user_id)
+    .fetch_one(&state.pool)
+    .await?;
     let token = create_session(&state.pool, user_id).await?;
-    let mut response = Json(json!({
-        "user": { "id": user_id, "display_name": display_name, "club_name": club_name }
-    }))
+    let mut response = Json(LoginResp {
+        token: token.clone(),
+        user,
+    })
     .into_response();
     response.headers_mut().insert(
         SET_COOKIE,
@@ -427,37 +535,10 @@ async fn device_login_response(
     Ok(response)
 }
 
-/// Create an account and bind its first browser key. Account creation is intentionally
-/// open; membership and permissions remain separate from authentication.
-pub async fn auth_device_register(
-    axum::extract::State(state): axum::extract::State<AppState>,
-    Json(req): Json<RegisterDeviceReq>,
-) -> AppResult<Response> {
-    let display_name = normalize_required_field(&req.display_name, "display name")?;
-    let club_name = normalize_optional_field(req.club_name.as_deref(), "club name")?;
-    let credential_id = validated_credential_id(&req.credential.credential_id)?;
-    let device_name = validated_device_name(&req.credential.device_name)?;
-    let public_key = decode_public_key(&req.credential.public_key)?;
-
-    let mut transaction = state.pool.begin().await?;
-    let user_id = sqlx::query("INSERT INTO user(display_name, club_name) VALUES (?, ?)")
-        .bind(&display_name)
-        .bind(&club_name)
-        .execute(&mut *transaction)
-        .await?
-        .last_insert_id() as i64;
-    sqlx::query(
-        "INSERT INTO device_credential(id, user_id, public_key, device_name) VALUES (?, ?, ?, ?)",
-    )
-    .bind(&credential_id)
-    .bind(user_id)
-    .bind(public_key)
-    .bind(device_name)
-    .execute(&mut *transaction)
-    .await?;
-    transaction.commit().await?;
-
-    device_login_response(&state, user_id, display_name, club_name).await
+pub async fn auth_device_register() -> AppResult<Response> {
+    Err(AppError::Forbidden(
+        "register with email instead of a device key".into(),
+    ))
 }
 
 /// Start a one-time challenge for a known, non-revoked browser key.
@@ -514,8 +595,8 @@ pub async fn auth_device_verify(
         .map_err(|_| AppError::Unauthorized)?;
 
     let mut transaction = state.pool.begin().await?;
-    let row = sqlx::query_as::<_, (String, Vec<u8>, String, i64, String, Option<String>)>(
-        "SELECT c.challenge, d.public_key, d.id, u.id, u.display_name, u.club_name \
+    let row = sqlx::query_as::<_, (String, Vec<u8>, String, i64)>(
+        "SELECT c.challenge, d.public_key, d.id, u.id \
          FROM device_auth_challenge c \
          JOIN device_credential d ON d.id = c.credential_id \
          JOIN user u ON u.id = d.user_id \
@@ -526,7 +607,7 @@ pub async fn auth_device_verify(
     .fetch_optional(&mut *transaction)
     .await?
     .ok_or(AppError::Unauthorized)?;
-    let (challenge, public_key, credential_id, user_id, display_name, club_name) = row;
+    let (challenge, public_key, credential_id, user_id) = row;
 
     let verifying_key =
         VerifyingKey::from_sec1_bytes(&public_key).map_err(|_| AppError::Unauthorized)?;
@@ -545,7 +626,7 @@ pub async fn auth_device_verify(
         .await?;
     transaction.commit().await?;
 
-    device_login_response(&state, user_id, display_name, club_name).await
+    login_response(&state, user_id).await
 }
 
 /// Issue a short-lived code from an authenticated device. Redeeming it adds, rather
@@ -597,8 +678,8 @@ pub async fn auth_device_migrate(
     let public_key = decode_public_key(&req.credential.public_key)?;
 
     let mut transaction = state.pool.begin().await?;
-    let user = sqlx::query_as::<_, (i64, String, Option<String>)>(
-        "SELECT u.id, u.display_name, u.club_name FROM device_migration_code m \
+    let user_id = sqlx::query_scalar::<_, i64>(
+        "SELECT u.id FROM device_migration_code m \
          JOIN user u ON u.id = m.user_id \
          WHERE m.code_hash = ? AND m.consumed_at IS NULL \
            AND m.expires_at > UTC_TIMESTAMP(6) FOR UPDATE",
@@ -612,7 +693,7 @@ pub async fn auth_device_migrate(
         "INSERT INTO device_credential(id, user_id, public_key, device_name) VALUES (?, ?, ?, ?)",
     )
     .bind(&credential_id)
-    .bind(user.0)
+    .bind(user_id)
     .bind(public_key)
     .bind(device_name)
     .execute(&mut *transaction)
@@ -625,7 +706,7 @@ pub async fn auth_device_migrate(
     .await?;
     transaction.commit().await?;
 
-    device_login_response(&state, user.0, user.1, user.2).await
+    login_response(&state, user_id).await
 }
 
 /// Delete a session by its token (logout).
@@ -711,41 +792,6 @@ fn sanitized_wechat_error(operation: &str, error: &reqwest::Error) -> AppError {
     AppError::Internal(anyhow::anyhow!(
         "wechat jscode2session {operation} failed: {reason}"
     ))
-}
-
-/// Look up the user for an openid, creating a thin user + identity row on first login.
-/// Returns (user_id, display_name, club_name, created).
-pub async fn upsert_wechat_user(
-    pool: &MySqlPool,
-    openid: &str,
-) -> Result<(i64, String, Option<String>, bool), AppError> {
-    if let Some((user_id, display_name, club_name)) =
-        sqlx::query_as::<_, (i64, String, Option<String>)>(
-            "SELECT u.id, u.display_name, u.club_name FROM wechat_identity w \
-             JOIN user u ON u.id = w.user_id WHERE w.openid = ?",
-        )
-        .bind(openid)
-        .fetch_optional(pool)
-        .await?
-    {
-        return Ok((user_id, display_name, club_name, false));
-    }
-
-    // WeChat no longer exposes real nicknames, so a new user starts nameless; the mini
-    // program requires them to set one on first login. A new user also has no club on
-    // file until they set one.
-    let default_name = String::new();
-    let user_id = sqlx::query("INSERT INTO user(display_name) VALUES (?)")
-        .bind(&default_name)
-        .execute(pool)
-        .await?
-        .last_insert_id() as i64;
-    sqlx::query("INSERT INTO wechat_identity(openid, user_id) VALUES (?, ?)")
-        .bind(openid)
-        .bind(user_id)
-        .execute(pool)
-        .await?;
-    Ok((user_id, default_name, None, true))
 }
 
 /// Create a fresh opaque session token for a user.

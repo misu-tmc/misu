@@ -3,6 +3,8 @@ import { Link } from 'wouter-preact';
 import { meetingsApi } from '../lib/api.js';
 import { shortDate } from '../lib/format.js';
 import { EmptyState, PageError, PageLoading } from '../components/PageState.jsx';
+import { authUser } from '../state/auth.js';
+import { canEdit } from '../lib/permissions.js';
 
 function localMeetingDate(meeting, field) {
   const time = meeting[field] || (field === 'start_time' ? '00:00' : '23:59');
@@ -55,15 +57,15 @@ export function MeetingListPage({ scope = 'open' }) {
 
   return (
     <div class="meeting-list-page">
-      <div class="meeting-list-actions">
+      {canEdit(authUser.value) && <div class="meeting-list-actions">
         <Link class="btn btn-primary btn-sm" href="/app/meetings/new">+ New meeting</Link>
-      </div>
+      </div>}
 
       {meetings.length === 0 ? (
         <EmptyState
           title={scope === 'all' ? 'No meetings' : 'No upcoming meetings'}
-          message={scope === 'all' ? 'Create the first meeting to get started.' : 'Create the next meeting to get started.'}
-          action={<Link class="btn btn-primary" href="/app/meetings/new">New meeting</Link>}
+          message={!canEdit(authUser.value) ? 'Meetings will appear here when available.' : scope === 'all' ? 'Create the first meeting to get started.' : 'Create the next meeting to get started.'}
+          action={canEdit(authUser.value) && <Link class="btn btn-primary" href="/app/meetings/new">New meeting</Link>}
         />
       ) : (
         <div class="meeting-card-grid">

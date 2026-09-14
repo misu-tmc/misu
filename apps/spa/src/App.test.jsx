@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.jsx';
-import { catalogApi, checkinApi, meetingsApi, usersApi } from './lib/api.js';
+import { authApi, ApiError, catalogApi, checkinApi, meetingsApi, usersApi } from './lib/api.js';
 import { authReady, authUser } from './state/auth.js';
 
 const archivedMeeting = {
@@ -23,7 +23,40 @@ describe('MISU meetings navigation', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/app/misu');
     authReady.value = true;
-    authUser.value = { id: 1, display_name: 'Member' };
+    authUser.value = { id: 1, display_name: 'Member', role: 'editor' };
+  });
+
+  describe('session initialization', () => {
+    beforeEach(() => {
+      window.history.replaceState({}, '', '/app/booking');
+      authReady.value = false;
+      authUser.value = null;
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      authReady.value = false;
+      authUser.value = null;
+    });
+
+    it('displays authentication service failures without treating them as a signed-out session', async () => {
+      vi.spyOn(authApi, 'me').mockRejectedValue(new ApiError(503, 'Service unavailable'));
+      const deviceChallenge = vi.spyOn(authApi, 'challenge');
+      render(<App />);
+      expect((await screen.findByRole('alert')).textContent).toContain('Service unavailable');
+      expect(deviceChallenge).not.toHaveBeenCalled();
+      expect(authReady.value).toBe(false);
+    });
+
+    it('loads email and access role from the current server session', async () => {
+      const user = { id: 7, email: 'guest@example.test', display_name: 'Guest', role: 'guest' };
+      vi.spyOn(authApi, 'me').mockResolvedValue({ user });
+      vi.spyOn(meetingsApi, 'upcoming').mockResolvedValue([]);
+      render(<App />);
+      await screen.findByText(/Guest access is read-only/);
+      expect(authUser.value).toEqual(user);
+      expect(authReady.value).toBe(true);
+    });
   });
 
   afterEach(() => {

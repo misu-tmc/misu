@@ -3,6 +3,8 @@ import { Link } from 'wouter-preact';
 import { checkinApi, meetingsApi } from '../lib/api.js';
 import { buildAgenda, buildSpeeches, shortDate } from '../lib/format.js';
 import { EmptyState, PageError, PageLoading } from '../components/PageState.jsx';
+import { authUser } from '../state/auth.js';
+import { canEdit } from '../lib/permissions.js';
 
 function elapsedLabel(seconds) {
   const minutes = Math.floor(seconds / 60);
@@ -130,15 +132,15 @@ export function MeetingPage({ params }) {
       <section class="card meeting-hero">
         <div class="meeting-title-row">
           <h1>#{meeting.number} · {shortDate(meeting.date).replace(',', '')} · {meeting.start_time}–{meeting.end_time}</h1>
-          <Link class="meeting-edit-link" href={`/app/meetings/${meeting.id}/edit`}>Edit</Link>
+          {canEdit(authUser.value) && <Link class="meeting-edit-link" href={`/app/meetings/${meeting.id}/edit`}>Edit</Link>}
         </div>
         <p class="meeting-title-sub">{meeting.venue || '—'}</p>
         <div class="meeting-actions">
-          <button class={`btn meeting-action ${checkedIn ? 'meeting-action-checked' : 'meeting-action-outline'}`} type="button" disabled={checkingIn} onClick={checkIn}>
+          {canEdit(authUser.value) && <button class={`btn meeting-action ${checkedIn ? 'meeting-action-checked' : 'meeting-action-outline'}`} type="button" disabled={checkingIn} onClick={checkIn}>
             {checkedIn ? 'Checked in' : checkingIn ? 'Checking in…' : 'Check in'}
-          </button>
-          <Link class="btn meeting-action meeting-action-outline" href={`/app/vote/${meeting.id}`}>Vote for best</Link>
-          <button class={`btn meeting-action ${timerMode ? 'meeting-action-timer-on' : 'meeting-action-outline'}`} type="button" onClick={toggleTimer}>{timerMode ? 'Timer on' : 'Timer mode'}</button>
+          </button>}
+          <Link class="btn meeting-action meeting-action-outline" href={`/app/vote/${meeting.id}`}>{canEdit(authUser.value) ? 'Vote for best' : 'View ballot'}</Link>
+          {canEdit(authUser.value) && <button class={`btn meeting-action ${timerMode ? 'meeting-action-timer-on' : 'meeting-action-outline'}`} type="button" onClick={toggleTimer}>{timerMode ? 'Timer on' : 'Timer mode'}</button>}
         </div>
         {error && <p class="error-msg" role="alert">{error}</p>}
       </section>

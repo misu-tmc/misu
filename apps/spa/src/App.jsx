@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
-import { Redirect, Route, Switch, useLocation } from 'wouter-preact';
+import { Redirect, Route, Switch, useLocation, useSearch } from 'wouter-preact';
 import { AppShell } from './components/AppShell.jsx';
-import { PageLoading } from './components/PageState.jsx';
-import { authApi } from './lib/api.js';
-import { trySilentLogin } from './lib/authDevice.js';
+import { PageError, PageLoading } from './components/PageState.jsx';
+import { authApi, ApiError } from './lib/api.js';
 import { authReady, authUser } from './state/auth.js';
 import { BookingPage } from './pages/BookingPage.jsx';
 import { AboutPage } from './pages/AboutPage.jsx';
@@ -39,7 +38,9 @@ function NotFoundPage() {
 
 function ProtectedApp() {
   const [checking, setChecking] = useState(!authReady.value);
+  const [error, setError] = useState('');
   const [location] = useLocation();
+  const search = useSearch();
 
   useEffect(() => {
     let active = true;
@@ -48,8 +49,14 @@ function ProtectedApp() {
       try {
         const response = await authApi.me();
         user = response.user ?? response;
-      } catch (_) {
-        user = await trySilentLogin().catch(() => null);
+      } catch (err) {
+        if (!(err instanceof ApiError) || err.status !== 401) {
+          if (active) {
+            setError(err.message || 'Could not check your account.');
+            setChecking(false);
+          }
+          return;
+        }
       }
       if (!active) return;
       authUser.value = user;
@@ -62,7 +69,8 @@ function ProtectedApp() {
   }, []);
 
   if (checking) return <PageLoading label="Checking your account…" />;
-  if (!authUser.value) return <LoginRedirect location={location} />;
+  if (error) return <PageError message={error} onRetry={() => window.location.reload()} />;
+  if (!authUser.value) return <LoginRedirect location={`${location}${search ? `?${search}` : ''}`} />;
 
   return (
     <AppShell>

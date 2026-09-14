@@ -1,6 +1,7 @@
 import { useEffect } from 'preact/hooks';
 import { Link, useLocation } from 'wouter-preact';
 import { authUser } from '../state/auth.js';
+import { canEdit, GUEST_NOTICE } from '../lib/permissions.js';
 
 function isMeetingDetail(location) {
   return /^\/app\/meetings\/\d+\/?$/.test(location);
@@ -74,7 +75,10 @@ export function AppShell({ children }) {
         </div>
       </header>
 
-      <main id="page">{children}</main>
+      <main id="page">
+        {!canEdit(authUser.value) && <p class="notice no-print" role="status">{GUEST_NOTICE}</p>}
+        {children}
+      </main>
 
       {attendee && (
         <nav id="bottombar" aria-label="Tab navigation">

@@ -1,10 +1,12 @@
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
 pub struct UserResponse {
     pub id: i64,
     pub display_name: String,
     pub club_name: Option<String>,
+    pub email: Option<String>,
+    pub role: String,
 }
 
 #[derive(Serialize)]

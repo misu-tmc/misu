@@ -4,6 +4,7 @@ const { shortDate, buildAgenda, buildSpeeches, meetingInfo } = require('../../ut
 
 Page({
   data: {
+    canEdit: false,
     loading: true,
     hasMeeting: false,
     meeting: null,
@@ -28,11 +29,8 @@ Page({
 
   async load() {
     const app = getApp();
-    if (app.globalData.ready) {
-      await app.globalData.ready;
-    }
-    if (!app.globalData.token) {
-      this.setData({ loading: false });
+    if (!await app.ensureLogin()) {
+      this.setData({ loading: false, hasMeeting: false, meeting: null, agenda: [], speeches: [] });
       return;
     }
     try {
@@ -116,6 +114,7 @@ Page({
   },
 
   goEdit() {
+    if (!this.data.canEdit) return;
     if (!this.data.meeting || !this.data.meeting.id) return;
     wx.navigateTo({ url: `/pages/edit-meeting/edit-meeting?id=${this.data.meeting.id}` });
   },
@@ -126,14 +125,9 @@ Page({
   },
 
   async goCheckIn() {
+    if (!this.data.canEdit) return;
     if (!this.data.meeting || !this.data.meeting.id) return;
     const app = getApp();
-    // Check-in requires an authenticated user; sign in first if needed.
-    if (!app.globalData.token && app.ensureLogin) await app.ensureLogin();
-    if (!app.globalData.token) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-      return;
-    }
     try {
       await api.checkin(this.data.meeting.id);
       wx.setStorageSync(this.storageKey(this.data.meeting.id, app.globalData.userId), {
@@ -209,6 +203,7 @@ Page({
   },
 
   addSubSession(e) {
+    if (!this.data.canEdit) return;
     const key = e.currentTarget.dataset.key;
     const index = this.data.agenda.findIndex((item) => item.key === key);
     if (index < 0) return;

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { bookingApi, meetingsApi } from '../lib/api.js';
 import { shortDate, prepTarget } from '../lib/format.js';
 import { authUser } from '../state/auth.js';
+import { canEdit } from '../lib/permissions.js';
 
 export function BookingPage() {
   const [meetings, setMeetings] = useState([]);
@@ -72,7 +73,7 @@ export function BookingPage() {
                 <div class="booking-summary-row" key={`${meeting.id}:${slot.id}`}>
                   <span class="booking-summary-meeting">#{meeting.number} · {shortDate(meeting.date)}</span>
                   <strong>{slot.label || slot.role_name}</strong>
-                  <span class="booking-summary-actions">
+                  {canEdit(authUser.value) && <span class="booking-summary-actions">
                     <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meeting.id}/edit?tab=${target.tab}${target.field ? `&field=${target.field}` : ''}&slotId=${slot.id}`}>Prepare</a>
                     <button
                       class="btn btn-ghost btn-sm cancel-booking"
@@ -81,7 +82,7 @@ export function BookingPage() {
                       onClick={() => changeBooking(meeting.id, slot.id, true)}
                       aria-label={`Cancel ${slot.label || slot.role_name}`}
                     >×</button>
-                  </span>
+                  </span>}
                 </div>
               ))}
             </div>
@@ -111,7 +112,9 @@ export function BookingPage() {
                       <span class="role-label">{slot.label || slot.role_name}</span>
                       {slot.taker_id
                         ? <span class="taker">{mine ? <strong>You</strong> : (slot.taker_name || '—')}</span>
-                        : <button class="btn btn-secondary btn-sm" type="button" disabled={busy === key} onClick={() => changeBooking(meeting.id, slot.id, false)}>Take!</button>}
+                        : canEdit(authUser.value)
+                          ? <button class="btn btn-secondary btn-sm" type="button" disabled={busy === key} onClick={() => changeBooking(meeting.id, slot.id, false)}>Take!</button>
+                          : <span class="taker">Available</span>}
                     </div>
                   );
                 })}

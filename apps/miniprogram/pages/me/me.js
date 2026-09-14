@@ -4,7 +4,12 @@ const { shortDate } = require('../../utils/format.js');
 
 Page({
   data: {
+    canEdit: false,
+    signedIn: false,
     displayName: '',
+    email: '',
+    role: '',
+    linkingWechat: false,
     avatarUrl: '',
     bookings: []
   },
@@ -15,14 +20,15 @@ Page({
 
   async refresh() {
     const app = getApp();
-    if (app.globalData.ready) {
-      await app.globalData.ready;
-    }
+    this.setData({ displayName: '', email: '', role: '', bookings: [], avatarUrl: '' });
+    if (!await app.ensureLogin()) return;
+    const user = app.globalData.user;
     this.setData({
-      displayName: app.globalData.displayName || 'MISU member',
+      displayName: user.display_name || 'MISU member',
+      email: user.email || '',
+      role: user.role === 'editor' ? 'Editor' : 'Guest (read-only)',
       avatarUrl: wx.getStorageSync('avatarUrl') || ''
     });
-    if (!app.globalData.token) return;
     try {
       const meetings = await api.upcomingMeetings();
       const me = app.globalData.userId;
@@ -46,10 +52,42 @@ Page({
   },
 
   onEditProfile() {
+    if (!this.data.canEdit) return;
     wx.navigateTo({ url: '/pages/edit-profile/edit-profile' });
   },
 
   onGoBookings() {
     wx.switchTab({ url: '/pages/booking/booking' });
+  },
+
+  onSignIn() {
+    getApp().openSignIn();
+  },
+
+  onSignOut() {
+    getApp().signOut();
+  },
+
+  onLinkEmail() {
+    if (!this.data.signedIn || this.data.email) return;
+    wx.navigateTo({ url: '/pages/auth/auth?mode=link&returnTo=' + encodeURIComponent('/pages/me/me') });
+  },
+
+  async onLinkWechat() {
+    if (this.data.linkingWechat || !this.data.signedIn) return;
+    this.setData({ linkingWechat: true });
+    try {
+      const code = await new Promise((resolve, reject) => wx.login({
+        success: (result) => result.code ? resolve(result.code) : reject({ error: 'No WeChat code returned.' }),
+        fail: () => reject({ error: 'WeChat is unavailable. Please try again.' })
+      }));
+      const data = await api.linkWechat(code);
+      await getApp().acceptSession(data);
+      wx.showToast({ title: 'WeChat linked', icon: 'success' });
+    } catch (err) {
+      wx.showToast({ title: err.error || 'Unable to link WeChat', icon: 'none' });
+    } finally {
+      this.setData({ linkingWechat: false });
+    }
   }
 });

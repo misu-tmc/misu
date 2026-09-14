@@ -1,9 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/preact';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { authUser } from '../state/auth.js';
 import { meetingsApi } from '../lib/api.js';
 import { isMeetingOngoing, MeetingListPage, sortMeetingsForDisplay } from './MeetingListPage.jsx';
 
+beforeEach(() => { authUser.value = { id: 7, role: 'editor' }; });
 afterEach(() => {
+  authUser.value = null;
   vi.restoreAllMocks();
   vi.useRealTimers();
 });

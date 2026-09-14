@@ -12,7 +12,7 @@ vi.mock('../lib/api.js', () => ({
 }));
 
 vi.mock('../state/auth.js', () => ({
-  authUser: { value: { id: 7, display_name: 'Test Member' } }
+  authUser: { value: { id: 7, display_name: 'Test Member', role: 'editor' } }
 }));
 
 import { BookingPage } from './BookingPage.jsx';

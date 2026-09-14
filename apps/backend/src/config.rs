@@ -11,6 +11,8 @@ pub struct Config {
     pub db_name: String,
     pub wechat_appid: Option<String>,
     pub wechat_secret: Option<String>,
+    /// Enable only behind a gateway that strips client-supplied X-WX-OPENID headers.
+    pub trust_wechat_gateway: bool,
     /// Directory holding static assets (logos, QR codes, print images).
     pub static_dir: String,
     /// Directory holding the standalone SPA files served under `/app`.
@@ -59,6 +61,7 @@ impl Config {
             db_name: non_empty("MISU_DB_NAME").unwrap_or_else(|| "misu".to_string()),
             wechat_appid: non_empty("WECHAT_APPID"),
             wechat_secret: non_empty("WECHAT_SECRET"),
+            trust_wechat_gateway: env_bool("MISU_TRUST_WECHAT_GATEWAY"),
             static_dir: non_empty("MISU_STATIC_DIR").unwrap_or_else(|| "static".to_string()),
             spa_dir: non_empty("MISU_SPA_DIR").unwrap_or_else(|| "../spa/dist".to_string()),
             secure_cookies: optional_env_bool("MISU_COOKIE_SECURE").unwrap_or(!dev_mode),

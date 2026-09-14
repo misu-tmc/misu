@@ -14,6 +14,7 @@ function prepTarget(roleName) {
 
 Page({
   data: {
+    canEdit: false,
     loading: true,
     bookings: [],
     meetings: []
@@ -29,11 +30,8 @@ Page({
 
   async load() {
     const app = getApp();
-    if (app.globalData.ready) {
-      await app.globalData.ready;
-    }
-    if (!app.globalData.token) {
-      this.setData({ loading: false });
+    if (!await app.ensureLogin()) {
+      this.setData({ loading: false, meetings: [], bookings: [] });
       return;
     }
     try {
@@ -79,7 +77,6 @@ Page({
         };
       });
       this.setData({ meetings: cards, bookings, loading: false });
-      app.promptNameIfNeeded();
     } catch (e) {
       console.error(e);
       wx.showToast({ title: '加载失败', icon: 'none' });
@@ -96,6 +93,7 @@ Page({
   },
 
   onTake(e) {
+    if (!this.data.canEdit) return;
     const { meetingId, slotId } = e.currentTarget.dataset;
     api
       .book(meetingId, slotId, false)
@@ -110,6 +108,7 @@ Page({
   },
 
   onCancel(e) {
+    if (!this.data.canEdit) return;
     const { meetingId, slotId } = e.currentTarget.dataset;
     wx.showModal({
       title: 'Cancel booking?',
@@ -130,6 +129,7 @@ Page({
   },
 
   onPrepare(e) {
+    if (!this.data.canEdit) return;
     const { meetingId, slotId, tab, field } = e.currentTarget.dataset;
     let url = `/pages/edit-meeting/edit-meeting?id=${meetingId}&tab=${tab || 'roles'}&slotId=${slotId}`;
     if (field) url += `&field=${field}`;

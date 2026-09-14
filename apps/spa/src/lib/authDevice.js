@@ -133,8 +133,9 @@ export async function trySilentLogin() {
     return current.user ?? current;
   } catch (err) {
     if (!deviceVerified && err instanceof ApiError && err.status === 401) {
-      await clearCredential().catch(() => {});
+      await clearCredential();
+      return null;
     }
-    return null;
+    throw err;
   }
 }

@@ -9,7 +9,8 @@
     "pages/prepare/prepare",
     "pages/checkin/checkin",
     "pages/vote/vote",
-    "pages/vote-result/vote-result"
+    "pages/vote-result/vote-result",
+    "pages/auth/auth"
   ],
   "window": {
     "navigationBarTitleText": "MISU",

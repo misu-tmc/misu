@@ -52,7 +52,7 @@ pub struct BookReq {
     #[serde(default)]
     pub cancel: bool,
     /// Book/assign on behalf of this user instead of the session user (used by the web
-    /// editor). Any authenticated caller may set it.
+    /// editor). Only editors may mutate content.
     #[serde(default)]
     pub user_id: Option<i64>,
 }
@@ -63,7 +63,7 @@ struct SlotBookRow {
     taker_id: Option<i64>,
 }
 
-/// Book, release or assign a role slot. Any authenticated user may act.
+/// Book, release or assign a role slot. The centralized guard requires an editor.
 ///
 /// - No `user_id`: acts as the session user (self-booking).
 /// - With `user_id`: assigns that user to the slot (used by the web editor).
@@ -288,6 +288,8 @@ pub async fn update_user(
         id: user_id,
         display_name,
         club_name,
+        email: user.email,
+        role: user.role,
     }))
 }
 

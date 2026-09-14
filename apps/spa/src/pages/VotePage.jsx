@@ -3,6 +3,8 @@ import { Link } from 'wouter-preact';
 import { meetingsApi, votingApi } from '../lib/api.js';
 import { shortDate } from '../lib/format.js';
 import { PageError, PageLoading } from '../components/PageState.jsx';
+import { authUser } from '../state/auth.js';
+import { canEdit } from '../lib/permissions.js';
 
 export function VotePage({ params }) {
   const meetingId = Number(params.meetingId);
@@ -61,7 +63,7 @@ export function VotePage({ params }) {
         <div><p class="eyebrow">Meeting #{meeting.number}</p><h1>Vote for the best</h1><p>{shortDate(meeting.date)} · {meeting.venue}</p></div>
         <Link class="btn btn-ghost btn-sm" href={`/app/vote-result/${meetingId}`}>Results</Link>
       </div>
-      {saved && <div class="notice success-notice">Your votes are saved. You can update them.</div>}
+      {saved && <div class="notice success-notice">Your votes are saved.{canEdit(authUser.value) && ' You can update them.'}</div>}
       {groups.length === 0 && <div class="page-empty"><p>No voting groups are available yet.</p></div>}
       {groups.map((group) => (
         <section class="card vote-group" key={group.voting_group}>
@@ -70,6 +72,7 @@ export function VotePage({ params }) {
             <button
               class={`vote-option ${selections[group.voting_group] === option.role_slot_id ? 'selected' : ''}`}
               type="button"
+              disabled={!canEdit(authUser.value) || saving}
               key={option.role_slot_id}
               onClick={() => setSelections((current) => ({ ...current, [group.voting_group]: option.role_slot_id }))}
             >
@@ -80,7 +83,7 @@ export function VotePage({ params }) {
         </section>
       ))}
       {error && <p class="error-msg" role="alert">{error}</p>}
-      {groups.length > 0 && <button class="btn btn-primary btn-wide" type="button" disabled={saving} onClick={submit}>{saving ? 'Saving…' : 'Save votes'}</button>}
+      {canEdit(authUser.value) && groups.length > 0 && <button class="btn btn-primary btn-wide" type="button" disabled={saving} onClick={submit}>{saving ? 'Saving…' : 'Save votes'}</button>}
     </div>
   );
 }

@@ -2,8 +2,11 @@ mod admin;
 mod auth;
 mod config;
 mod db;
+mod email_auth;
 mod error;
 mod handlers;
+#[cfg(test)]
+mod integration_tests;
 mod meetings;
 mod models;
 
@@ -23,6 +26,7 @@ use crate::config::Config;
 pub struct AppState {
     pub pool: MySqlPool,
     pub config: Arc<Config>,
+    pub email_auth: Arc<email_auth::EmailAuthState>,
 }
 
 impl FromRef<AppState> for MySqlPool {
@@ -53,11 +57,24 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState {
         pool,
         config: Arc::new(config),
+        email_auth: Arc::default(),
     };
 
-    let app = Router::new()
+    let app = app_router(state);
+    let listener = tokio::net::TcpListener::bind(&bind).await?;
+    tracing::info!("MISU backend listening on http://{bind}");
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+fn app_router(state: AppState) -> Router {
+    Router::new()
         .route("/healthz", get(handlers::healthz))
+        .route("/api/auth/email/register", post(email_auth::register))
+        .route("/api/auth/email/login", post(email_auth::login))
+        .route("/api/auth/email/link", post(email_auth::link))
         .route("/api/auth/wechat", post(auth::auth_wechat))
+        .route("/api/auth/wechat/link", post(auth::auth_wechat_link))
         .route("/api/auth/logout", post(auth::auth_logout))
         .route("/api/auth/me", get(auth::auth_me))
         .route(
@@ -165,6 +182,10 @@ async fn main() -> anyhow::Result<()> {
             "/api/users",
             get(admin::list_users).post(admin::create_user),
         )
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            auth::content_write_guard,
+        ))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
@@ -172,10 +193,5 @@ async fn main() -> anyhow::Result<()> {
                 .allow_headers(Any),
         )
         .layer(TraceLayer::new_for_http())
-        .with_state(state);
-
-    let listener = tokio::net::TcpListener::bind(&bind).await?;
-    tracing::info!("MISU backend listening on http://{bind}");
-    axum::serve(listener, app).await?;
-    Ok(())
+        .with_state(state)
 }

@@ -27,11 +27,8 @@ Page({
     }
 
     const app = getApp();
-    if (app.globalData.ready) {
-      await app.globalData.ready;
-    }
-    if (!app.globalData.token) {
-      this.setData({ loading: false });
+    if (!await app.ensureLogin()) {
+      this.setData({ loading: false, meeting: null, groups: [] });
       return;
     }
 

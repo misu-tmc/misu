@@ -37,7 +37,9 @@ export const authApi = {
   logout: () => request('/api/auth/logout', { method: 'POST' }),
   challenge: (credentialId) => request('/api/auth/device/challenge', { method: 'POST', body: { credential_id: credentialId } }),
   verify: (challengeId, signature) => request('/api/auth/device/verify', { method: 'POST', body: { challenge_id: challengeId, signature } }),
-  register: (payload) => request('/api/auth/device/register', { method: 'POST', body: payload }),
+  register: (payload) => request('/api/auth/email/register', { method: 'POST', body: payload }),
+  login: (payload) => request('/api/auth/email/login', { method: 'POST', body: payload }),
+  linkEmail: (payload) => request('/api/auth/email/link', { method: 'POST', body: payload }),
   migrate: (payload) => request('/api/auth/device/migrate', { method: 'POST', body: payload }),
   migrationCode: () => request('/api/auth/device/migration-code', { method: 'POST', body: {} })
 };

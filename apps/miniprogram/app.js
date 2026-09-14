@@ -1,5 +1,6 @@
-// app.js — establishes the WeChat identity session on launch.
-const { login, updateUser, resolveTransport } = require('./utils/api.js');
+// Email sessions are restored with /me, never by creating a WeChat identity.
+const { currentUser, resolveTransport } = require('./utils/api.js');
+const { currentRoute, safeReturnRoute, isTabRoute } = require('./utils/navigation.js');
 
 App({
   globalData: {
@@ -16,15 +17,19 @@ App({
     token: '',
     userId: 0,
     displayName: '',
-    // Guards the first-login name prompt so it shows at most once per launch.
-    namePrompted: false,
-    // Resolves once the launch login attempt completes (success or failure).
+    user: null,
+    // Resolves once the stored session has been checked.
     ready: null
   },
 
   onLaunch() {
     this.initApiTransport();
-    this.globalData.ready = this.ensureLogin();
+    this.globalData.token = wx.getStorageSync('token') || '';
+    this.globalData.ready = this.refreshSession();
+  },
+
+  onShow() {
+    if (this.globalData.token) this.refreshSession();
   },
 
   initApiTransport() {
@@ -43,70 +48,91 @@ App({
     });
   },
 
-  // Runs wx.login -> POST /api/auth/wechat, storing the session token + user.
-  ensureLogin() {
-    return new Promise((resolve) => {
-      wx.login({
-        success: (res) => {
-          if (!res.code) {
-            resolve(false);
-            return;
-          }
-          login(res.code)
-            .then((data) => {
-              this.globalData.token = data.token;
-              this.globalData.userId = data.user.id;
-              this.globalData.displayName = data.user.display_name;
-              wx.setStorageSync('token', data.token);
-              resolve(true);
-            })
-            .catch((err) => {
-              console.error('login failed', err);
-              wx.showToast({ title: '登录失败', icon: 'none' });
-              resolve(false);
-            });
-        },
-        fail: () => resolve(false)
-      });
+  setUser(user) {
+    this.globalData.user = user;
+    this.globalData.userId = user ? user.id : 0;
+    this.globalData.displayName = user ? user.display_name : '';
+    getCurrentPages().forEach((page) => {
+      page.setData({ canEdit: !!user && user.role === 'editor', signedIn: !!user });
     });
   },
 
-  // First-login requirement: WeChat no longer exposes real nicknames, so new users have
-  // no name yet and must set one before continuing. Shown once per launch, then repeats
-  // until saved.
-  promptNameIfNeeded() {
-    if (this.globalData.namePrompted || !this.globalData.token) return;
-    if ((this.globalData.displayName || '').trim()) return;
-    this.globalData.namePrompted = true;
-    this._askName();
+  clearSession() {
+    this.globalData.token = '';
+    this.globalData.checkinMeetingId = null;
+    this._sessionRequest = null;
+    this.setUser(null);
+    wx.removeStorageSync('token');
+    wx.removeStorageSync('avatarUrl');
   },
 
-  // Mandatory name entry: no cancel, and it re-opens until a non-empty name is saved.
-  _askName() {
-    wx.showModal({
-      title: 'Set your name',
-      content: '',
-      editable: true,
-      placeholderText: 'Your name',
-      showCancel: false,
-      confirmText: 'Save',
-      success: (res) => {
-        const entered = (res.content || '').trim();
-        if (!entered) {
-          this._askName();
-          return;
-        }
-        updateUser(this.globalData.userId, entered)
-          .then((user) => {
-            this.globalData.displayName = user.display_name;
-            wx.showToast({ title: 'Saved', icon: 'success' });
-          })
-          .catch(() => {
-            wx.showToast({ title: 'Failed, try again', icon: 'none' });
-            this._askName();
-          });
-      },
-      fail: () => this._askName()
+  refreshSession() {
+    if (!this.globalData.token) {
+      this.setUser(null);
+      return Promise.resolve(false);
+    }
+    if (this._sessionRequest) return this._sessionRequest;
+    const token = this.globalData.token;
+    this.setUser(null);
+    const pending = currentUser().then(({ user }) => {
+      if (token !== this.globalData.token) return false;
+      if (!user || !user.id) throw { error: 'Invalid session response' };
+      this.setUser(user);
+      return true;
+    }).catch(() => {
+      if (token === this.globalData.token) this.setUser(null);
+      return false;
+    }).finally(() => {
+      if (this._sessionRequest === pending) this._sessionRequest = null;
     });
+    this._sessionRequest = pending;
+    return pending;
+  },
+
+  async ensureLogin() {
+    if (this.globalData.ready) await this.globalData.ready;
+    if (await this.refreshSession()) return true;
+    if (!this.globalData.token) this.openSignIn();
+    else wx.showToast({ title: 'Cannot verify session. Try again.', icon: 'none' });
+    return false;
+  },
+
+  async requireEditor() {
+    if (!await this.ensureLogin()) throw { error: 'Please sign in and verify your session.' };
+    if (this.globalData.user.role !== 'editor') {
+      throw { status: 403, error: 'Guest accounts are read-only. Ask an administrator for access.' };
+    }
+  },
+
+  async acceptSession(data) {
+    if (!data || !data.token) throw { error: 'Invalid sign-in response' };
+    this.clearSession();
+    this.globalData.token = data.token;
+    wx.setStorageSync('token', data.token);
+    if (!await this.refreshSession()) throw { error: 'Cannot verify session. Please try again.' };
+  },
+
+  openSignIn() {
+    if (!getCurrentPages().length) return;
+    const route = currentRoute();
+    if (route.split('?')[0] === '/pages/auth/auth' || this._openingAuth) return;
+    this._openingAuth = true;
+    const url = '/pages/auth/auth?returnTo=' + encodeURIComponent(route);
+    wx.navigateTo({
+      url,
+      fail: () => wx.redirectTo({ url }),
+      complete: () => { this._openingAuth = false; }
+    });
+  },
+
+  finishSignIn(returnTo) {
+    const route = safeReturnRoute(returnTo, this.globalData.user);
+    if (isTabRoute(route)) wx.switchTab({ url: route.split('?')[0] });
+    else wx.redirectTo({ url: route });
+  },
+
+  signOut() {
+    this.clearSession();
+    wx.reLaunch({ url: '/pages/auth/auth?returnTo=' + encodeURIComponent('/pages/me/me') });
   }
 });

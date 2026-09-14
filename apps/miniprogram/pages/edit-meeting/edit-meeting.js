@@ -45,6 +45,7 @@ function toHHMM(mins) {
 
 Page({
   data: {
+    canEdit: false,
     loading: true,
     saving: false,
     meetingId: null,
@@ -89,7 +90,10 @@ Page({
     if (query.field) patch.highlightField = query.field;
     if (query.slotId) patch.highlightSlotId = parseInt(query.slotId, 10) || null;
     if (Object.keys(patch).length) this.setData(patch);
-    this.load();
+  },
+
+  onShow() {
+    return this.load();
   },
 
   onReady() {
@@ -103,14 +107,30 @@ Page({
   },
 
   async load() {
+    const loadVersion = this._loadVersion = (this._loadVersion || 0) + 1;
     const app = getApp();
-    if (app.globalData.ready) {
-      await app.globalData.ready;
-    }
-    if (!app.globalData.token) {
+    if (!await app.ensureLogin()) {
+      if (loadVersion !== this._loadVersion) return;
+      if (!app.globalData.token) this.discardDraft();
       this.setData({ loading: false });
       return;
     }
+    if (loadVersion !== this._loadVersion) return;
+    if (!this.data.canEdit) {
+      this.discardDraft();
+      wx.showToast({ title: 'Guest accounts are read-only', icon: 'none' });
+      wx.switchTab({ url: '/pages/meeting/meeting' });
+      return;
+    }
+    const userId = app.globalData.userId;
+    const token = app.globalData.token;
+    // Foregrounding must refresh access, not replace the same editor's unsaved work.
+    if (this.data.header && this._draftOwnerId === userId && this._draftMeetingId === this.meetingId) {
+      this.setData({ loading: false });
+      return;
+    }
+    this.discardDraft();
+    this.setData({ loading: true });
     try {
       let meetingId = this.meetingId;
       if (!meetingId) {
@@ -128,13 +148,38 @@ Page({
         api.users().catch(() => []),
         api.attendees(meetingId)
       ]);
+      if (loadVersion !== this._loadVersion || app.globalData.token !== token ||
+          !app.globalData.user || app.globalData.user.id !== userId ||
+          app.globalData.user.role !== 'editor') return;
       this.meetingId = meetingId;
+      this._draftOwnerId = userId;
+      this._draftMeetingId = meetingId;
       this.applyMeeting(detail, roles, venues, users, attendees);
     } catch (e) {
       console.error(e);
       wx.showToast({ title: 'Load failed', icon: 'none' });
       this.setData({ loading: false });
     }
+  },
+
+  discardDraft() {
+    this._draftOwnerId = null;
+    this._draftMeetingId = null;
+    this.setData({
+      loading: false,
+      saving: false,
+      meetingId: null,
+      header: null,
+      info: { title: '', theme: '', keyword: '', date: '', start_time: '', end_time: '', venue: '' },
+      slots: [], sessions: [], speeches: [], tableTopics: [],
+      roleCatalog: [], roleNames: rolePickerOptions([]),
+      venueCatalog: [], venueNames: [],
+      userCatalog: [], userNames: userPickerOptions([]),
+      attendeeCatalog: [], attendeeNames: attendeePickerOptions([]),
+      slotPickerLabels: [NONE_LABEL],
+      swipe: { type: '', index: -1 },
+      drag: { type: '', index: -1, offset: 0 }
+    });
   },
 
   // Hydrate the page from a meeting DTO. Catalogs are optional; when omitted the

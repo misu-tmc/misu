@@ -17,6 +17,7 @@ vi.mock('../lib/api.js', () => ({
 vi.mock('html-to-image', () => ({ toPng }));
 
 import { AgendaPage } from './AgendaPage.jsx';
+import { authUser } from '../state/auth.js';
 
 const meeting = {
   id: 42,
@@ -38,6 +39,7 @@ const meeting = {
 
 describe('AgendaPage', () => {
   beforeEach(() => {
+    authUser.value = { id: 7, role: 'editor' };
     getMeeting.mockReset().mockResolvedValue(meeting);
     toPng.mockReset().mockResolvedValue('data:image/png;base64,agenda');
     vi.spyOn(window, 'print').mockImplementation(() => {});

@@ -5,7 +5,18 @@
     <view wx:else class="avatar avatar-fallback">{{displayName[0]}}</view>
     <view class="profile-main">
       <text class="name">{{displayName}}</text>
-      <text class="muted edit">Edit profile ›</text>
+      <text class="muted">{{email}}</text>
+      <text class="muted">{{role}}</text>
+      <text wx:if="{{canEdit}}" class="muted edit">Edit profile ›</text>
+    </view>
+    <view wx:if="{{signedIn && !canEdit}}" class="access-note">Guest access is read-only. Ask an administrator for editing access.</view>
+    <view class="card">
+      <block wx:if="{{signedIn}}">
+        <button wx:if="{{!email}}" class="account-action" bindtap="onLinkEmail">Add email and password</button>
+        <button class="account-action" bindtap="onLinkWechat" disabled="{{linkingWechat}}" loading="{{linkingWechat}}">Link WeChat (optional)</button>
+        <button class="account-action" bindtap="onSignOut">Sign out</button>
+      </block>
+      <button wx:else class="account-action" bindtap="onSignIn">Sign in with email</button>
     </view>
   </view>
 
@@ -19,7 +30,7 @@
     </block>
     <view wx:else class="row muted" bindtap="onGoBookings">
       <text>No upcoming bookings</text>
-      <text>Book a role ›</text>
+      <text>{{canEdit ? 'Book a role ›' : 'View meetings ›'}}</text>
     </view>
   </view>
 

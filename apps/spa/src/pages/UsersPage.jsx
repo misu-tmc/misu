@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { usersApi } from '../lib/api.js';
 import { PageError, PageLoading } from '../components/PageState.jsx';
+import { authUser } from '../state/auth.js';
+import { canEdit } from '../lib/permissions.js';
 
 export function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -39,13 +41,13 @@ export function UsersPage() {
   return (
     <>
       <div class="page-heading"><div><p class="eyebrow">Management</p><h1>Users</h1></div></div>
-      <section class="card create-user-card">
+      {canEdit(authUser.value) && <section class="card create-user-card">
         <form onSubmit={createUser}>
           <div class="field"><label for="new-user-name">New display name</label><input id="new-user-name" name="display_name" maxlength="255" required /></div>
           <button class="btn btn-primary" disabled={creating}>{creating ? 'Creating…' : 'Create user'}</button>
         </form>
         <p>Creates an identity-less record that can be assigned to meeting roles.</p>
-      </section>
+      </section>}
       {error && <p class="error-msg" role="alert">{error}</p>}
       {loading ? <PageLoading label="Loading users…" /> : error && users.length === 0 ? <PageError message={error} onRetry={load} /> : (
         <section class="card table-wrapper">

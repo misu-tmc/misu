@@ -1,0 +1,26 @@
+<view class="container">
+  <view class="card auth-card">
+    <text class="auth-title">{{mode === 'register' ? 'Create your account' : mode === 'link' ? 'Add email sign-in' : 'Sign in to MISU'}}</text>
+    <text class="auth-note">{{mode === 'register' ? 'New accounts are read-only guests. An editor can grant editing access.' : mode === 'link' ? 'Keep your existing account, bookings and access. Add an email and password to sign in next time.' : 'Use your email and password. Your access is checked securely when you sign in.'}}</text>
+    <form bindsubmit="submit">
+      <label class="auth-label" for="email">Email</label>
+      <input id="email" class="auth-input" type="text" value="{{email}}" data-field="email" bindinput="onInput" placeholder="you@example.com" maxlength="254" disabled="{{saving}}" />
+      <label class="auth-label" for="password">Password</label>
+      <input id="password" class="auth-input" password value="{{password}}" data-field="password" bindinput="onInput" placeholder="{{mode === 'login' ? 'Your password' : '12–128 characters'}}" maxlength="-1" disabled="{{saving}}" />
+      <block wx:if="{{mode === 'register'}}">
+        <label class="auth-label" for="displayName">Display name</label>
+        <input id="displayName" class="auth-input" value="{{displayName}}" data-field="displayName" bindinput="onInput" placeholder="Your name" maxlength="100" disabled="{{saving}}" />
+        <label class="auth-label" for="clubName">Club name (optional)</label>
+        <input id="clubName" class="auth-input" value="{{clubName}}" data-field="clubName" bindinput="onInput" placeholder="Your club" maxlength="200" disabled="{{saving}}" />
+      </block>
+      <text wx:if="{{error}}" class="auth-error" role="alert">{{error}}</text>
+      <button class="auth-submit" form-type="submit" loading="{{saving}}" disabled="{{saving}}">{{mode === 'register' ? 'Create account' : mode === 'link' ? 'Add email and password' : 'Sign in'}}</button>
+    </form>
+    <button wx:if="{{mode !== 'link'}}" class="auth-secondary" bindtap="toggleMode" disabled="{{saving}}">{{mode === 'login' ? 'Create an account' : 'Already have an account? Sign in'}}</button>
+    <button wx:else class="auth-secondary" bindtap="continueToApp" disabled="{{saving}}">Continue without adding email</button>
+  </view>
+  <view wx:if="{{mode !== 'link'}}" class="card">
+    <text class="auth-note">Already used MISU with WeChat? Recover that account to keep its bookings and access. This does not create a new WeChat-only account.</text>
+    <button class="auth-secondary" bindtap="recoverWechat" disabled="{{saving}}">Recover existing WeChat account</button>
+  </view>
+</view>

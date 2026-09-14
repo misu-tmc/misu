@@ -4,6 +4,7 @@ const { shortDate } = require('../../utils/format.js');
 
 Page({
   data: {
+    canEdit: false,
     loading: true,
     saving: false,
     hasVoted: false,
@@ -30,11 +31,8 @@ Page({
     }
 
     const app = getApp();
-    if (app.globalData.ready) {
-      await app.globalData.ready;
-    }
-    if (!app.globalData.token) {
-      this.setData({ loading: false });
+    if (!await app.ensureLogin()) {
+      this.setData({ loading: false, meeting: null, groups: [] });
       return;
     }
 
@@ -81,6 +79,7 @@ Page({
   },
 
   onPick(e) {
+    if (!this.data.canEdit) return;
     const groupIndex = parseInt(e.currentTarget.dataset.groupIndex, 10);
     const slotId = parseInt(e.currentTarget.dataset.slotId, 10);
     if (Number.isNaN(groupIndex) || Number.isNaN(slotId)) return;
@@ -98,7 +97,7 @@ Page({
   },
 
   async saveVotes() {
-    if (this.data.saving) return;
+    if (this.data.saving || !this.data.canEdit) return;
 
     const ballots = (this.data.groups || [])
       .filter((g) => !!g.selectedRoleSlotId)

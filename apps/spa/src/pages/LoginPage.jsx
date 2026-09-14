@@ -1,66 +1,42 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { authApi, ApiError } from '../lib/api.js';
-import {
-  clearCredential,
-  credentialSupportIssue,
-  generateCredential,
-  signChallenge,
-  storedCredential,
-  trySilentLogin
-} from '../lib/authDevice.js';
+import { credentialSupportIssue, trySilentLogin } from '../lib/authDevice.js';
+import { canEdit, GUEST_NOTICE } from '../lib/permissions.js';
+import { EmailCredentials, emailPayload, LinkEmailForm } from '../components/EmailCredentials.jsx';
 import { authReady, authUser } from '../state/auth.js';
 
 export function safeNextPath(search) {
   const value = new URLSearchParams(search).get('next');
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/app/booking';
+  if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u001f]/.test(value)) return '/app/booking';
+  return value;
 }
 
 export function LoginPage() {
   const [view, setView] = useState('loading');
-  const [message, setMessage] = useState('This browser is not connected to an account yet.');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [user, setUser] = useState(null);
-  const [migrationCode, setMigrationCode] = useState('');
+  const emailRef = useRef(null);
+  const focusRequested = useRef(null);
+
+  useLayoutEffect(() => {
+    if (focusRequested.current === view) {
+      emailRef.current?.focus();
+      focusRequested.current = null;
+    }
+  }, [view]);
 
   useEffect(() => {
     let active = true;
-    async function initialize() {
-      try {
-        const response = await authApi.me();
-        if (!active) return;
-        finish(response.user ?? response);
-        return;
-      } catch (err) {
-        if (!(err instanceof ApiError) || err.status !== 401) {
-          if (active) showChoice(err.message || 'MISU is temporarily unavailable.');
-          return;
-        }
-      }
-
-      const supportIssue = credentialSupportIssue();
-      if (supportIssue) {
-        if (active) {
-          setMessage(supportIssue);
-          setView('unsupported');
-        }
-        return;
-      }
-
-      const signedIn = await trySilentLogin().catch(() => null);
+    authApi.me().then((response) => {
+      if (active) finish(response.user);
+    }).catch((err) => {
       if (!active) return;
-      if (signedIn) finish(signedIn);
-      else showChoice();
-    }
-    initialize();
+      if (!(err instanceof ApiError) || err.status !== 401) setError(err.message || 'MISU is temporarily unavailable.');
+      setView('login');
+    });
     return () => { active = false; };
   }, []);
-
-  function showChoice(nextMessage) {
-    if (nextMessage) setMessage(nextMessage);
-    setError('');
-    setView('choice');
-  }
 
   function finish(nextUser) {
     authUser.value = nextUser;
@@ -70,152 +46,96 @@ export function LoginPage() {
     setView('account');
   }
 
-  async function confirmedSession() {
-    try {
-      const current = await authApi.me();
-      return current.user ?? current;
-    } catch (_) {
-      throw new Error('Your device was connected, but Safari did not retain the session cookie. Reload after opening the site over HTTPS or enabling local HTTP cookies on the server.');
-    }
-  }
-
-  async function createAccount(event) {
+  async function submit(event) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const displayName = String(data.get('display_name') || '').trim();
-    if (!displayName) return;
-    const clubName = String(data.get('club_name') || '').trim();
+    const form = event.currentTarget;
+    const payload = emailPayload(form);
+    if (view === 'register') {
+      const data = new FormData(form);
+      payload.display_name = String(data.get('display_name') || '').trim();
+      payload.club_name = String(data.get('club_name') || '').trim();
+    }
     setBusy(true);
     setError('');
-    let deviceRegistered = false;
     try {
-      const generated = await generateCredential();
-      await authApi.register({ display_name: displayName, club_name: clubName, ...generated.request });
-      deviceRegistered = true;
-      finish(await confirmedSession());
+      if (view === 'register') await authApi.register(payload);
+      else await authApi.login(payload);
+      // Confirm the HttpOnly cookie is usable before offering authenticated navigation.
+      const response = await authApi.me();
+      finish(response.user);
     } catch (err) {
-      if (!deviceRegistered) await clearCredential().catch(() => {});
-      setError(err.message || 'Account creation failed.');
+      setError(err.message || 'Could not sign in.');
     } finally {
       setBusy(false);
     }
   }
 
-  async function migrateAccount(event) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const code = String(data.get('migration_code') || '').trim().toUpperCase();
-    if (!code) return;
+  async function recoverDeviceAccount() {
     setBusy(true);
     setError('');
-    let deviceRegistered = false;
     try {
-      const generated = await generateCredential();
-      await authApi.migrate({ migration_code: code, ...generated.request });
-      deviceRegistered = true;
-      finish(await confirmedSession());
+      const issue = credentialSupportIssue();
+      if (issue) throw new Error(issue);
+      const recovered = await trySilentLogin();
+      if (!recovered) throw new Error('No existing account was found on this browser. Sign in with email, or use a browser where your old account is connected.');
+      finish(recovered);
     } catch (err) {
-      if (!deviceRegistered) await clearCredential().catch(() => {});
-      setError(err.message || 'Migration failed. Check the code and try again.');
+      setError(err.message || 'Could not recover your existing account.');
     } finally {
       setBusy(false);
     }
   }
 
-  async function createMigrationCode() {
-    setBusy(true);
+  function changeView(next) {
+    focusRequested.current = next;
     setError('');
-    try {
-      const response = await authApi.migrationCode();
-      setMigrationCode(response.code);
-    } catch (err) {
-      setError(err.message || 'Could not generate a migration code.');
-    } finally {
-      setBusy(false);
-    }
+    setView(next);
   }
 
   return (
     <main class="login-page">
       <div class="login-wrap">
         <div class="login-brand"><span class="login-mark">M</span><strong>MISU</strong></div>
-
-        {view === 'loading' && (
-          <section class="card"><div class="page-loading"><span class="spinner" /><span>Checking this device…</span></div></section>
-        )}
-
-        {view === 'choice' && (
-          <section class="card login-card">
-            <div class="eyebrow">Device access</div>
-            <h1>Welcome to MISU</h1>
-            <p>{message}</p>
-            <div class="login-stack">
-              <button class="btn btn-primary btn-wide" type="button" onClick={() => { setError(''); setView('create'); }}>Create an account</button>
-              <button class="btn btn-secondary btn-wide" type="button" onClick={() => { setError(''); setView('migrate'); }}>I have a migration code</button>
-            </div>
-            <div class="notice">Lost access on every device? Create a new account, then contact an administrator to reconnect your records.</div>
-          </section>
-        )}
-
-        {view === 'unsupported' && (
-          <section class="card login-card">
-            <div class="eyebrow">HTTPS required</div>
-            <h1>Secure connection needed</h1>
-            <p>{message}</p>
-            <div class="notice">
-              Safari supports device sign-in, but only from HTTPS origins (or localhost on the same device). A phone opening this Mac by LAN IP must use a trusted HTTPS certificate.
-            </div>
-          </section>
-        )}
-
-        {view === 'create' && (
-          <section class="card login-card">
-            <div class="eyebrow">New account</div>
-            <h2>Create your account</h2>
-            <p>A private sign-in key will be kept only in this browser.</p>
-            <form class="login-stack" onSubmit={createAccount}>
-              <div class="field"><label for="display-name">Your display name</label><input id="display-name" name="display_name" maxlength="255" autocomplete="name" required /></div>
-              <div class="field"><label for="club-name">Club (optional)</label><input id="club-name" name="club_name" autocomplete="organization" /></div>
-              <button class="btn btn-primary btn-wide" disabled={busy}>Create account</button>
-              <button class="btn btn-ghost btn-wide" type="button" onClick={() => showChoice()}>Back</button>
-            </form>
-            {error && <p class="error-msg" role="alert">{error}</p>}
-          </section>
-        )}
-
-        {view === 'migrate' && (
-          <section class="card login-card">
-            <div class="eyebrow">Connect this device</div>
-            <h2>Enter migration code</h2>
-            <p>Generate this code from a device where you are already signed in.</p>
-            <form class="login-stack" onSubmit={migrateAccount}>
-              <div class="field"><label for="migration-code">Migration code</label><input id="migration-code" name="migration_code" class="code-input" autocomplete="one-time-code" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" required /></div>
-              <button class="btn btn-primary btn-wide" disabled={busy}>Connect device</button>
-              <button class="btn btn-ghost btn-wide" type="button" onClick={() => showChoice()}>Back</button>
-            </form>
-            {error && <p class="error-msg" role="alert">{error}</p>}
-          </section>
-        )}
-
-        {view === 'account' && (
-          <section class="card login-card">
-            <div class="eyebrow success-msg">Device connected</div>
-            <h1>Welcome, {user?.display_name || 'friend'}</h1>
-            <p>This browser can securely sign in to your MISU account.</p>
-            <div class="login-stack">
-              <a class="btn btn-primary btn-wide" href={safeNextPath(window.location.search)}>Continue</a>
-              <button class="btn btn-secondary btn-wide" type="button" disabled={busy} onClick={createMigrationCode}>Connect another device</button>
-            </div>
-            {migrationCode && (
-              <div class="migration-result">
-                <div class="code-display">{migrationCode}</div>
-                <p>Enter this on the other device within 10 minutes. It works once.</p>
-                <button class="btn btn-ghost btn-sm" type="button" onClick={() => navigator.clipboard?.writeText(migrationCode)}>Copy code</button>
-              </div>
-            )}
-            {error && <p class="error-msg" role="alert">{error}</p>}
-          </section>
-        )}
+        <section class="card login-card">
+          {view === 'loading' && <div class="page-loading"><span class="spinner" /><span>Checking your account…</span></div>}
+          {(view === 'login' || view === 'register') && (
+            <>
+              <div class="eyebrow">Email access</div>
+              <h1>{view === 'register' ? 'Create your account' : 'Welcome to MISU'}</h1>
+              <p>{view === 'register' ? 'New accounts start as guests with read-only access.' : 'Sign in with your email and password.'}</p>
+              <form onSubmit={submit} key={view}>
+                <EmailCredentials newPassword={view === 'register'} emailRef={emailRef} />
+                {view === 'register' && (
+                  <>
+                    <div class="field"><label for="display-name">Your display name</label><input id="display-name" name="display_name" autocomplete="nickname" maxlength="255" required /></div>
+                    <div class="field"><label for="club-name">Club (optional)</label><input id="club-name" name="club_name" autocomplete="organization" maxlength="255" /></div>
+                  </>
+                )}
+                <button class="btn btn-primary btn-wide" disabled={busy}>{busy ? 'Please wait…' : view === 'register' ? 'Create account' : 'Sign in'}</button>
+              </form>
+              <button class="btn btn-ghost btn-wide" type="button" disabled={busy} onClick={() => changeView(view === 'login' ? 'register' : 'login')}>
+                {view === 'login' ? 'Create an account' : 'Back to sign in'}
+              </button>
+              {view === 'login' && (
+                <details>
+                  <summary>Already have a device-based account?</summary>
+                  <p>Recover it on a previously connected browser, then add your email. Your records and access will stay with the same account.</p>
+                  <button class="btn btn-secondary" type="button" disabled={busy} onClick={recoverDeviceAccount}>Use existing device account</button>
+                </details>
+              )}
+            </>
+          )}
+          {view === 'account' && (
+            <>
+              <h1>Welcome, {user.display_name}</h1>
+              <p class="account-email">{user.email || 'Existing device account'}</p>
+              {!canEdit(user) && <p class="notice">{GUEST_NOTICE}</p>}
+              {!user.email && <LinkEmailForm onLinked={finish} />}
+              <a class="btn btn-primary btn-wide" href={safeNextPath(window.location.search)}>Continue to MISU</a>
+            </>
+          )}
+          {error && <p class="error-msg" role="alert">{error}</p>}
+        </section>
       </div>
     </main>
   );

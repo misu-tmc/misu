@@ -8,5 +8,11 @@ Page({
 
   onLoad(query) {
     this.setData({ role: decodeURIComponent(query.role || 'this role') });
+  },
+
+  async onShow() {
+    const app = getApp();
+    if (!await app.ensureLogin()) return;
+    if (app.globalData.user.role !== 'editor') wx.switchTab({ url: '/pages/meeting/meeting' });
   }
 });

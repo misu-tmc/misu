@@ -4,6 +4,8 @@ import { authApi, meetingsApi, usersApi } from '../lib/api.js';
 import { shortDate } from '../lib/format.js';
 import { authUser } from '../state/auth.js';
 import { PageLoading } from '../components/PageState.jsx';
+import { LinkEmailForm } from '../components/EmailCredentials.jsx';
+import { canEdit, GUEST_NOTICE } from '../lib/permissions.js';
 
 export function MePage() {
   const [meetings, setMeetings] = useState([]);
@@ -13,10 +15,9 @@ export function MePage() {
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [message, setMessage] = useState('');
-  const [code, setCode] = useState('');
 
   useEffect(() => {
-    meetingsApi.upcoming().then(setMeetings).catch(() => setMeetings([])).finally(() => setLoading(false));
+    meetingsApi.upcoming().then(setMeetings).catch((err) => setMessage(err.message || 'Could not load bookings.')).finally(() => setLoading(false));
   }, []);
 
   const bookings = useMemo(() => meetings.flatMap((meeting) =>
@@ -27,6 +28,10 @@ export function MePage() {
 
   async function saveProfile(event) {
     event.preventDefault();
+    if (!canEdit(authUser.value)) {
+      setMessage(GUEST_NOTICE);
+      return;
+    }
     const nextName = name.trim();
     if (!nextName) return;
     const nextClub = club.trim();
@@ -45,24 +50,17 @@ export function MePage() {
     }
   }
 
-  async function generateCode() {
-    setSaving(true);
-    setMessage('');
-    try {
-      const response = await authApi.migrationCode();
-      setCode(response.code);
-    } catch (err) {
-      setMessage(err.message || 'Could not generate a code.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function signOut() {
     setSigningOut(true);
-    await authApi.logout().catch(() => {});
-    authUser.value = null;
-    window.location.assign('/login');
+    setMessage('');
+    try {
+      await authApi.logout();
+      authUser.value = null;
+      window.location.assign('/login');
+    } catch (err) {
+      setMessage(err.message || 'Could not sign out.');
+      setSigningOut(false);
+    }
   }
 
   if (loading) return <PageLoading label="Loading profile…" />;
@@ -72,12 +70,12 @@ export function MePage() {
       <section class="card profile-card">
         <div class="profile-header">
           <div class="avatar">{(authUser.value?.display_name || '?').slice(0, 1).toUpperCase()}</div>
-          <div><h1>{authUser.value?.display_name || 'MISU member'}</h1><p>Account #{authUser.value?.id}</p></div>
+          <div class="profile-identity"><h1>{authUser.value?.display_name || 'MISU member'}</h1><p class="account-email">{authUser.value?.email || 'Existing account without email'}</p><p>{canEdit(authUser.value) ? 'Editor' : 'Guest (read-only)'}</p></div>
         </div>
         <form onSubmit={saveProfile}>
-          <div class="field"><label for="profile-name">Display name</label><input id="profile-name" value={name} maxlength="255" onInput={(event) => setName(event.currentTarget.value)} required /></div>
-          <div class="field"><label for="profile-club">Club (optional)</label><input id="profile-club" value={club} autocomplete="organization" onInput={(event) => setClub(event.currentTarget.value)} /></div>
-          <button class="btn btn-primary" disabled={saving}>Save profile</button>
+          <div class="field"><label for="profile-name">Display name</label><input id="profile-name" value={name} maxlength="255" readOnly={!canEdit(authUser.value)} onInput={(event) => setName(event.currentTarget.value)} required /></div>
+          <div class="field"><label for="profile-club">Club (optional)</label><input id="profile-club" value={club} autocomplete="organization" readOnly={!canEdit(authUser.value)} onInput={(event) => setClub(event.currentTarget.value)} /></div>
+          {canEdit(authUser.value) && <button class="btn btn-primary" disabled={saving}>Save profile</button>}
         </form>
         {message && <p class="form-message" role="status">{message}</p>}
       </section>
@@ -90,14 +88,13 @@ export function MePage() {
             <strong>{slot.label || slot.role_name}</strong>
           </div>
         ))}
-        <Link class="btn btn-ghost btn-sm" href="/app/booking">Manage bookings</Link>
+        <Link class="btn btn-ghost btn-sm" href="/app/booking">{canEdit(authUser.value) ? 'Manage bookings' : 'View bookings'}</Link>
       </section>
 
       <section class="card">
-        <h2>Connect another device</h2>
-        <p>Generate a single-use code valid for ten minutes.</p>
-        <button class="btn btn-secondary" type="button" disabled={saving} onClick={generateCode}>Generate migration code</button>
-        {code && <><div class="code-display">{code}</div><button class="btn btn-ghost btn-sm" type="button" onClick={() => navigator.clipboard?.writeText(code)}>Copy code</button></>}
+        {authUser.value?.email
+          ? <><h2>Email sign-in</h2><p>Use <span class="account-email">{authUser.value.email}</span> and your password to sign in on any device.</p></>
+          : <LinkEmailForm />}
       </section>
 
       <section class="card signout-card">

@@ -55,66 +55,59 @@ function send(path, { method, data, header }) {
   });
 }
 
-function refreshLogin() {
-  return new Promise((resolve, reject) => {
-    wx.login({
-      success: (res) => {
-        if (!res.code) {
-          reject({ error: 'login failed' });
-          return;
-        }
-        request('/api/auth/wechat', {
-          method: 'POST',
-          data: { code: res.code },
-          auth: false,
-          retryAuth: false
-        })
-          .then((data) => {
-            const app = getApp();
-            app.globalData.token = data.token;
-            app.globalData.userId = data.user.id;
-            app.globalData.displayName = data.user.display_name;
-            wx.setStorageSync('token', data.token);
-            resolve(data.token);
-          })
-          .catch(reject);
-      },
-      fail: reject
-    });
-  });
-}
-
 // Low-level request returning a Promise. Rejects on network errors and non-2xx status.
-function request(path, { method = 'GET', data, auth = true, retryAuth = true } = {}) {
-  const header = { 'content-type': 'application/json' };
-  if (auth) {
-    const token = getApp().globalData.token || wx.getStorageSync('token');
-    if (token) {
-      header['Authorization'] = 'Bearer ' + token;
+async function request(path, { method = 'GET', data, auth = true } = {}) {
+  const app = getApp();
+  const originalToken = app.globalData.token;
+  method = method.toUpperCase();
+  // Account linking is allowed for guests; every content write requires a fresh /me.
+  const accountLink = path === '/api/auth/email/link' || path === '/api/auth/wechat/link';
+  const publicAuth = path === '/api/auth/email/login' ||
+    path === '/api/auth/email/register' || path === '/api/auth/wechat';
+  if (method !== 'GET' && method !== 'HEAD' && !accountLink && !publicAuth) {
+    await app.requireEditor();
+    if (originalToken !== app.globalData.token) {
+      throw { error: 'Account changed. Please retry the action.' };
     }
+  }
+  const header = { 'content-type': 'application/json' };
+  const token = app.globalData.token;
+  if (auth) {
+    if (!token) {
+      app.openSignIn();
+      throw { status: 401, error: 'Please sign in with email.' };
+    }
+    header['Authorization'] = 'Bearer ' + token;
   }
   return send(path, { method, data, header }).then((res) => {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return res.data;
     }
-    if (auth && retryAuth && res.statusCode === 401) {
-      return refreshLogin()
-        .then(() => request(path, { method, data, auth, retryAuth: false }))
-        .catch((err) => Promise.reject(err || res.data || { error: 'unauthorized' }));
+    if (auth && res.statusCode === 401 && app.globalData.token === token) {
+      app.clearSession();
+      app.openSignIn();
     }
-    return Promise.reject(res.data || { error: 'request failed' });
+    if (auth && res.statusCode === 403 && app.globalData.token === token) {
+      app.setUser(null);
+    }
+    return Promise.reject(Object.assign({ error: 'Request failed' }, res.data, { status: res.statusCode }));
   });
-}
-
-// Auth: exchange a WeChat login code for a session. Does not require a token.
-function login(code) {
-  return request('/api/auth/wechat', { method: 'POST', data: { code }, auth: false });
 }
 
 const api = {
   resolveTransport,
   request,
-  login,
+  emailLogin: (email, password) =>
+    request('/api/auth/email/login', { method: 'POST', data: { email, password }, auth: false }),
+  emailRegister: (data) =>
+    request('/api/auth/email/register', { method: 'POST', data, auth: false }),
+  currentUser: () => request('/api/auth/me'),
+  linkEmail: (email, password) =>
+    request('/api/auth/email/link', { method: 'POST', data: { email, password } }),
+  recoverWechat: (code) =>
+    request('/api/auth/wechat', { method: 'POST', data: { code }, auth: false }),
+  linkWechat: (code) =>
+    request('/api/auth/wechat/link', { method: 'POST', data: { code } }),
   upcomingMeetings: () => request('/api/meetings/upcoming'),
   meeting: (id) => request('/api/meetings/' + id),
   book: (meetingId, roleSlotId, cancel = false) =>

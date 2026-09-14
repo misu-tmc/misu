@@ -1,7 +1,11 @@
 {
   "description": "MISU WeChat mini program",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": "tests" },
+      { "type": "folder", "value": "node_modules" },
+      { "type": "file", "value": "vitest.config.mjs" }
+    ],
     "include": []
   },
   "setting": {

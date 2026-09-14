@@ -3,7 +3,9 @@ const api = require('../../utils/api.js');
 
 Page({
   data: {
-    loading: true
+    loading: true,
+    canEdit: false,
+    message: ''
   },
 
   onLoad(query) {
@@ -30,11 +32,7 @@ Page({
 
   async load() {
     const app = getApp();
-    if (app.globalData.ready) await app.globalData.ready;
-    // Check-in requires an authenticated user; sign in first if needed.
-    if (!app.globalData.token && app.ensureLogin) await app.ensureLogin();
-    if (!app.globalData.token) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
+    if (!await app.ensureLogin()) {
       this.setData({ loading: false });
       return;
     }
@@ -47,12 +45,12 @@ Page({
       }
       this.meetingId = meetingId;
       const detail = await api.meeting(meetingId);
-      const me = app.globalData.userId;
-      try {
-        await api.checkin(meetingId);
-      } catch (e) {
-        console.error(e);
+      if (!this.data.canEdit) {
+        this.setData({ loading: false, message: 'Guest accounts cannot check in. You can still view the meeting.' });
+        return;
       }
+      await api.checkin(meetingId);
+      const me = app.globalData.userId;
       wx.setStorageSync(this.storageKey(meetingId, me), {
         meetingId,
         userId: me,
@@ -63,7 +61,12 @@ Page({
     } catch (e) {
       console.error(e);
       wx.showToast({ title: '加载失败', icon: 'none' });
-      this.setData({ loading: false });
+      this.setData({ loading: false, message: (e && e.error) || 'Unable to check in. Please try again.' });
     }
+  },
+
+  viewMeeting() {
+    getApp().globalData.checkinMeetingId = this.meetingId;
+    wx.switchTab({ url: '/pages/meeting/meeting' });
   }
 });

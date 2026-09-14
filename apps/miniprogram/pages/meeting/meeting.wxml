@@ -7,14 +7,15 @@
     <view class="card title-card">
       <view class="title-head">
         <text class="title-line">#{{meeting.number}} · {{meeting.dateLabel}} · {{meeting.timeLabel}}</text>
-        <text class="edit-link" bindtap="goEdit">Edit</text>
+        <text wx:if="{{canEdit}}" class="edit-link" bindtap="goEdit">Edit</text>
       </view>
       <text class="title-sub">{{meeting.venue}}</text>
       <view class="actions">
-        <view class="btn {{checkedIn ? 'btn-checked' : 'btn-outline'}}" bindtap="goCheckIn">{{checkedIn ? 'Checked in' : 'Check in'}}</view>
-        <view class="btn btn-outline" bindtap="goVote">Vote for best</view>
+        <view wx:if="{{canEdit}}" class="btn {{checkedIn ? 'btn-checked' : 'btn-outline'}}" bindtap="goCheckIn">{{checkedIn ? 'Checked in' : 'Check in'}}</view>
+        <view class="btn btn-outline" bindtap="goVote">{{canEdit ? 'Vote for best' : 'View voting'}}</view>
         <view class="btn {{timerMode ? 'btn-timer-on' : 'btn-outline'}}" bindtap="toggleTimerMode">{{timerMode ? 'Timer on' : 'Timer mode'}}</view>
       </view>
+      <view wx:if="{{!canEdit}}" class="access-note">Read-only guest · Check-in and editing require editor access.</view>
     </view>
 
     <view class="card meeting-details">
@@ -45,7 +46,7 @@
         <view wx:if="{{timerMode}}" class="timer-actions">
           <view wx:if="{{item.running}}" class="timer-btn restart" data-key="{{item.key}}" bindtap="restartTimer">↺</view>
           <view class="timer-btn" data-key="{{item.key}}" bindtap="playTimer">{{item.running ? 'Ⅱ' : '▶'}}</view>
-          <view class="timer-btn add" data-key="{{item.key}}" bindtap="addSubSession">+</view>
+          <view wx:if="{{canEdit}}" class="timer-btn add" data-key="{{item.key}}" bindtap="addSubSession">+</view>
         </view>
       </view>
     </view>

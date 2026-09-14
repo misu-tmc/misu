@@ -2,12 +2,18 @@ import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'wouter-preact';
 import { checkinApi, meetingsApi } from '../lib/api.js';
 import { PageError, PageLoading } from '../components/PageState.jsx';
+import { authUser } from '../state/auth.js';
+import { canEdit, GUEST_NOTICE } from '../lib/permissions.js';
 
 export function CheckinPage() {
   const [, navigate] = useLocation();
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!canEdit(authUser.value)) {
+      setError(GUEST_NOTICE);
+      return;
+    }
     let active = true;
     async function checkIn() {
       try {

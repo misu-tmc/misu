@@ -1,4 +1,7 @@
 <view class="container">
-  <view wx:if="{{loading}}" class="empty">Checking you in…</view>
-  <view wx:else class="empty">Unable to check in. Please try again.</view>
+  <view wx:if="{{loading}}" class="empty">Loading meeting…</view>
+  <block wx:else>
+    <view class="empty">{{message || 'Sign in to view this meeting.'}}</view>
+    <button class="btn" bindtap="viewMeeting">View meeting</button>
+  </block>
 </view>

@@ -71,6 +71,23 @@ view, text, image, button, scroll-view {
   padding: 80rpx 0;
 }
 
+.access-note {
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+  color: #51445e;
+  background: #f0ecf6;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.account-action {
+  margin-top: 16rpx;
+  background: #f0ecf6;
+  color: #5b2a86;
+  font-size: 28rpx;
+}
+
 @media (max-width: 360px) {
   .container { padding-left: 18rpx; padding-right: 18rpx; }
   .card { padding-left: 24rpx; padding-right: 24rpx; }

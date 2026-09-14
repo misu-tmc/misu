@@ -72,6 +72,10 @@ vi.mock('wouter-preact', () => ({
 }));
 
 import { EditorPage } from './EditorPage.jsx';
+import { authUser } from '../state/auth.js';
+
+beforeEach(() => { authUser.value = { id: 7, role: 'editor' }; });
+afterEach(() => { authUser.value = null; });
 
 const meeting = {
   id: 42,

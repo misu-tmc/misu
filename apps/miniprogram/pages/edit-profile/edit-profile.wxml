@@ -1,4 +1,4 @@
-<view class="container">
+<view wx:if="{{canEdit}}" class="container">
 
   <view class="card">
     <button class="avatar-btn" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
@@ -18,9 +18,9 @@
       bindinput="onNameInput"
     />
   </view>
-
   <view class="btn save-btn {{saving ? 'disabled' : ''}}" bindtap="onSave">
     {{saving ? 'Saving…' : 'Save'}}
   </view>
 
 </view>
+<view wx:else class="container access-note">Profile editing requires editor access.</view>

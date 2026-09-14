@@ -1,16 +1,20 @@
 import { Link } from 'wouter-preact';
+import { authUser } from '../state/auth.js';
+import { canEdit } from '../lib/permissions.js';
 
 const tools = [
   {
     href: '/app/misu/users',
     label: 'Users',
     description: 'Review people records and create users for role assignments.',
+    readOnlyDescription: 'View people records and role assignments.',
     tone: 'users'
   },
   {
     href: '/app/misu/meetings',
     label: 'Meetings',
     description: 'View and edit all meetings, including archived meetings, newest first.',
+    readOnlyDescription: 'View all meetings, including archived meetings, newest first.',
     tone: 'meetings'
   },
   {
@@ -27,10 +31,10 @@ export function MisuPage() {
       <section class="card tool-panel">
         <p class="eyebrow">Data management</p>
         <div class="tool-list">
-          {tools.map((tool) => (
+          {tools.filter((tool) => tool.tone !== 'create' || canEdit(authUser.value)).map((tool) => (
             <Link class="tool-row" href={tool.href} key={tool.href}>
               <span class={`tool-mark ${tool.tone}`} aria-hidden="true">{tool.label.slice(0, 1)}</span>
-              <span class="tool-copy"><strong>{tool.label}</strong><small>{tool.description}</small></span>
+              <span class="tool-copy"><strong>{tool.label}</strong><small>{canEdit(authUser.value) ? tool.description : tool.readOnlyDescription}</small></span>
               <span class="tool-arrow" aria-hidden="true">→</span>
             </Link>
           ))}

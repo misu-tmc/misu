@@ -1,6 +1,7 @@
 <view class="container">
 
   <view wx:if="{{loading}}" class="empty">Loading…</view>
+  <view wx:if="{{signedIn && !canEdit}}" class="access-note">Guest access is read-only. Ask an administrator for editing access.</view>
 
   <!-- Your bookings summary — only when the user has any -->
   <block wx:if="{{bookings.length > 0}}">
@@ -11,7 +12,7 @@
           <text class="booking-title">#{{item.number}} · {{item.roleLabel}}</text>
           <text class="muted booking-date">{{item.dateLabel}}</text>
         </view>
-        <view class="booking-actions">
+        <view wx:if="{{canEdit}}" class="booking-actions">
           <view
             class="btn btn-ghost"
             data-meeting-id="{{item.meetingId}}"
@@ -53,12 +54,13 @@
           <text class="role-taker {{s.mine ? 'mine' : ''}}">{{s.takerName}}</text>
         </block>
         <view
-          wx:else
+          wx:elif="{{canEdit}}"
           class="btn"
           data-meeting-id="{{m.id}}"
           data-slot-id="{{s.id}}"
           bindtap="onTake"
         >Take!</view>
+        <text wx:else class="muted">Open</text>
       </view>
     </block>
   </view>

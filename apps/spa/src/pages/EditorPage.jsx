@@ -14,7 +14,9 @@ import {
   splitMeeting
 } from '../lib/editorModel.js';
 import { isPreparedSpeechSlot, shortDate, toHHMM, toMinutes } from '../lib/format.js';
-import { PageError, PageLoading } from '../components/PageState.jsx';
+import { EmptyState, PageError, PageLoading } from '../components/PageState.jsx';
+import { authUser } from '../state/auth.js';
+import { canEdit, GUEST_NOTICE } from '../lib/permissions.js';
 
 const TABS = [
   ['info', 'Information'],
@@ -37,6 +39,13 @@ function sessionKey(session, index) {
 }
 
 export function EditorPage({ params }) {
+  if (!canEdit(authUser.value)) {
+    return <EmptyState title="Read-only access" message={GUEST_NOTICE} action={<a class="btn btn-ghost" href={params?.id ? `/app/meetings/${params.id}` : '/app/meeting'}>View meetings</a>} />;
+  }
+  return <MeetingEditor params={params} />;
+}
+
+function MeetingEditor({ params }) {
   const routeId = params?.id ? Number(params.id) : null;
   const [, navigate] = useLocation();
   const query = new URLSearchParams(window.location.search);

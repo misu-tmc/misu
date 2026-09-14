@@ -2,7 +2,7 @@
 
   <view wx:if="{{loading}}" class="empty">Loading…</view>
 
-  <block wx:elif="{{header}}">
+  <block wx:elif="{{header && canEdit}}">
     <!-- Header + publish toggle -->
     <view class="head-card">
       <view class="head-top">

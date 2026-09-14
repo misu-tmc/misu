@@ -20,9 +20,9 @@ import { MePage } from './MePage.jsx';
 
 describe('MePage profile editing', () => {
   beforeEach(() => {
-    authUser.value = { id: 7, display_name: 'Guest', club_name: 'Old Club' };
+    authUser.value = { id: 7, display_name: 'Guest', club_name: 'Old Club', role: 'editor', email: 'member@example.test' };
     upcoming.mockReset().mockResolvedValue([]);
-    update.mockReset().mockResolvedValue({ id: 7, display_name: 'Guest', club_name: 'New Club' });
+    update.mockReset().mockResolvedValue({ ...authUser.value, club_name: 'New Club' });
   });
 
   it('initializes the optional club field from the authenticated user', async () => {
@@ -41,7 +41,7 @@ describe('MePage profile editing', () => {
   });
 
   it('clears the club by sending a blank string', async () => {
-    update.mockResolvedValueOnce({ id: 7, display_name: 'Guest', club_name: null });
+    update.mockResolvedValueOnce({ ...authUser.value, club_name: null });
     render(<MePage />);
     fireEvent.input(await screen.findByLabelText('Club (optional)'), { target: { value: '   ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
@@ -53,7 +53,7 @@ describe('MePage profile editing', () => {
     render(<MePage />);
     fireEvent.click(await screen.findByRole('button', { name: 'Save profile' }));
 
-    await waitFor(() => expect(authUser.value).toEqual({ id: 7, display_name: 'Guest', club_name: 'New Club' }));
+    await waitFor(() => expect(authUser.value).toEqual({ id: 7, display_name: 'Guest', club_name: 'New Club', role: 'editor', email: 'member@example.test' }));
     expect(screen.getByLabelText('Club (optional)').value).toBe('New Club');
     expect(screen.getByLabelText('Display name').value).toBe('Guest');
   });

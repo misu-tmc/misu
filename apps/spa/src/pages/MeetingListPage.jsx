@@ -29,25 +29,29 @@ export function MeetingListPage({ scope = 'open' }) {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
-  async function load() {
-    setLoading(true);
-    setError('');
-    try {
-      const result = await meetingsApi.list(scope);
-      // The all-meetings API already returns newest first; only open meetings prioritize ongoing ones.
-      setMeetings(scope === 'all' ? result : sortMeetingsForDisplay(result));
-    } catch (err) {
-      setError(err.message || 'Could not load meetings.');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      setLoading(true);
+      setError('');
+      try {
+        const result = await meetingsApi.list(scope);
+        // The all-meetings API already returns newest first; only open meetings prioritize ongoing ones.
+        if (active) setMeetings(scope === 'all' ? result : sortMeetingsForDisplay(result));
+      } catch (err) {
+        if (active) setError(err.message || 'Could not load meetings.');
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  }
-
-  useEffect(() => { load(); }, [scope]);
+    load();
+    return () => { active = false; };
+  }, [scope, retryCount]);
 
   if (loading) return <PageLoading label="Loading meetings…" />;
-  if (error) return <PageError message={error} onRetry={load} />;
+  if (error) return <PageError message={error} onRetry={() => setRetryCount((count) => count + 1)} />;
 
   return (
     <div class="meeting-list-page">

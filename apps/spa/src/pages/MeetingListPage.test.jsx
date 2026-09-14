@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { meetingsApi } from '../lib/api.js';
 import { isMeetingOngoing, MeetingListPage, sortMeetingsForDisplay } from './MeetingListPage.jsx';
@@ -13,6 +13,16 @@ const meetings = [
   { id: 1, date: '2026-08-02', start_time: '09:00', end_time: '10:00' },
   { id: 2, date: '2026-08-02', start_time: '14:00', end_time: '16:00' }
 ];
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 describe('meeting card ordering', () => {
   it('recognizes a meeting within its scheduled interval', () => {
@@ -98,5 +108,69 @@ describe('MeetingListPage', () => {
 
     await waitFor(() => expect(list.mock.calls).toEqual([['all'], ['open']]));
     expect(await screen.findByRole('heading', { name: 'No upcoming meetings' })).toBeTruthy();
+  });
+
+  it.each(['resolve', 'reject'])('ignores a stale %s while the new scope is loading', async (outcome) => {
+    const allRequest = deferred();
+    const openRequest = deferred();
+    const list = vi.spyOn(meetingsApi, 'list')
+      .mockReturnValueOnce(allRequest.promise)
+      .mockReturnValueOnce(openRequest.promise);
+    const { rerender } = render(<MeetingListPage scope="all" />);
+    await waitFor(() => expect(list).toHaveBeenCalledWith('all'));
+
+    rerender(<MeetingListPage />);
+    await waitFor(() => expect(list).toHaveBeenCalledWith('open'));
+    await act(async () => {
+      if (outcome === 'resolve') allRequest.resolve(meetings);
+      else allRequest.reject(new Error('Stale all-meetings failure.'));
+    });
+
+    expect(screen.getByRole('status').textContent).toContain('Loading meetings');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('link', { name: /View meeting/ })).toBeNull();
+
+    await act(async () => { openRequest.resolve([]); });
+    expect(await screen.findByRole('heading', { name: 'No upcoming meetings' })).toBeTruthy();
+  });
+
+  it.each(['resolve', 'reject'])('ignores a stale %s after the new scope has loaded', async (outcome) => {
+    const allRequest = deferred();
+    const list = vi.spyOn(meetingsApi, 'list')
+      .mockReturnValueOnce(allRequest.promise)
+      .mockResolvedValueOnce([meetings[0]]);
+    const { rerender } = render(<MeetingListPage scope="all" />);
+    await waitFor(() => expect(list).toHaveBeenCalledWith('all'));
+
+    rerender(<MeetingListPage />);
+    await screen.findByRole('link', { name: /View meeting/ });
+    await act(async () => {
+      if (outcome === 'resolve') allRequest.resolve([meetings[1], meetings[2]]);
+      else allRequest.reject(new Error('Stale all-meetings failure.'));
+    });
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    const cards = screen.getAllByRole('link', { name: /View meeting/ });
+    expect(cards.map((card) => card.getAttribute('href'))).toEqual(['/app/meetings/3']);
+  });
+
+  it('ignores a pending retry after switching scopes', async () => {
+    const retryRequest = deferred();
+    const list = vi.spyOn(meetingsApi, 'list')
+      .mockRejectedValueOnce(new Error('Could not load meetings.'))
+      .mockReturnValueOnce(retryRequest.promise)
+      .mockResolvedValueOnce([]);
+    const { rerender } = render(<MeetingListPage scope="all" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(list.mock.calls).toEqual([['all'], ['all']]));
+    rerender(<MeetingListPage />);
+    await screen.findByRole('heading', { name: 'No upcoming meetings' });
+
+    await act(async () => { retryRequest.resolve(meetings); });
+
+    expect(list.mock.calls).toEqual([['all'], ['all'], ['open']]);
+    expect(screen.getByRole('heading', { name: 'No upcoming meetings' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /View meeting/ })).toBeNull();
   });
 });

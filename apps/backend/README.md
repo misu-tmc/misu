@@ -23,7 +23,7 @@ Build and validate the Preact SPA before running the integrated server:
 
 ```sh
 cd apps/spa
-npm ci
+npm install
 npm run validate
 ```
 

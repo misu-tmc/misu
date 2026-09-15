@@ -1,5 +1,6 @@
+import template from './mainSlidesTemplate.json' with { type: 'json' };
 import { buildMainSlidePlan } from './agendaSlides.js';
-import { fitSlideParagraph, meetingSlideTitle, mainSlidesTemplate as template } from './slides.js';
+import { fitSlideParagraph, meetingSlideTitle } from './slides.js';
 import { parseXml, replacePresentationSlides } from './pptxPackage.js';
 
 const PRESENTATION_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main';

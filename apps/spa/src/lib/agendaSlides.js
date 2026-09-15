@@ -5,12 +5,12 @@ const normalized = (value) => String(value || '').trim().toLowerCase().replace(/
 function replacementPortraits(meeting) {
   // Keep a reference headshot only for its actual owner, never for another assignee.
   return [
-    { role: 'Meeting Manager', owner: 'Chao Chen', pictureId: '8', left: 3153853 / 12700, top: 2194560 / 12700 },
-    { role: 'Photographer', owner: 'Tao Lu', pictureId: '7', left: 6938391 / 12700, top: 2194228 / 12700 }
+    { role: 'Meeting Manager', owner: 'Chao Chen', pictureId: '8' },
+    { role: 'Photographer', owner: 'Tao Lu', pictureId: '7' }
   ].flatMap((portrait) => {
     const name = meetingRoleValue(meeting, portrait.role);
     return normalized(name) === normalized(portrait.owner) ? [] : [{
-      ...portrait, width: 194.4, height: 194.4,
+      ...portrait,
       initials: name === 'TBD' ? '?' : name.split(/\s+/).slice(0, 2).map((part) => Array.from(part)[0]).join('').toUpperCase()
     }];
   });

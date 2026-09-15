@@ -28,31 +28,30 @@ afterEach(() => {
 });
 
 describe('SlidesPage', () => {
-  it('shows the faithful reference preview, keyboard navigation and a readable transcript', async () => {
+  it('offers a PowerPoint download without a preview, images or presentation controls', async () => {
     const { container } = render(<SlidesPage params={{ id: '44' }} />);
     await screen.findByRole('heading', { name: 'Regular Meeting #144' });
-    expect(screen.getByRole('status').textContent).toContain('Slide 1 of 39');
     expect(screen.getByRole('link', { name: 'Printed agenda' }).getAttribute('href')).toBe('/app/meetings/44/agenda');
-    expect(container.querySelector('.reference-slide-background').getAttribute('src')).toBe('/static/main-slides/reference-slide-01.png');
-    for (let index = 0; index < 4; index += 1) fireEvent.keyDown(window, { key: 'ArrowRight' });
-    expect(screen.getByRole('status').textContent).toContain('Warm Up - Slide 5 of 39');
-    expect([...container.querySelectorAll('.reference-slide-text')].map((p) => p.textContent)).toEqual(['Warm Up', 'Warmup Host']);
-    fireEvent.keyDown(window, { key: 'End' });
-    expect(screen.getByRole('button', { name: 'Next slide' }).disabled).toBe(true);
-    fireEvent.keyDown(window, { key: 'Home' });
-    expect(screen.getByRole('button', { name: 'Previous slide' }).disabled).toBe(true);
+    expect(screen.getByRole('region', { name: 'Main slide download' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download PowerPoint' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /fullscreen|Next slide|Previous slide/i })).toBeNull();
+    expect(screen.queryByText('Slide text')).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(generate).not.toHaveBeenCalled();
   });
 
-  it('does not steal presentation keys from interactive controls', async () => {
+  it('leaves browser navigation and scrolling keys alone', async () => {
     render(<SlidesPage params={{ id: '44' }} />);
     await screen.findByRole('heading', { name: 'Regular Meeting #144' });
-    const button = screen.getByRole('button', { name: 'Download PowerPoint' });
-    fireEvent.keyDown(button, { key: ' ' });
-    fireEvent.keyDown(button, { key: 'ArrowRight' });
-    expect(screen.getByRole('status').textContent).toContain('Slide 1 of 39');
+    for (const key of [' ', 'ArrowRight', 'ArrowLeft', 'Home', 'End', 'PageUp', 'PageDown']) {
+      const event = new KeyboardEvent('keydown', { key, cancelable: true });
+      window.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
   });
 
-  it('downloads the latest saved meeting, updates the preview and cleans up the blob', async () => {
+  it('downloads the latest saved meeting, updates its title and cleans up the blob', async () => {
     const { unmount } = render(<SlidesPage params={{ id: '44' }} />);
     await screen.findByRole('heading', { name: 'Regular Meeting #144' });
     const latest = { ...meeting, title: 'Latest saved meeting', number: 145 };
@@ -94,13 +93,20 @@ describe('SlidesPage', () => {
     expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
   });
 
-  it('shows load failures and unsupported fullscreen errors', async () => {
+  it('shows load failures and allows retry', async () => {
     getMeeting.mockRejectedValueOnce(new Error('Meeting not found'));
-    const { unmount } = render(<SlidesPage params={{ id: '44' }} />);
-    expect(await screen.findByText('Meeting not found')).toBeTruthy();
-    unmount();
     render(<SlidesPage params={{ id: '44' }} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Present fullscreen' }));
-    expect((await screen.findByRole('alert')).textContent).toContain('not supported');
+    expect(await screen.findByText('Meeting not found')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('heading', { name: 'Regular Meeting #144' })).toBeTruthy();
+  });
+
+  it('surfaces native generation errors without downloading a broken deck', async () => {
+    generate.mockRejectedValueOnce(new Error('Slide text is too long to fit.'));
+    render(<SlidesPage params={{ id: '44' }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Download PowerPoint' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('too long to fit');
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Download PowerPoint' }).disabled).toBe(false);
   });
 });

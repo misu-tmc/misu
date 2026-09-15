@@ -15,7 +15,7 @@ Outputs:
 - **Viewing version**: plain responsive HTML, friendly to mobile devices.
 - **Printing version**: a single-sided A4 agenda, implemented as HTML/CSS as one printable
 	page.
-- **Main slides**: an editable PowerPoint deck and browser preview using the original
+- **Main slides**: an editable PowerPoint deck using the original
 	MISU main-slide layouts.
 
 The agenda is draft by default and can be viewed/edited by any signed-in user. It is
@@ -23,15 +23,16 @@ published when ready; after publishing, any signed-in user may still edit it.
 
 ## Main Slides
 
-The editor and printed agenda link to `/app/meetings/:id/slides`. The page previews the
-saved meeting and downloads `MISU Main Agenda <number>.pptx`. Downloading reloads the
-meeting so newly saved sessions and assignments are included.
+The editor and printed agenda link to `/app/meetings/:id/slides`. This download-only page
+creates `MISU Main Agenda <number>.pptx`. Downloading reloads the meeting so newly saved
+sessions and assignments are included. There is no browser slide preview or fullscreen
+presentation; open the downloaded file in PowerPoint to present it.
 
 The template is derived from **Main Slides MISU 20260831.pptx**, not a reconstruction of
 its design. The 39 source layouts retain their native text paragraphs, artwork, masters,
 portraits, QR codes, notes, transitions and animated media. Static club information and
 officer teams remain as supplied in that reference; they are not meeting role assignments.
-The original cover is unchanged, with meeting metadata shown in the browser toolbar and
+The original cover is unchanged, with the meeting title shown on the download page and
 PowerPoint document properties.
 
 Generation uses the same agenda derivation as the printed agenda:
@@ -65,12 +66,8 @@ relationships, preserves individual paragraph styling, and reduces oversized tex
 Text that cannot fit legibly produces an explicit error rather than a clipped download.
 Always start from the immutable template, not a previously generated meeting deck.
 
-Browser previews use reference slide backgrounds with positioned dynamic text and share
-the PowerPoint slide plan. They support keyboard navigation, fullscreen and a readable
-slide transcript on mobile. The preview uses still backgrounds; the downloaded PowerPoint
-retains native animation and editable text.
-
-To rebuild the checked-in template and browser assets on Windows with PowerPoint installed:
+The preparation script is kept locally and is not tracked in Git. If you have a local copy,
+you can rebuild the checked-in template and text-fitting manifest on Windows with PowerPoint installed:
 
 ```powershell
 .\apps\spa\scripts\create-main-agenda-template.ps1 `
@@ -78,9 +75,10 @@ To rebuild the checked-in template and browser assets on Windows with PowerPoint
   -OutputPath '.\apps\backend\static\main-slides\main-agenda-template.pptx'
 ```
 
-The script also generates the preview PNGs and SPA layout manifest. The original reference
-file is never modified. Normal downloads run entirely in the browser using the checked-in
-assets and do not require PowerPoint or a server-side document conversion service.
+The script measures the native text geometry and fonts for the text-fitting manifest; it
+does not export PNGs. The original reference file is never modified. Normal downloads run
+entirely in the browser using the native template and fitting data, and do not require
+PowerPoint or a server-side document conversion service.
 
 ## Print Agenda Design
 

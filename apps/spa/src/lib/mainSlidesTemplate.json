@@ -1,114 +1,50 @@
 {
-  "width": 960,
-  "height": 540,
   "slides": [
     {
       "number": 1,
-      "title": "SUZHOU TOASTMASTERS CLUB",
-      "description": "SUZHOU TOASTMASTERS CLUB\n付费二维码 PAYMENT BARCODE\n访客登记表 Visitor FORM",
-      "image": "/static/main-slides/reference-slide-01.png",
       "fields": []
     },
     {
       "number": 2,
-      "title": "MICROSOFT SUZHOU TOASTMASTERS CLUB",
-      "description": "MICROSOFT SUZHOU TOASTMASTERS CLUB",
-      "image": "/static/main-slides/reference-slide-02.png",
       "fields": []
     },
     {
       "number": 3,
-      "title": "Ground Rules",
-      "description": "Ground Rules\nKeep phone in silent mode\nDon’t walk around during the meeting without purpose\nShake hands when you come into /out of the stage",
-      "image": "/static/main-slides/reference-slide-03.png",
       "fields": []
     },
     {
       "number": 4,
-      "title": "The Taboos",
-      "description": "The Taboos\nPolitics\nReligion\nRace\nSex",
-      "image": "/static/main-slides/reference-slide-04.png",
       "fields": []
     },
     {
       "number": 5,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-05.png",
       "fields": [
         {
           "marker": "MISU_FIELD:session",
-          "left": 0.0,
-          "top": 116.1817,
-          "width": 960.0,
-          "height": 178.2858,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 7.2,
-              "top": 119.7817,
               "width": 945.6,
               "height": 110.16,
               "fontSize": 54.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 110.16,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 362.5,
-                "top": 119.7817,
-                "width": 249.995,
                 "height": 110.16
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 7.2,
-              "top": 229.9417,
               "width": 945.6,
               "height": 64.5258,
               "fontSize": 54.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 110.16,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 351.0,
-                "top": 229.9417,
-                "width": 258.005,
                 "height": 104.915
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 40.3892
+              }
             }
           ]
         }
@@ -116,159 +52,62 @@
     },
     {
       "number": 6,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-06.png",
       "fields": [
         {
           "marker": "MISU_FIELD:intro.title",
-          "left": 120.0,
-          "top": 252.0,
-          "width": 720.0,
-          "height": 57.6,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 3,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 127.2,
-              "top": 258.66,
               "width": 705.6,
               "height": 50.94,
               "fontSize": 41.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.08,
-              "lineHeightPoints": 44.28,
-              "lineSpacing": 0.9,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": true,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 145.96,
-                "top": 258.66,
-                "width": 668.085,
                 "height": 44.28
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         },
         {
           "marker": "MISU_FIELD:intro.detail",
-          "left": 210.0,
-          "top": 330.3599,
-          "width": 540.0,
-          "height": 152.6402,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 217.2,
-              "top": 333.9599,
               "width": 525.6,
               "height": 25.92,
               "fontSize": 24.0,
-              "color": "#ffffff",
               "bold": false,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.08,
-              "lineHeightPoints": 25.92,
-              "lineSpacing": 0.9,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 443.955,
-                "top": 333.9599,
-                "width": 78.715,
                 "height": 25.92
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "Microsoft Suzhou Toastmasters Club",
-              "left": 217.2,
-              "top": 359.8799,
               "width": 525.6,
               "height": 40.24,
               "fontSize": 28.0,
-              "color": "#ffffff",
               "bold": false,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.08,
-              "lineHeightPoints": 30.24,
-              "lineSpacing": 0.9,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 251.93,
-                "top": 359.8799,
-                "width": 463.89,
                 "height": 40.24
-              },
-              "empty": false,
-              "editable": false,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 217.2,
-              "top": 400.1199,
               "width": 525.6,
               "height": 82.8802,
               "fontSize": 20.0,
-              "color": "#ffffff",
               "bold": false,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.08,
-              "lineHeightPoints": 21.6,
-              "lineSpacing": 0.9,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 377.8,
-                "top": 400.1199,
-                "width": 204.4,
                 "height": 31.6
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -276,174 +115,85 @@
     },
     {
       "number": 7,
-      "title": "Origination",
-      "description": "Origination\nDr. Ralph Smedley\nStart from a basement in Santa Ana, California U.S.A.\nSince 1924",
-      "image": "/static/main-slides/reference-slide-07.png",
       "fields": []
     },
     {
       "number": 8,
-      "title": "What’s TM",
-      "description": "What’s TM\nA worldwide nonprofit educational organization that empowers people to become more effective communicators and leaders\nSINCE 1924\n270K+ Members\n150 Countries\n14.2K Clubs",
-      "image": "/static/main-slides/reference-slide-08.png",
       "fields": []
     },
     {
       "number": 9,
-      "title": "Toastmasters International Mission 国际演讲会使命",
-      "description": "We empower individuals to become more effective communicators and leaders.\n我们赋能个体成为更有效的沟通者和领导者。\nToastmasters International Mission 国际演讲会使命",
-      "image": "/static/main-slides/reference-slide-09.png",
       "fields": []
     },
     {
       "number": 10,
-      "title": "Brand Promise 品牌承诺",
-      "description": "Empowering individuals through personal and professional development.\n促进个人和职业发展\nBrand Promise 品牌承诺",
-      "image": "/static/main-slides/reference-slide-10.png",
       "fields": []
     },
     {
       "number": 11,
-      "title": "Toastmasters Values",
-      "description": "Toastmasters Values\nIntegrity - living up to the Toastmasters\nRespect - understanding each other among membership.\nService -  stepping up when required to help the club function\nExcellence -  performing assigned duties to the best of our ability every time.",
-      "image": "/static/main-slides/reference-slide-11.png",
       "fields": []
     },
     {
       "number": 12,
-      "title": "Pathways",
-      "description": "Pathways\n领导力发展\n激励策略\n有说服力的影响\n精通演讲\nPathways is designed to help you build the skills you need to communicate and lead. It is comprised of 11 paths that teach more than 300 unique competencies.",
-      "image": "/static/main-slides/reference-slide-12.png",
       "fields": []
     },
     {
       "number": 13,
-      "title": "Leadership Structure",
-      "description": "Leadership Structure\n(MISU,No.07964606)\n(R3)\n(R)\n(128)\n(14)",
-      "image": "/static/main-slides/reference-slide-13.png",
       "fields": []
     },
     {
       "number": 14,
-      "title": "Pathways Chart to DTM",
-      "description": "Pathways Chart to DTM",
-      "image": "/static/main-slides/reference-slide-14.png",
       "fields": []
     },
     {
       "number": 15,
-      "title": "Microsoft Suzhou Toastmasters Club (MiSu)",
-      "description": "Microsoft Suzhou Toastmasters Club (MiSu)\nMiSu - Moving Into Success With You\nMicrosoft Mission: To empower every individual on the planet to achieve more.\nMiSu Mission: To empower every individual to grow into an inspiring communicator and authentic leader.",
-      "image": "/static/main-slides/reference-slide-15.png",
       "fields": []
     },
     {
       "number": 16,
-      "title": "Microsoft Suzhou Toastmasters Club (MiSu)",
-      "description": "Microsoft Suzhou Toastmasters Club (MiSu)\n2025.8.4\n1st/112th\n2026.6.22\n28th/139th\nSuccess",
-      "image": "/static/main-slides/reference-slide-16.png",
       "fields": []
     },
     {
       "number": 17,
-      "title": "How to join us?",
-      "description": "How to join us?\nRegular meeting/Activity x 3\nWith Table Topics x 2\n200 (new member) + 100/month\nCorporate Club (Open for All)\nLanguage: English\nMeeting Time:\nBiweekly Monday Evening (7- 9 PM)\nSpecial meetings Occasionally\nVPM\nSerena Zhan",
-      "image": "/static/main-slides/reference-slide-17.png",
       "fields": []
     },
     {
       "number": 18,
-      "title": "MiSu 1st Officer Team",
-      "description": "President\nCecily Wang\nVPE\nChao Chen\nVPM\nSerena Zhan\nVPPR\nSophia Chen\nTreasurer\nJohnny Yao\nSAA\nTao Lu\nSecretary\nJiajia Bao\nMiSu 1st Officer Team (2025.9 – 2026.6)",
-      "image": "/static/main-slides/reference-slide-18.png",
       "fields": []
     },
     {
       "number": 19,
-      "title": "WHERE LEADERS ARE MADE",
-      "description": "WHERE LEADERS ARE MADE",
-      "image": "/static/main-slides/reference-slide-19.png",
       "fields": []
     },
     {
       "number": 20,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-20.png",
       "fields": [
         {
           "marker": "MISU_FIELD:session",
-          "left": 71.4286,
-          "top": 119.9999,
-          "width": 817.1428,
-          "height": 178.2858,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 78.6286,
-              "top": 123.5999,
               "width": 802.7428,
               "height": 97.92,
               "fontSize": 48.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 97.92,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 431.06,
-                "top": 123.5999,
-                "width": 111.26,
                 "height": 97.92
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 78.6286,
-              "top": 221.5199,
               "width": 802.7428,
               "height": 76.7658,
               "fontSize": 48.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 97.92,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 335.75,
-                "top": 221.5199,
-                "width": 288.505,
                 "height": 94.365
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 17.5992
+              }
             }
           ]
         }
@@ -451,83 +201,33 @@
     },
     {
       "number": 21,
-      "title": "TBD TBD",
-      "description": "WHERE LEADERS ARE MADE",
-      "image": "/static/main-slides/reference-slide-21.png",
       "fields": [
         {
           "marker": "MISU_FIELD:section",
-          "left": 86.6087,
-          "top": 135.0694,
-          "width": 768.0,
-          "height": 181.7578,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 93.8087,
-              "top": 138.6694,
               "width": 753.6,
               "height": 86.4,
               "fontSize": 72.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.2,
-              "lineHeightPoints": 86.4,
-              "lineSpacing": 1.0,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 167.2812,
-                "top": 138.6694,
-                "width": 646.6551,
                 "height": 86.4
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 93.8087,
-              "top": 225.0694,
               "width": 753.6,
               "height": 91.7578,
               "fontSize": 72.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.2,
-              "lineHeightPoints": 86.4,
-              "lineSpacing": 1.0,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 260.6112,
-                "top": 225.0694,
-                "width": 420.005,
                 "height": 86.4
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -535,83 +235,33 @@
     },
     {
       "number": 22,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-22.png",
       "fields": [
         {
           "marker": "MISU_FIELD:session",
-          "left": 71.4286,
-          "top": 119.9999,
-          "width": 817.1428,
-          "height": 178.2858,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 78.6286,
-              "top": 123.5999,
               "width": 802.7428,
               "height": 97.92,
               "fontSize": 48.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 97.92,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 415.0575,
-                "top": 123.5999,
-                "width": 156.635,
                 "height": 97.92
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 78.6286,
-              "top": 221.5199,
               "width": 802.7428,
               "height": 76.7658,
               "fontSize": 48.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 97.92,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 363.4525,
-                "top": 221.5199,
-                "width": 233.1,
                 "height": 94.365
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 17.5992
+              }
             }
           ]
         }
@@ -619,83 +269,33 @@
     },
     {
       "number": 23,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-23.png",
       "fields": [
         {
           "marker": "MISU_FIELD:session",
-          "left": 71.4286,
-          "top": 119.9999,
-          "width": 817.1428,
-          "height": 178.2858,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 78.6286,
-              "top": 123.5999,
               "width": 802.7428,
               "height": 97.92,
               "fontSize": 48.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 97.92,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 338.5625,
-                "top": 123.5999,
-                "width": 309.625,
                 "height": 97.92
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 78.6286,
-              "top": 221.5199,
               "width": 802.7428,
               "height": 76.7658,
               "fontSize": 48.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 97.92,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 412.3175,
-                "top": 221.5199,
-                "width": 135.365,
                 "height": 94.365
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 17.5992
+              }
             }
           ]
         }
@@ -703,52 +303,21 @@
     },
     {
       "number": 24,
-      "title": "TBD",
-      "description": "WHERE LEADERS ARE MADE",
-      "image": "/static/main-slides/reference-slide-24.png",
       "fields": [
         {
           "marker": "MISU_FIELD:section",
-          "left": 86.6087,
-          "top": 135.0694,
-          "width": 768.0,
-          "height": 181.7578,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 93.8087,
-              "top": 138.6694,
               "width": 753.6,
               "height": 178.1578,
               "fontSize": 72.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.2,
-              "lineHeightPoints": 86.4,
-              "lineSpacing": 1.0,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 2,
               "sourceBounds": {
-                "left": 176.6087,
-                "top": 138.6694,
-                "width": 608.0,
                 "height": 172.8
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -756,83 +325,33 @@
     },
     {
       "number": 25,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-25.png",
       "fields": [
         {
           "marker": "MISU_FIELD:session",
-          "left": 0.0,
-          "top": 116.1817,
-          "width": 960.0,
-          "height": 178.2858,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 7.2,
-              "top": 119.7817,
               "width": 945.6,
               "height": 79.2,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.8,
-              "lineHeightPoints": 79.2,
-              "lineSpacing": 1.5,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 170.075,
-                "top": 119.7817,
-                "width": 632.1,
                 "height": 79.2
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 7.2,
-              "top": 198.9817,
               "width": 945.6,
               "height": 95.4858,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.8,
-              "lineHeightPoints": 79.2,
-              "lineSpacing": 1.5,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 336.875,
-                "top": 198.9817,
-                "width": 286.255,
                 "height": 79.415
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -840,83 +359,33 @@
     },
     {
       "number": 26,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-26.png",
       "fields": [
         {
           "marker": "MISU_FIELD:session",
-          "left": 0.0,
-          "top": 116.1817,
-          "width": 960.0,
-          "height": 178.2858,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 7.2,
-              "top": 119.7817,
               "width": 945.6,
               "height": 79.2,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.8,
-              "lineHeightPoints": 79.2,
-              "lineSpacing": 1.5,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 73.5925,
-                "top": 119.7817,
-                "width": 825.065,
                 "height": 79.2
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 7.2,
-              "top": 198.9817,
               "width": 945.6,
               "height": 95.4858,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.8,
-              "lineHeightPoints": 79.2,
-              "lineSpacing": 1.5,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 349.9425,
-                "top": 198.9817,
-                "width": 260.12,
                 "height": 79.415
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -924,52 +393,21 @@
     },
     {
       "number": 27,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-27.png",
       "fields": [
         {
           "marker": "MISU_FIELD:heading",
-          "left": 22.3865,
-          "top": 159.1261,
-          "width": 901.5126,
-          "height": 102.8572,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 4,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 29.5865,
-              "top": 180.6232,
               "width": 887.1126,
               "height": 81.36,
               "fontSize": 72.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.08,
-              "lineHeightPoints": 77.76,
-              "lineSpacing": 0.9,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": true,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 219.1428,
-                "top": 180.6232,
-                "width": 508.005,
                 "height": 77.76
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -977,52 +415,21 @@
     },
     {
       "number": 28,
-      "title": "TBD",
-      "description": "WHERE LEADERS ARE MADE",
-      "image": "/static/main-slides/reference-slide-28.png",
       "fields": [
         {
           "marker": "MISU_FIELD:section",
-          "left": 86.6087,
-          "top": 135.0694,
-          "width": 768.0,
-          "height": 94.5141,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 93.8087,
-              "top": 138.6694,
               "width": 753.6,
               "height": 90.9141,
               "fontSize": 72.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.2,
-              "lineHeightPoints": 86.4,
-              "lineSpacing": 1.0,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 127.9537,
-                "top": 138.6694,
-                "width": 685.315,
                 "height": 86.4
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -1030,83 +437,33 @@
     },
     {
       "number": 29,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-29.png",
       "fields": [
         {
           "marker": "MISU_FIELD:session",
-          "left": 0.0,
-          "top": 116.1817,
-          "width": 960.0,
-          "height": 178.2858,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 7.2,
-              "top": 119.7817,
               "width": 945.6,
               "height": 79.2,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.8,
-              "lineHeightPoints": 79.2,
-              "lineSpacing": 1.5,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 313.75,
-                "top": 119.7817,
-                "width": 344.75,
                 "height": 79.2
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 7.2,
-              "top": 198.9817,
               "width": 945.6,
               "height": 95.4858,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.8,
-              "lineHeightPoints": 79.2,
-              "lineSpacing": 1.5,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 363.875,
-                "top": 198.9817,
-                "width": 232.255,
                 "height": 79.415
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -1114,52 +471,21 @@
     },
     {
       "number": 30,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-30.png",
       "fields": [
         {
           "marker": "MISU_FIELD:heading",
-          "left": 120.0,
-          "top": 212.4,
-          "width": 720.0,
-          "height": 57.6,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 4,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 127.2,
-              "top": 188.64,
               "width": 705.6,
               "height": 81.36,
               "fontSize": 72.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.08,
-              "lineHeightPoints": 77.76,
-              "lineSpacing": 0.9,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": true,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 150.0,
-                "top": 188.64,
-                "width": 660.0051,
                 "height": 77.76
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -1167,83 +493,33 @@
     },
     {
       "number": 31,
-      "title": "TBD TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-31.png",
       "fields": [
         {
           "marker": "MISU_FIELD:reports",
-          "left": 24.5681,
-          "top": 4.6829,
-          "width": 919.0588,
-          "height": 387.5121,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 3,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 31.7681,
-              "top": 125.0815,
               "width": 904.6588,
               "height": 73.44,
               "fontSize": 36.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 73.44,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 105.765,
-                "top": 125.0815,
-                "width": 766.665,
                 "height": 73.44
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 31.7681,
-              "top": 198.5215,
               "width": 904.6588,
               "height": 193.6735,
               "fontSize": 36.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 73.44,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 138.08,
-                "top": 198.5215,
-                "width": 692.035,
                 "height": 73.275
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -1251,83 +527,33 @@
     },
     {
       "number": 32,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-32.png",
       "fields": [
         {
           "marker": "MISU_FIELD:session",
-          "left": 20.4706,
-          "top": 91.5631,
-          "width": 919.0588,
-          "height": 225.479,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 3,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 27.6706,
-              "top": 105.5551,
               "width": 904.6588,
               "height": 110.16,
               "fontSize": 54.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 110.16,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 190.01,
-                "top": 105.5551,
-                "width": 594.98,
                 "height": 110.16
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 27.6706,
-              "top": 215.7151,
               "width": 904.6588,
               "height": 101.327,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 89.76,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 388.215,
-                "top": 215.7151,
-                "width": 183.575,
                 "height": 87.335
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -1335,109 +561,43 @@
     },
     {
       "number": 33,
-      "title": "TBD TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-33.png",
       "fields": [
         {
           "marker": "MISU_FIELD:reports",
-          "left": 63.0713,
-          "top": 71.7856,
-          "width": 848.727,
-          "height": 315.2143,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 70.2713,
-              "top": 75.3856,
               "width": 834.327,
               "height": 89.76,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 89.76,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 176.6774,
-                "top": 75.3856,
-                "width": 633.765,
                 "height": 89.76
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 70.2713,
-              "top": 165.1456,
               "width": 834.327,
               "height": 99.76,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 89.76,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 202.1523,
-                "top": 165.1456,
-                "width": 582.8199,
                 "height": 99.76
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "",
-              "left": 70.2713,
-              "top": 264.9056,
               "width": 834.327,
               "height": 122.0943,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 89.76,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
-              "sourceBounds": null,
-              "empty": true,
-              "editable": false,
-              "sourceOverflowBottom": 0
+              "sourceBounds": null
             }
           ]
         }
@@ -1445,83 +605,33 @@
     },
     {
       "number": 34,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-34.png",
       "fields": [
         {
           "marker": "MISU_FIELD:session",
-          "left": 71.4286,
-          "top": 124.6387,
-          "width": 817.1428,
-          "height": 145.3613,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 78.6286,
-              "top": 128.2387,
               "width": 802.7428,
               "height": 89.76,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 89.76,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 280.5625,
-                "top": 128.2387,
-                "width": 411.125,
                 "height": 89.76
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 78.6286,
-              "top": 217.9987,
               "width": 802.7428,
               "height": 52.0013,
               "fontSize": 44.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 2.04,
-              "lineHeightPoints": 89.76,
-              "lineSpacing": 1.7,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 10.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 372.3725,
-                "top": 217.9987,
-                "width": 215.255,
                 "height": 87.335
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 35.3337
+              }
             }
           ]
         }
@@ -1529,52 +639,21 @@
     },
     {
       "number": 35,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-35.png",
       "fields": [
         {
           "marker": "MISU_FIELD:heading",
-          "left": 129.3913,
-          "top": 80.3479,
-          "width": 720.0,
-          "height": 175.0435,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 4,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 136.5913,
-              "top": 174.0313,
               "width": 705.6,
               "height": 81.36,
               "fontSize": 72.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.08,
-              "lineHeightPoints": 77.76,
-              "lineSpacing": 0.9,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": true,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 232.0638,
-                "top": 174.0313,
-                "width": 514.66,
                 "height": 77.76
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -1582,52 +661,21 @@
     },
     {
       "number": 36,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-36.png",
       "fields": [
         {
           "marker": "MISU_FIELD:heading",
-          "left": 129.3913,
-          "top": 118.9566,
-          "width": 720.0,
-          "height": 175.0435,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 4,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 136.5913,
-              "top": 204.0001,
               "width": 705.6,
               "height": 90.0,
               "fontSize": 80.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.08,
-              "lineHeightPoints": 86.4,
-              "lineSpacing": 0.9,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": true,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 307.8638,
-                "top": 204.0001,
-                "width": 363.06,
                 "height": 86.4
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -1635,52 +683,21 @@
     },
     {
       "number": 37,
-      "title": "TBD",
-      "description": "",
-      "image": "/static/main-slides/reference-slide-37.png",
       "fields": [
         {
           "marker": "MISU_FIELD:heading",
-          "left": 129.3913,
-          "top": 110.3596,
-          "width": 720.0,
-          "height": 175.0435,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 4,
           "paragraphs": [
             {
-              "text": "TBD",
-              "left": 136.5913,
-              "top": 195.4031,
               "width": 705.6,
               "height": 90.0,
               "fontSize": 80.0,
-              "color": "#feee9f",
               "bold": true,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Arial",
               "lineHeight": 1.08,
-              "lineHeightPoints": 86.4,
-              "lineSpacing": 0.9,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": true,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 184.8289,
-                "top": 195.4031,
-                "width": 609.1301,
                 "height": 86.4
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -1688,159 +705,62 @@
     },
     {
       "number": 38,
-      "title": "Appreciation to Team",
-      "description": "Appreciation to Team",
-      "image": "/static/main-slides/reference-slide-38.png",
       "fields": [
         {
           "marker": "MISU_FIELD:appreciation.manager",
-          "left": 258.8232,
-          "top": 367.2,
-          "width": 173.4233,
-          "height": 46.0453,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "Meeting Manager",
-              "left": 266.0232,
-              "top": 370.8,
               "width": 159.0233,
               "height": 19.2,
               "fontSize": 16.0,
-              "color": "#ffffff",
               "bold": false,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Aptos",
               "lineHeight": 1.2,
-              "lineHeightPoints": 19.2,
-              "lineSpacing": 1.0,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 286.4674,
-                "top": 370.8,
-                "width": 121.385,
                 "height": 19.2
-              },
-              "empty": false,
-              "editable": false,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 266.0232,
-              "top": 390.0,
               "width": 159.0233,
               "height": 23.2453,
               "fontSize": 16.0,
-              "color": "#ffffff",
               "bold": false,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Aptos",
               "lineHeight": 1.2,
-              "lineHeightPoints": 19.2,
-              "lineSpacing": 1.0,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 306.5974,
-                "top": 390.0,
-                "width": 77.88,
                 "height": 19.2
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         },
         {
           "marker": "MISU_FIELD:appreciation.photographer",
-          "left": 557.1002,
-          "top": 371.158,
-          "width": 173.4233,
-          "height": 46.0453,
-          "marginLeft": 7.2,
-          "marginTop": 3.6,
-          "marginRight": 7.2,
-          "marginBottom": 3.6,
-          "verticalAnchor": 1,
           "paragraphs": [
             {
-              "text": "Photographer",
-              "left": 564.3002,
-              "top": 374.758,
               "width": 159.0233,
               "height": 19.2,
               "fontSize": 16.0,
-              "color": "#ffffff",
               "bold": false,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Aptos",
               "lineHeight": 1.2,
-              "lineHeightPoints": 19.2,
-              "lineSpacing": 1.0,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 596.9643,
-                "top": 374.758,
-                "width": 96.945,
                 "height": 19.2
-              },
-              "empty": false,
-              "editable": false,
-              "sourceOverflowBottom": 0.0
+              }
             },
             {
-              "text": "TBD",
-              "left": 564.3002,
-              "top": 393.958,
               "width": 159.0233,
               "height": 23.2453,
               "fontSize": 16.0,
-              "color": "#ffffff",
               "bold": false,
-              "italic": false,
-              "align": "center",
               "fontFamily": "Aptos",
               "lineHeight": 1.2,
-              "lineHeightPoints": 19.2,
-              "lineSpacing": 1.0,
-              "lineSpacingIsMultiple": true,
-              "spaceBefore": 0.0,
-              "spaceBeforeIsMultiple": false,
-              "spaceAfter": 0.0,
-              "spaceAfterIsMultiple": false,
               "sourceLineCount": 1,
               "sourceBounds": {
-                "left": 621.7843,
-                "top": 393.958,
-                "width": 44.065,
                 "height": 19.2
-              },
-              "empty": false,
-              "editable": true,
-              "sourceOverflowBottom": 0.0
+              }
             }
           ]
         }
@@ -1848,9 +768,6 @@
     },
     {
       "number": 39,
-      "title": "MISU Officer Team",
-      "description": "MISU Officer Team(2026.07-2027.06)\nPresident\nCecily Wang\nVPM\nSerena Zhan\nVPE\nChao Chen\nVPPR\nSophia Chen\nSecretary\nJiajia Bao\nTreasure\nJohnny Yao\nSAA\nTao Lu",
-      "image": "/static/main-slides/reference-slide-39.png",
       "fields": []
     }
   ]

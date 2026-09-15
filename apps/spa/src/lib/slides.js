@@ -1,10 +1,5 @@
-import template from './mainSlidesTemplate.json' with { type: 'json' };
-import { buildMainSlidePlan } from './agendaSlides.js';
-
-export { template as mainSlidesTemplate };
-
-// Rounded-up Arial glyph advances at 1000px, for ASCII 32-126. Shared metrics
-// keep browser previews and non-browser PPTX generation independent of the DOM.
+// Rounded-up Arial glyph advances at 1000px, for ASCII 32-126, keep PPTX text
+// fitting independent of the DOM and installed browser fonts.
 const ARIAL_WIDTHS = [
   278,278,355,557,557,890,667,191,334,334,390,584,278,334,278,278,
   557,557,557,557,557,557,557,557,557,557,278,278,584,584,584,557,
@@ -70,28 +65,4 @@ export function fitSlideParagraph(text, paragraph) {
   while (size >= 8 && lineCount(text, width / size, paragraph) * size * lineHeight > height) size -= 0.5;
   if (size < 8) throw new Error('Slide text is too long to fit. Shorten the session title or role-taker name.');
   return size;
-}
-
-export function buildMainAgendaSlides(meeting) {
-  return buildMainSlidePlan(meeting).map((slide) => {
-    const source = template.slides.find((item) => item.number === slide.template);
-    if (!source) throw new Error(`Main slides template error: Missing slide ${slide.template}.`);
-    return {
-      ...slide,
-      title: slide.title || source.title,
-      description: source.description || '',
-      image: source.image,
-      width: template.width,
-      height: template.height,
-      text: source.fields.flatMap((field) => {
-        const name = field.marker.replace('MISU_FIELD:', '');
-        const values = slide.fields?.[name];
-        if (!values) throw new Error(`Main slides template error: Missing values for '${name}'.`);
-        return field.paragraphs.map((paragraph, index) => {
-          const text = String(values[index] ?? '');
-          return { ...paragraph, text, fontSize: text ? fitSlideParagraph(text, paragraph) : paragraph.fontSize };
-        });
-      })
-    };
-  });
 }

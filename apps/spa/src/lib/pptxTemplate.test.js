@@ -1,11 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, posix } from 'node:path';
 import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
 import { mainSlidesMeeting as meeting } from '../test/fixtures/mainSlidesMeeting.js';
 import template from './mainSlidesTemplate.json';
 import { buildMainSlidePlan } from './agendaSlides.js';
-import { buildMainAgendaSlides, fitSlideParagraph } from './slides.js';
+import { fitSlideParagraph } from './slides.js';
 import { buildMainAgendaPptx, mainAgendaPptxFilename } from './pptxTemplate.js';
 
 const P = 'http://schemas.openxmlformats.org/presentationml/2006/main';
@@ -44,6 +44,14 @@ function fields(doc) {
   }));
 }
 
+function fieldFontSize(doc, field) {
+  const shape = Array.from(doc.getElementsByTagNameNS(P, 'sp')).find(
+    (node) => node.getElementsByTagNameNS(P, 'cNvPr')[0]?.getAttribute('name') === `MISU_FIELD:${field}`
+  );
+  expect(shape).toBeTruthy();
+  return Number(shape.getElementsByTagNameNS(A, 'rPr')[0].getAttribute('sz'));
+}
+
 async function generate(data = meeting, bytes = seed) {
   const result = await buildMainAgendaPptx(bytes, data);
   expect(result).toBeInstanceOf(Uint8Array);
@@ -51,13 +59,14 @@ async function generate(data = meeting, bytes = seed) {
 }
 
 describe('reference PowerPoint generation', () => {
-  it('ships all reference layouts and matching preview images without stale meeting placeholders', async () => {
+  it('ships native reference layouts and fitting data without preview PNGs', async () => {
     expect(await slideParts(source)).toHaveLength(39);
     expect(template.slides).toHaveLength(39);
+    expect(readdirSync(resolve(process.cwd(), '../backend/static/main-slides')).filter((name) => /^reference-slide-\d+\.png$/.test(name))).toEqual([]);
     for (const slide of template.slides) {
       const doc = await xml(source, `ppt/slides/slide${slide.number}.xml`);
       expect(Object.keys(fields(doc)).sort()).toEqual(slide.fields.map((field) => field.marker.slice('MISU_FIELD:'.length)).sort());
-      expect(readFileSync(resolve(process.cwd(), `../backend${slide.image}`)).length).toBeGreaterThan(1000);
+      expect(Object.keys(slide).sort()).toEqual(['fields', 'number']);
     }
   });
 
@@ -66,7 +75,6 @@ describe('reference PowerPoint generation', () => {
     const parts = await slideParts(result);
     expect(parts).toHaveLength(39);
     const plan = buildMainSlidePlan(meeting);
-    const preview = buildMainAgendaSlides(meeting);
     for (const [index, page] of plan.entries()) {
       const doc = await xml(result, parts[index]);
       if (page.fields) {
@@ -76,7 +84,6 @@ describe('reference PowerPoint generation', () => {
           expect(actual[field].slice(0, values.length)).toEqual(values);
           expect(actual[field].slice(values.length).every((value) => value === '')).toBe(true);
         }
-        expect(Object.values(actual).flat().filter(Boolean)).toEqual(preview[index].text.map((p) => p.text).filter(Boolean));
         expect(text(doc)).not.toContain('TBD');
       } else {
         expect(await result.file(parts[index]).async('string')).toBe(await source.file(`ppt/slides/slide${page.template}.xml`).async('string'));
@@ -129,9 +136,10 @@ describe('reference PowerPoint generation', () => {
     };
     const result = await generate(changed);
     const parts = await slideParts(result);
-    expect(fields(await xml(result, parts[24])).session).toEqual([changed.role_slots[5].speech.title, 'New & <6>']);
+    const speech = await xml(result, parts[24]);
+    expect(fields(speech).session).toEqual([changed.role_slots[5].speech.title, 'New & <6>']);
     expect(fields(await xml(result, parts[28])).session[0]).toBe(changed.theme);
-    expect(buildMainAgendaSlides(changed)[24].text[0].fontSize).toBeLessThan(template.slides[24].fields[0].paragraphs[0].fontSize);
+    expect(fieldFontSize(speech, 'session')).toBeLessThan(template.slides[24].fields[0].paragraphs[0].fontSize * 100);
     expect(text(await xml(source, 'ppt/slides/slide25.xml'))).not.toContain('New &');
     await expect(generate({ ...changed, role_slots: changed.role_slots.map((slot) => slot.id === 6 ? { ...slot, speech: { title: 'x'.repeat(100000) } } : slot) })).rejects.toThrow(/too long to fit/);
   }, 30000);
@@ -168,9 +176,7 @@ describe('reference PowerPoint generation', () => {
     const result = await generate(changed);
     const parts = await slideParts(result);
     const doc = await xml(result, parts[24]);
-    const shape = Array.from(doc.getElementsByTagNameNS(P, 'sp')).find((node) => node.getElementsByTagNameNS(P, 'cNvPr')[0]?.getAttribute('name') === 'MISU_FIELD:session');
-    expect(Number(shape.getElementsByTagNameNS(A, 'rPr')[0].getAttribute('sz'))).toBe(fontSize * 100);
-    expect(buildMainAgendaSlides(changed)[24].text[0].fontSize).toBe(fontSize);
+    expect(fieldFontSize(doc, 'session')).toBe(fontSize * 100);
   }, 30000);
 
   it('rejects invalid templates and makes safe meeting-specific filenames', async () => {

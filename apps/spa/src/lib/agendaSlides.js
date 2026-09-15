@@ -50,20 +50,20 @@ function sessionType(row, slot) {
   return 'session';
 }
 
-function sectionTemplate(group) {
-  if (/facilitat/.test(group)) return 21;
-  if (/prepared.*speech/.test(group)) return 24;
-  if (/table topics?/.test(group)) return 28;
-  if (/evaluat/.test(group)) return 30;
+function sectionLayout(group) {
+  if (/facilitat/.test(group)) return 'facilitator-section';
+  if (/prepared.*speech/.test(group)) return 'section';
+  if (/table topics?/.test(group)) return 'topics-section';
+  if (/evaluat/.test(group)) return 'heading';
   return null;
 }
 
 function sectionSlide(group, slot) {
-  const template = sectionTemplate(normalized(group)) || 24;
-  const paragraphs = template === 21 && / introduction$/i.test(group)
+  const layout = sectionLayout(normalized(group)) || 'section';
+  const paragraphs = layout === 'facilitator-section' && / introduction$/i.test(group)
     ? [group.replace(/\s+introduction$/i, ''), 'Introduction']
     : [group];
-  return { kind: 'section', slot, title: group, template, fields: { [template === 30 ? 'heading' : 'section']: paragraphs } };
+  return { kind: 'section', slot, title: group, layout, variant: layout === 'heading' ? 'evaluation' : undefined, fields: { [layout === 'heading' ? 'heading' : 'section']: paragraphs } };
 }
 
 function sessionSlide(row, type, slot, meeting) {
@@ -74,16 +74,16 @@ function sessionSlide(row, type, slot, meeting) {
   const subtitle = agendaTaker(row);
   if (type === 'introduction') {
     return {
-      kind: 'intro-title', slot, title, row, template: 6,
+      kind: 'intro-title', slot, title, row, layout: 'introduction',
       fields: { 'intro.title': [title], 'intro.detail': [subtitle, 'Microsoft Suzhou Toastmasters Club', introductionDate(meeting)] }
     };
   }
-  const headingTemplate = { social: 27, voting: 35, awarding: 36, closing: 37 }[type];
-  if (headingTemplate && row.role_slot_id == null) {
-    return { kind: 'session', slot, title, row, template: headingTemplate, fields: { heading: [title] } };
+  const headingLayout = { social: 'heading', voting: 'heading', awarding: 'closing', closing: 'closing' }[type];
+  if (headingLayout && row.role_slot_id == null) {
+    return { kind: 'session', slot, title, row, layout: headingLayout, variant: { voting: 'voting', closing: 'remark' }[type], fields: { heading: [title] } };
   }
-  const template = { warmup: 5, toe: 20, timer: 22, grammarian: 23, 'table-topics': 29, 'table-evaluation': 32, 'general-evaluation': 34 }[type] || 25;
-  return { kind: 'session', slot, title, subtitle, row, template, fields: { session: [title, subtitle] } };
+  const layout = { warmup: 'warmup', toe: 'facilitator', timer: 'facilitator', grammarian: 'facilitator', 'table-evaluation': 'topics-evaluation', 'general-evaluation': 'general-evaluation' }[type] || 'session';
+  return { kind: 'session', slot, title, subtitle, row, layout, fields: { session: [title, subtitle] } };
 }
 
 function introductionDate(meeting) {
@@ -98,7 +98,6 @@ export function buildAgendaSlideSequence(meeting) {
   const slots = new Map((meeting.role_slots || []).map((slot) => [String(slot.id), slot]));
   const types = rows.map((row) => sessionType(row, slots.get(String(row.role_slot_id))));
   const slides = [];
-  let speechIndex = 0;
   for (let start = 0; start < rows.length;) {
     const group = String(rows[start].group_label || '').trim();
     let end = start + 1;
@@ -107,7 +106,7 @@ export function buildAgendaSlideSequence(meeting) {
     const firstTitle = sessionSlide(rows[start], types[start], start + 1, meeting).title;
     const needsSection = group && normalized(firstTitle) !== groupKey
       && !/^(?:opening|warm[ -]?up|closing)$/.test(groupKey)
-      && (sectionTemplate(groupKey) || end - start > 1);
+      && (sectionLayout(groupKey) || end - start > 1);
     const sectionPosition = /facilitat/.test(groupKey) && types[start] === 'toe' ? start + 1 : start;
     for (let index = start; index < end; index += 1) {
       if (needsSection && index === sectionPosition) slides.push(sectionSlide(group, index + 1));
@@ -118,12 +117,11 @@ export function buildAgendaSlideSequence(meeting) {
         const lines = pair.map((row) => `${row.name} \u2013 ${agendaTaker(row)}`);
         slides.push({
           kind: 'reports', slot: index + 1, title: lines.join(' / '), rows: pair,
-          template: type === 'individual' ? 31 : 33, fields: { reports: lines }
+          layout: type === 'individual' ? 'evaluations' : 'reports', fields: { reports: lines }
         });
         index += pair.length - 1;
       } else {
         const slide = sessionSlide(rows[index], type, index + 1, meeting);
-        if (type === 'speech') slide.template = 25 + (speechIndex++ % 2);
         slides.push(slide);
       }
     }
@@ -134,35 +132,34 @@ export function buildAgendaSlideSequence(meeting) {
 
 export function buildMainSlidePlan(meeting = {}) {
   const agenda = buildAgendaSlideSequence(meeting);
-  const staticSlide = (template) => ({ kind: 'static', template });
-  const introduction = Array.from({ length: 13 }, (_, index) => staticSlide(index + 7));
-  const slides = [1, 2, 3, 4].map(staticSlide);
-  const hasIntroduction = agenda.some((slide) => slide.template === 6);
-  const defaultPosition = agenda.findIndex((slide) => slide.template === 5) + 1;
+  const staticBlock = (block) => ({ kind: 'static', block });
+  const slides = [staticBlock('opening')];
+  const hasIntroduction = agenda.some((slide) => slide.layout === 'introduction');
+  const defaultPosition = agenda.findIndex((slide) => slide.layout === 'warmup') + 1;
   let introduced = false;
   for (const [index, slide] of agenda.entries()) {
     if (!hasIntroduction && !introduced && index === defaultPosition) {
-      slides.push(defaultIntroduction(meeting), ...introduction);
+      slides.push(defaultIntroduction(meeting), staticBlock('introduction'));
       introduced = true;
     }
     slides.push(slide);
-    if (slide.template === 6 && !introduced) {
-      slides.push(...introduction);
+    if (slide.layout === 'introduction' && !introduced) {
+      slides.push(staticBlock('introduction'));
       introduced = true;
     }
   }
-  if (!introduced) slides.push(defaultIntroduction(meeting), ...introduction);
+  if (!introduced) slides.push(defaultIntroduction(meeting), staticBlock('introduction'));
   if (!agenda.some((slide) => (slide.rows || [slide.row]).some((row) => /closing|wrap[ -]?up/i.test(row?.sessionName || '')))) {
-    slides.push({ kind: 'closing', template: 37, title: 'Closing Remark', fields: { heading: ['Closing Remark'] } });
+    slides.push({ kind: 'closing', layout: 'closing', variant: 'remark', title: 'Closing Remark', fields: { heading: ['Closing Remark'] } });
   }
   slides.push({
-    kind: 'appreciation', template: 38, title: 'Appreciation to Team',
+    kind: 'appreciation', layout: 'appreciation', title: 'Appreciation to Team',
     portraits: replacementPortraits(meeting),
     fields: {
       'appreciation.manager': ['Meeting Manager', meetingRoleValue(meeting, 'Meeting Manager')],
       'appreciation.photographer': ['Photographer', meetingRoleValue(meeting, 'Photographer')]
     }
-  }, staticSlide(39));
+  }, staticBlock('closing'));
   return slides;
 }
 
@@ -170,7 +167,7 @@ function defaultIntroduction(meeting) {
   const title = 'Brief Introduction of Toastmasters';
   const presenter = (meeting.role_slots || []).find((slot) => sessionType({}, slot) === 'introduction');
   return {
-    kind: 'intro-title', template: 6, title,
+    kind: 'intro-title', layout: 'introduction', title,
     fields: {
       'intro.title': [title],
       'intro.detail': [presenter ? String(presenter.taker_name || '').trim() || 'TBD' : '', 'Microsoft Suzhou Toastmasters Club', introductionDate(meeting)]

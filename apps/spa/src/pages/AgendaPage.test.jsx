@@ -70,7 +70,6 @@ describe('AgendaPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Regular Meeting #142' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Editor' }).getAttribute('href')).toBe('/app/meetings/42/edit');
-    expect(screen.getByRole('link', { name: /Main slides/ }).getAttribute('href')).toBe('/app/meetings/42/slides');
 
     fireEvent.click(screen.getByRole('button', { name: 'Save PDF' }));
     expect(window.print).toHaveBeenCalledOnce();

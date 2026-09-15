@@ -29,8 +29,21 @@ sessions and assignments are included. There is no browser slide preview or full
 presentation; open the downloaded file in PowerPoint to present it.
 
 The template is derived from **Main Slides MISU 20260831.pptx**, not a reconstruction of
-its design. The 39 source layouts retain their native text paragraphs, artwork, masters,
-portraits, QR codes, notes, transitions and animated media. Static club information and
+its design. The PPTX contains only **18 fixed-content slides**, with no TBD pages or
+preallocated agenda slots. Reusable native XML definitions and text-fitting metrics live
+in `mainSlidesTemplate.json`; related sessions share named layouts rather than referring
+to a page in the example meeting. Named definitions preserve the reference's native
+typography and geometry for sessions, dividers, paired reports, introduction and appreciation.
+Small positioning variants share a base definition instead of duplicating whole slides.
+The JSON contains only dynamic layout definitions. Fixed slides are read in presentation
+order from the PPTX's own slide list and relationships, without a duplicate registry or
+historical page-number mapping in the generator. The first slide of each fixed block has
+a native `p:cSld/@name` anchor: `MISU_BLOCK:opening`, `MISU_BLOCK:introduction`, and
+`MISU_BLOCK:closing`, in that order. Each block continues to the next anchor or the end.
+Add or reorder fixed slides within those blocks directly in the PPTX; preserve the three
+block-start anchors so agenda insertion remains unambiguous. Internal slide filenames do
+not determine presentation order.
+Artwork, masters, portraits, QR codes, notes, transitions and animated media are retained. Static club information and
 officer teams remain as supplied in that reference; they are not meeting role assignments.
 The original cover is unchanged, with the meeting title shown on the download page and
 PowerPoint document properties.
@@ -60,14 +73,15 @@ Generation uses the same agenda derivation as the printed agenda:
   Reference headshots are retained only for their actual owners. Other assignees receive
   initial-based placeholders in the same circular frames, rather than another person's photo.
 
-The generator clones only the pages required by the agenda, without a fixed session limit.
-It removes unused source pages, updates slide IDs and notes backlinks, validates internal
+The generator inserts new editable slides from those definitions for the actual agenda,
+without a fixed session limit. It combines related evaluations/reports where appropriate,
+updates slide IDs and notes backlinks, validates internal
 relationships, preserves individual paragraph styling, and reduces oversized text to fit.
 Text that cannot fit legibly produces an explicit error rather than a clipped download.
 Always start from the immutable template, not a previously generated meeting deck.
 
 The preparation script is kept locally and is not tracked in Git. If you have a local copy,
-you can rebuild the checked-in template and text-fitting manifest on Windows with PowerPoint installed:
+you can rebuild the fixed-content template and reusable definitions on Windows with PowerPoint installed:
 
 ```powershell
 .\apps\spa\scripts\create-main-agenda-template.ps1 `
@@ -75,9 +89,11 @@ you can rebuild the checked-in template and text-fitting manifest on Windows wit
   -OutputPath '.\apps\backend\static\main-slides\main-agenda-template.pptx'
 ```
 
-The script measures the native text geometry and fonts for the text-fitting manifest; it
-does not export PNGs. The original reference file is never modified. Normal downloads run
-entirely in the browser using the native template and fitting data, and do not require
+The script extracts the reusable native XML, notes and relationships, measures text geometry
+and fonts, removes all meeting-specific pages from the PPTX, and names its fixed block starts.
+It does not export PNGs or a fixed-slide registry.
+The original reference file is never modified. Regenerate the template and definitions
+together. Normal downloads run entirely in the browser using those checked-in assets and do not require
 PowerPoint or a server-side document conversion service.
 
 ## Print Agenda Design

@@ -1,7 +1,7 @@
 import template from './mainSlidesTemplate.json' with { type: 'json' };
 import { buildMainSlidePlan } from './agendaSlides.js';
 import { fitSlideParagraph, meetingSlideTitle } from './slides.js';
-import { parseXml, replacePresentationSlides } from './pptxPackage.js';
+import { parseXml, readFixedSlideBlocks, replacePresentationSlides } from './pptxPackage.js';
 
 const PRESENTATION_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main';
 const DRAWING_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
@@ -97,35 +97,51 @@ export async function buildMainAgendaPptx(templateBytes, meeting = {}) {
   } catch (error) {
     throw new Error(`Main slides template error: Invalid PPTX ZIP (${error.message}).`, { cause: error });
   }
-  const docs = new Map();
-  for (const slide of template.slides) {
-    const part = `ppt/slides/slide${slide.number}.xml`;
+  const fixedBlocks = await readFixedSlideBlocks(zip);
+  for (const part of Object.values(fixedBlocks).flat()) {
     const file = zip.file(part);
     if (!file) throw new Error(`Main slides template error: Missing '${part}'.`);
     const doc = parseXml(await file.async('string'), part, 'sld');
+    if (markerShapes(doc).length) throw new Error(`Main slides template error: Fixed slide '${part}' contains meeting fields.`);
+  }
+  const docs = new Map();
+  for (const [name, definition] of Object.entries(template.layouts)) {
+    const doc = parseXml(definition.xml, `layout '${name}'`, 'sld');
     const actual = markerShapes(doc).map(({ marker }) => marker).sort();
-    const expected = slide.fields.map(({ marker }) => marker).sort();
+    const expected = definition.fields.map(({ marker }) => marker).sort();
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`Main slides template error: Incorrect field markers on slide ${slide.number}. Regenerate the template from the reference deck.`);
+      throw new Error(`Main slides template error: Incorrect field markers in layout '${name}'.`);
     }
-    docs.set(slide.number, doc);
+    docs.set(name, doc);
   }
 
   const serializer = new XMLSerializer();
-  const pages = buildMainSlidePlan(meeting).map((slide) => {
-    const source = `ppt/slides/slide${slide.template}.xml`;
-    if (!slide.fields) return { source };
-    const doc = docs.get(slide.template).cloneNode(true);
-    const fields = template.slides.find((item) => item.number === slide.template).fields;
+  const pages = buildMainSlidePlan(meeting).flatMap((slide) => {
+    if (slide.kind === 'static') {
+      return fixedBlocks[slide.block].map((source) => ({ source }));
+    }
+    const definition = template.layouts[slide.layout];
+    if (!definition) throw new Error(`Main slides template error: Missing layout '${slide.layout}'.`);
+    const doc = docs.get(slide.layout).cloneNode(true);
+    const variant = slide.variant ? definition.variants?.[slide.variant] : null;
+    if (slide.variant && !variant) throw new Error(`Main slides template error: Missing variant '${slide.variant}'.`);
+    for (const override of variant?.shapeProperties || []) {
+      const location = markerShapes(doc).find((item) => item.marker === override.marker);
+      if (!location) throw new Error(`Main slides template error: Missing variant field '${override.marker}'.`);
+      const properties = parseXml(override.xml, `variant '${slide.variant}'`, 'spPr');
+      location.shape.getElementsByTagNameNS(PRESENTATION_NS, 'spPr')[0].replaceWith(doc.importNode(properties.documentElement, true));
+    }
+    const fields = variant?.fields || definition.fields;
     for (const { marker, shape } of markerShapes(doc)) {
       const field = fields.find((item) => item.marker === marker);
+      if (!field) throw new Error(`Main slides template error: Missing text metrics for '${marker}'.`);
       const values = slide.fields[marker.replace('MISU_FIELD:', '')];
       if (!values) throw new Error(`Main slides template error: Missing values for '${marker}'.`);
       replaceParagraphs(shape, values, field);
     }
     replaceRolePortraits(doc, slide.portraits);
     doc.documentElement.removeAttribute('show');
-    return { source, xml: serializer.serializeToString(doc) };
+    return { xml: serializer.serializeToString(doc), relationships: definition.relationships, notes: definition.notes };
   });
   await replacePresentationSlides(zip, pages);
   if (zip.file('docProps/core.xml')) {

@@ -25,37 +25,99 @@ function targetPart(owner, relationship) {
   return decodeURIComponent(new URL(relationship.getAttribute('Target'), `https://pptx.invalid/${owner}`).pathname.slice(1));
 }
 
+async function readPresentation(zip) {
+  const name = 'ppt/presentation.xml';
+  const presentation = await readXml(zip, name, 'presentation');
+  const rels = await readXml(zip, relationshipPart(name), 'Relationships');
+  const byId = new Map();
+  for (const rel of rels.documentElement.children) {
+    const id = rel.getAttribute('Id');
+    if (!id || byId.has(id)) throw new Error('Main slides template error: Duplicate or missing relationship ID.');
+    byId.set(id, rel);
+  }
+  const list = presentation.getElementsByTagNameNS(PRESENTATION_NS, 'sldIdLst')[0];
+  if (!list) throw new Error('Main slides template error: Missing slide list.');
+  const ids = Array.from(list.children);
+  const byPart = new Map();
+  const slideIds = new Set();
+  for (const node of ids) {
+    const id = Number(node.getAttribute('id'));
+    if (!Number.isInteger(id) || id < 256 || slideIds.has(id)) {
+      throw new Error('Main slides template error: Duplicate or invalid slide ID.');
+    }
+    slideIds.add(id);
+    const rel = byId.get(node.getAttributeNS(RELATIONSHIP_NS, 'id'));
+    if (!rel || rel.getAttribute('Type') !== `${RELATIONSHIP_NS}/slide` || rel.getAttribute('TargetMode') === 'External') {
+      throw new Error('Main slides template error: Missing or invalid slide relationship.');
+    }
+    const part = targetPart(name, rel);
+    if (!zip.file(part) || byPart.has(part)) throw new Error(`Main slides template error: Missing or duplicate slide '${part}'.`);
+    byPart.set(part, node);
+  }
+  return { name, presentation, rels, byId, list, ids, byPart };
+}
+
+export async function readFixedSlideBlocks(zip) {
+  const { byPart } = await readPresentation(zip);
+  const blocks = { opening: [], introduction: [], closing: [] };
+  const names = Object.keys(blocks);
+  const parts = Array.from(byPart.keys());
+  const actualParts = Object.keys(zip.files).filter((name) => /^ppt\/slides\/[^/]+\.xml$/.test(name));
+  if (actualParts.length !== parts.length || actualParts.some((part) => !byPart.has(part))) {
+    throw new Error('Main slides template error: Fixed template contains unlisted slide parts.');
+  }
+  let blockIndex = -1;
+  for (const part of parts) {
+    const doc = await readXml(zip, part, 'sld');
+    const name = doc.getElementsByTagNameNS(PRESENTATION_NS, 'cSld')[0]?.getAttribute('name') || '';
+    if (name.startsWith('MISU_BLOCK:')) {
+      const block = name.slice('MISU_BLOCK:'.length);
+      if (block !== names[blockIndex + 1]) {
+        throw new Error(`Main slides template error: Unexpected fixed block '${block}'; expected '${names[blockIndex + 1] || 'no further block'}'.`);
+      }
+      blockIndex += 1;
+    }
+    if (blockIndex < 0) throw new Error('Main slides template error: First fixed slide must start the opening block.');
+    blocks[names[blockIndex]].push(part);
+  }
+  if (blockIndex !== names.length - 1) throw new Error('Main slides template error: Missing introduction or closing block anchor.');
+  return blocks;
+}
+
 function nextPartName(zip, directory, stem) {
-  let index = 1;
-  while (zip.file(`${directory}/${stem}${index}.xml`)) index += 1;
+  const pattern = new RegExp(`^${directory}/${stem}(\\d+)\\.xml$`);
+  const indexes = Object.keys(zip.files).flatMap((name) => {
+    const match = name.match(pattern);
+    return match ? [Number(match[1])] : [];
+  });
+  const index = Math.max(0, ...indexes) + 1;
   return `${directory}/${stem}${index}.xml`;
 }
 
-function addContentType(types, source, target) {
-  const original = Array.from(types.documentElement.children).find(
-    (node) => decodeURIComponent(node.getAttribute('PartName') || '') === `/${source}`
-  );
-  if (!original) throw new Error(`Main slides template error: Missing content type for '${source}'.`);
-  const copy = original.cloneNode(true);
-  copy.setAttribute('PartName', `/${target}`);
-  types.documentElement.appendChild(copy);
+function addContentType(types, target, kind) {
+  const entry = types.createElementNS(types.documentElement.namespaceURI, 'Override');
+  entry.setAttribute('PartName', `/${target}`);
+  entry.setAttribute('ContentType', `application/vnd.openxmlformats-officedocument.presentationml.${kind}+xml`);
+  types.documentElement.appendChild(entry);
 }
 
-async function cloneSlideRelationships(zip, types, source, target) {
-  const rels = await readXml(zip, relationshipPart(source), 'Relationships');
+function instantiateSlideRelationships(zip, types, definition, target) {
+  const rels = parseXml(definition.relationships, `${target} layout relationships`, 'Relationships');
   const serializer = new XMLSerializer();
-  for (const rel of rels.documentElement.children) {
-    if (rel.getAttribute('Type') !== `${RELATIONSHIP_NS}/notesSlide`) continue;
-    const oldNotes = targetPart(source, rel);
+  const noteLinks = Array.from(rels.documentElement.children).filter((rel) => rel.getAttribute('Type') === `${RELATIONSHIP_NS}/notesSlide`);
+  if (noteLinks.length > 1 || Boolean(definition.notes) !== (noteLinks.length === 1)) {
+    throw new Error('Main slides template error: Slide definition and notes relationship do not match.');
+  }
+  for (const rel of noteLinks) {
+    if (rel.getAttribute('TargetMode') === 'External') throw new Error('Main slides template error: Notes must be internal.');
     const newNotes = nextPartName(zip, 'ppt/notesSlides', 'notesSlide');
-    const notesFile = zip.file(oldNotes);
-    if (!notesFile) throw new Error(`Main slides template error: Missing notes '${oldNotes}'.`);
-    zip.file(newNotes, await notesFile.async('uint8array'));
-    addContentType(types, oldNotes, newNotes);
-    const notesRels = await readXml(zip, relationshipPart(oldNotes), 'Relationships');
-    for (const backLink of notesRels.documentElement.children) {
-      if (backLink.getAttribute('Type') === `${RELATIONSHIP_NS}/slide`) backLink.setAttribute('Target', `/${target}`);
-    }
+    parseXml(definition.notes.xml, newNotes, 'notes');
+    zip.file(newNotes, definition.notes.xml);
+    addContentType(types, newNotes, 'notesSlide');
+    const notesRels = parseXml(definition.notes.relationships, relationshipPart(newNotes), 'Relationships');
+    const backLinks = Array.from(notesRels.documentElement.children).filter((node) => node.getAttribute('Type') === `${RELATIONSHIP_NS}/slide`);
+    if (backLinks.length !== 1) throw new Error('Main slides template error: Notes require one slide backlink.');
+    backLinks[0].setAttribute('Target', `/${target}`);
     zip.file(relationshipPart(newNotes), serializer.serializeToString(notesRels));
     rel.setAttribute('Target', `/${newNotes}`);
   }
@@ -63,27 +125,16 @@ async function cloneSlideRelationships(zip, types, source, target) {
 }
 
 export async function replacePresentationSlides(zip, pages) {
-  const name = 'ppt/presentation.xml';
-  const presentation = await readXml(zip, name, 'presentation');
-  const rels = await readXml(zip, relationshipPart(name), 'Relationships');
+  const { name, presentation, rels, byId, list, ids, byPart } = await readPresentation(zip);
   const types = await readXml(zip, '[Content_Types].xml', 'Types');
-  const byId = new Map(Array.from(rels.documentElement.children).map((node) => [node.getAttribute('Id'), node]));
-  const list = presentation.getElementsByTagNameNS(PRESENTATION_NS, 'sldIdLst')[0];
-  if (!list) throw new Error('Main slides template error: Missing slide list.');
-  const ids = Array.from(list.children);
-  const byPart = new Map(ids.map((node) => {
-    const rel = byId.get(node.getAttributeNS(RELATIONSHIP_NS, 'id'));
-    if (!rel) throw new Error('Main slides template error: Missing slide relationship.');
-    return [targetPart(name, rel), node];
-  }));
   const retained = new Set();
   let nextId = Math.max(255, ...ids.map((node) => Number(node.getAttribute('id')))) + 1;
   let nextRelationshipId = 1;
   list.replaceChildren();
   for (const page of pages) {
-    const original = byPart.get(page.source);
-    if (!original) throw new Error(`Main slides template error: Unlisted slide '${page.source}'.`);
     if (page.xml == null) {
+      const original = byPart.get(page.source);
+      if (!original) throw new Error(`Main slides template error: Unlisted slide '${page.source}'.`);
       if (retained.has(page.source)) throw new Error(`Main slides template error: Duplicate static slide '${page.source}'.`);
       retained.add(page.source);
       list.appendChild(original);
@@ -91,8 +142,8 @@ export async function replacePresentationSlides(zip, pages) {
     }
     const part = nextPartName(zip, 'ppt/slides', 'slide');
     zip.file(part, page.xml);
-    await cloneSlideRelationships(zip, types, page.source, part);
-    addContentType(types, page.source, part);
+    instantiateSlideRelationships(zip, types, page, part);
+    addContentType(types, part, 'slide');
     while (byId.has(`rIdMisu${nextRelationshipId}`)) nextRelationshipId += 1;
     const relId = `rIdMisu${nextRelationshipId++}`;
     const relation = rels.createElementNS(rels.documentElement.namespaceURI, 'Relationship');

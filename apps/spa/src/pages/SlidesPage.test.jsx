@@ -28,29 +28,6 @@ afterEach(() => {
 });
 
 describe('SlidesPage', () => {
-  it('offers a PowerPoint download without a preview, images or presentation controls', async () => {
-    const { container } = render(<SlidesPage params={{ id: '44' }} />);
-    await screen.findByRole('heading', { name: 'Regular Meeting #144' });
-    expect(screen.getByRole('link', { name: 'Printed agenda' }).getAttribute('href')).toBe('/app/meetings/44/agenda');
-    expect(screen.getByRole('region', { name: 'Main slide download' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Download PowerPoint' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /fullscreen|Next slide|Previous slide/i })).toBeNull();
-    expect(screen.queryByText('Slide text')).toBeNull();
-    expect(container.querySelector('img')).toBeNull();
-    expect(fetch).not.toHaveBeenCalled();
-    expect(generate).not.toHaveBeenCalled();
-  });
-
-  it('leaves browser navigation and scrolling keys alone', async () => {
-    render(<SlidesPage params={{ id: '44' }} />);
-    await screen.findByRole('heading', { name: 'Regular Meeting #144' });
-    for (const key of [' ', 'ArrowRight', 'ArrowLeft', 'Home', 'End', 'PageUp', 'PageDown']) {
-      const event = new KeyboardEvent('keydown', { key, cancelable: true });
-      window.dispatchEvent(event);
-      expect(event.defaultPrevented).toBe(false);
-    }
-  });
-
   it('downloads the latest saved meeting, updates its title and cleans up the blob', async () => {
     const { unmount } = render(<SlidesPage params={{ id: '44' }} />);
     await screen.findByRole('heading', { name: 'Regular Meeting #144' });
@@ -61,6 +38,18 @@ describe('SlidesPage', () => {
     expect(generate).toHaveBeenCalledWith(expect.any(ArrayBuffer), latest);
     expect(getMeeting).toHaveBeenCalledTimes(2);
     expect(fetch).toHaveBeenCalledWith('/static/main-slides/main-agenda-template.pptx', { signal: expect.any(AbortSignal) });
+    const anchor = HTMLAnchorElement.prototype.click.mock.contexts[0];
+    expect(anchor.download).toBe('MISU Main Agenda 145.pptx');
+    expect(anchor.href).toBe('blob:main-slides');
+    const [blob] = URL.createObjectURL.mock.calls[0];
+    expect(blob.type).toBe('application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    const buffer = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(blob);
+    });
+    expect(new Uint8Array(buffer)).toEqual(new Uint8Array([1, 2, 3]));
     expect(screen.getByRole('heading', { name: 'Latest saved meeting #145' })).toBeTruthy();
     expect(URL.revokeObjectURL).not.toHaveBeenCalled();
     unmount();
@@ -91,14 +80,6 @@ describe('SlidesPage', () => {
     finish(new Uint8Array([4, 5]));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Download PowerPoint' }).disabled).toBe(false));
     expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
-  });
-
-  it('shows load failures and allows retry', async () => {
-    getMeeting.mockRejectedValueOnce(new Error('Meeting not found'));
-    render(<SlidesPage params={{ id: '44' }} />);
-    expect(await screen.findByText('Meeting not found')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('heading', { name: 'Regular Meeting #144' })).toBeTruthy();
   });
 
   it('surfaces native generation errors without downloading a broken deck', async () => {

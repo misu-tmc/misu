@@ -2,27 +2,15 @@ import { useEffect } from 'preact/hooks';
 import { Link, useLocation } from 'wouter-preact';
 import { authUser } from '../state/auth.js';
 
-function isMeetingDetail(location) {
-  return /^\/app\/meetings\/\d+\/?$/.test(location);
-}
-
-function isMeetingWorkspace(location) {
-  return /^\/app\/meetings\/(?:new|\d+\/(?:edit|agenda|slides))\/?$/.test(location);
-}
-
-function belongsToMeetingTab(location) {
-  return isActive(location, '/app/meeting') || isMeetingDetail(location) || isMeetingWorkspace(location);
-}
-
-const attendeeRoutes = ['/app/booking', '/app/meeting', '/app/misu', '/app/me'];
+const attendeeRoutes = ['/app/booking', '/app/meetings', '/app/misu', '/app/me'];
 
 function isActive(location, href) {
   return location === href || location.startsWith(href + '/');
 }
 
-function NavLink({ href, children, class: className = '', activeWhen }) {
+function NavLink({ href, children, class: className = '' }) {
   const [location] = useLocation();
-  const active = activeWhen ? activeWhen(location) : isActive(location, href);
+  const active = isActive(location, href);
   return <Link class={`${className} ${active ? 'active' : ''}`.trim()} href={href}>{children}</Link>;
 }
 
@@ -38,7 +26,7 @@ function TabIcon({ name }) {
 
 export function AppShell({ children }) {
   const [location] = useLocation();
-  const attendee = attendeeRoutes.some((path) => isActive(location, path)) || isMeetingDetail(location) || isMeetingWorkspace(location);
+  const attendee = attendeeRoutes.some((path) => isActive(location, path));
   const meetingEditor = /^\/app\/meetings\/(?:new|\d+\/edit)\/?$/.test(location);
   const displayName = authUser.value?.display_name?.trim() || 'Personal info';
   const initial = displayName.slice(0, 1).toUpperCase();
@@ -63,7 +51,7 @@ export function AppShell({ children }) {
         {meetingEditor && <strong class="topbar-page-title">Edit meeting</strong>}
         <nav aria-label="Main navigation">
           <NavLink href="/app/booking">Booking</NavLink>
-          <NavLink href="/app/meeting" activeWhen={belongsToMeetingTab}>Meeting</NavLink>
+          <NavLink href="/app/meetings">Meeting</NavLink>
           <NavLink href="/app/misu">MISU</NavLink>
         </nav>
         <div class="topbar-user">
@@ -80,7 +68,7 @@ export function AppShell({ children }) {
         <nav id="bottombar" aria-label="Tab navigation">
           <ul>
             <li><NavLink href="/app/booking"><TabIcon name="booking" /><span class="tab-label">Booking</span></NavLink></li>
-            <li><NavLink href="/app/meeting" activeWhen={belongsToMeetingTab}><TabIcon name="meeting" /><span class="tab-label">Meeting</span></NavLink></li>
+            <li><NavLink href="/app/meetings"><TabIcon name="meeting" /><span class="tab-label">Meeting</span></NavLink></li>
             <li><NavLink href="/app/misu"><TabIcon name="misu" /><span class="tab-label">MISU</span></NavLink></li>
             <li><NavLink href="/app/me"><TabIcon name="me" /><span class="tab-label">Me</span></NavLink></li>
           </ul>

@@ -8,9 +8,9 @@ const tools = [
     tone: 'users'
   },
   {
-    href: '/app/meeting',
+    href: '/app/misu/meetings',
     label: 'Meetings',
-    description: 'Review upcoming meetings and open meeting details.',
+    description: 'View and edit all meetings, including archived meetings, newest first.',
     tone: 'meetings'
   },
   {

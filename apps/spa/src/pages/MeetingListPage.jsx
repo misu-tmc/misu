@@ -25,27 +25,33 @@ export function sortMeetingsForDisplay(meetings, now = new Date()) {
   });
 }
 
-export function MeetingListPage() {
+export function MeetingListPage({ scope = 'open' }) {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
-  async function load() {
-    setLoading(true);
-    setError('');
-    try {
-      setMeetings(sortMeetingsForDisplay(await meetingsApi.list('open')));
-    } catch (err) {
-      setError(err.message || 'Could not load meetings.');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      setLoading(true);
+      setError('');
+      try {
+        const result = await meetingsApi.list(scope);
+        // The all-meetings API already returns newest first; only open meetings prioritize ongoing ones.
+        if (active) setMeetings(scope === 'all' ? result : sortMeetingsForDisplay(result));
+      } catch (err) {
+        if (active) setError(err.message || 'Could not load meetings.');
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  }
-
-  useEffect(() => { load(); }, []);
+    load();
+    return () => { active = false; };
+  }, [scope, retryCount]);
 
   if (loading) return <PageLoading label="Loading meetings…" />;
-  if (error) return <PageError message={error} onRetry={load} />;
+  if (error) return <PageError message={error} onRetry={() => setRetryCount((count) => count + 1)} />;
 
   return (
     <div class="meeting-list-page">
@@ -55,19 +61,20 @@ export function MeetingListPage() {
 
       {meetings.length === 0 ? (
         <EmptyState
-          title="No upcoming meetings"
-          message="Create the next meeting to get started."
+          title={scope === 'all' ? 'No meetings' : 'No upcoming meetings'}
+          message={scope === 'all' ? 'Create the first meeting to get started.' : 'Create the next meeting to get started.'}
           action={<Link class="btn btn-primary" href="/app/meetings/new">New meeting</Link>}
         />
       ) : (
         <div class="meeting-card-grid">
           {meetings.map((meeting, index) => {
             const ongoing = isMeetingOngoing(meeting);
+            const next = scope === 'open' && index === 0;
             return (
               <Link class={`meeting-overview-card ${ongoing ? 'ongoing' : ''}`} href={`/app/meetings/${meeting.id}`} key={meeting.id}>
                 <div class="meeting-overview-topline">
-                  <span class={`meeting-state ${ongoing ? 'ongoing' : index === 0 ? 'next' : ''}`}>
-                    {ongoing ? 'Ongoing' : index === 0 ? 'Next meeting' : shortDate(meeting.date)}
+                  <span class={`meeting-state ${ongoing ? 'ongoing' : next ? 'next' : ''}`}>
+                    {ongoing ? 'Ongoing' : next ? 'Next meeting' : shortDate(meeting.date)}
                   </span>
                   <span class={`pill pill-${meeting.status}`}>{meeting.status}</span>
                 </div>

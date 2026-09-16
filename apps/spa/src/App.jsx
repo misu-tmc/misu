@@ -68,7 +68,7 @@ function ProtectedApp() {
     <AppShell>
       <Switch>
         <Route path="/app/booking" component={BookingPage} />
-        <Route path="/app/meeting" component={MeetingListPage} />
+        <Route path="/app/meetings" component={MeetingListPage} />
         <Route path="/app/checkin" component={CheckinPage} />
         <Route path="/app/vote/:meetingId" component={VotePage} />
         <Route path="/app/vote-result/:meetingId" component={VoteResultPage} />

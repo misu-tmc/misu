@@ -94,7 +94,7 @@ describe('MISU meetings navigation', () => {
     fireEvent.click(navigation.getByRole('link', { name: 'Meeting' }));
 
     await screen.findByRole('heading', { name: 'No upcoming meetings' });
-    expect(window.location.pathname).toBe('/app/meeting');
+    expect(window.location.pathname).toBe('/app/meetings');
     expect(list).toHaveBeenLastCalledWith('open');
   });
 });

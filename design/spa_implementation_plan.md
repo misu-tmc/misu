@@ -103,7 +103,7 @@ Public:
 Protected:
 
 - `/app/booking`
-- `/app/meetings` (meeting cards; ongoing meeting first; `/app/meeting` redirects here)
+- `/app/meetings` (meeting cards; ongoing meeting first)
 - `/app/meetings/:id` (meeting details)
 - `/app/checkin`
 - `/app/vote/:meetingId`

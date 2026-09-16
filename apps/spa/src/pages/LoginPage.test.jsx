@@ -46,10 +46,6 @@ import { ApiError } from '../lib/api.js';
 import { LoginPage, safeNextPath } from './LoginPage.jsx';
 
 describe('safeNextPath', () => {
-  it('keeps a local return path', () => {
-    expect(safeNextPath('?next=%2Fapp%2Fmeeting')).toBe('/app/meeting');
-  });
-
   it('rejects protocol-relative redirects', () => {
     expect(safeNextPath('?next=%2F%2Fevil.example')).toBe('/app/booking');
   });

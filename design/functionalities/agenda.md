@@ -23,10 +23,17 @@ published when ready; after publishing, any signed-in user may still edit it.
 
 ## Main Slides
 
-The editor and printed agenda link to `/app/meetings/:id/slides`. This download-only page
-creates `MISU Main Agenda <number>.pptx`. Downloading reloads the meeting so newly saved
-sessions and assignments are included. There is no browser slide preview or fullscreen
-presentation; open the downloaded file in PowerPoint to present it.
+The editor and printed agenda offer a **Download PowerPoint** button that creates
+`MISU Main Agenda <number>.pptx` directly, without opening another page. The button
+immediately displays **Generating PowerPoint...** and is disabled until generation
+finishes. Failures appear in the page's existing error area; the button becomes available
+again for retry. Downloading reloads the latest saved meeting without changing editor
+form values, so save edits first to include them. The editor only offers downloads for
+saved meetings and disables the button while saving.
+
+There is no dedicated download page, browser slide preview, or fullscreen presentation;
+open the downloaded file in PowerPoint to present it. Old `/app/meetings/:id/slides` links
+redirect to the meeting's agenda for compatibility.
 
 The template is derived from **Main Slides MISU 20260831.pptx**, not a reconstruction of
 its design. The PPTX contains only **18 fixed-content slides**, with no TBD pages or
@@ -45,8 +52,8 @@ block-start anchors so agenda insertion remains unambiguous. Internal slide file
 not determine presentation order.
 Artwork, masters, portraits, QR codes, notes, transitions and animated media are retained. Static club information and
 officer teams remain as supplied in that reference; they are not meeting role assignments.
-The original cover is unchanged, with the meeting title shown on the download page and
-PowerPoint document properties.
+The original cover is unchanged, with meeting metadata recorded in PowerPoint document
+properties.
 
 Generation uses the same agenda derivation as the printed agenda:
 

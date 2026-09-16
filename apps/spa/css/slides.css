@@ -1,7 +1,0 @@
-.main-slides { padding: 12px; }
-.main-slides-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
-.main-slides-meeting { margin: 16px 0 4px; font-size: 22px; }
-.main-slides-hint { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
-@media (min-width: 760px) {
-  .main-slides { padding: 24px; }
-}

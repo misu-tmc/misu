@@ -84,6 +84,20 @@ describe('AgendaPage', () => {
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(2);
   });
 
+  it('starts a direct PowerPoint download and shows progress and errors in the agenda', async () => {
+    render(<AgendaPage params={{ id: '42' }} />);
+    await screen.findByRole('heading', { name: 'Regular Meeting #142' });
+    let fail;
+    getMeeting.mockReturnValueOnce(new Promise((_, reject) => { fail = reject; }));
+    fireEvent.click(screen.getByRole('button', { name: 'Download PowerPoint' }));
+    expect(screen.getByRole('button', { name: 'Generating PowerPoint...' }).disabled).toBe(true);
+    expect(getMeeting).toHaveBeenLastCalledWith(42);
+    fail(new Error('Could not load saved meeting.'));
+    expect((await screen.findByRole('alert')).textContent).toBe('Could not load saved meeting.');
+    expect(screen.getByRole('button', { name: 'Download PowerPoint' }).disabled).toBe(false);
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
   it('renders colorful core-value cycles on page 2', async () => {
     const { container } = render(<AgendaPage params={{ id: '42' }} />);
     await screen.findByRole('heading', { name: 'Regular Meeting #142' });

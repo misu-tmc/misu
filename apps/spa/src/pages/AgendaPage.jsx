@@ -4,6 +4,7 @@ import { Link } from 'wouter-preact';
 import { meetingsApi } from '../lib/api.js';
 import { buildAgenda, buildSpeeches } from '../lib/format.js';
 import { PageError, PageLoading } from '../components/PageState.jsx';
+import { PowerPointDownloadButton } from '../components/PowerPointDownloadButton.jsx';
 
 const REGULAR_ROLES = [
   ['Timer', 'Monitors the time of meeting segments and speakers.'],
@@ -146,7 +147,7 @@ export function AgendaPage({ params }) {
       <div class="print-agenda-page">
         <div class="print-agenda-toolbar no-print">
           <Link class="btn btn-ghost btn-sm" href={`/app/meetings/${meetingId}/edit`}>Editor</Link>
-          <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meetingId}/slides`} target="_blank" rel="noreferrer">Main slides<span class="sr-only"> (opens in a new tab)</span></a>
+          <PowerPointDownloadButton meetingId={meetingId} onError={setError} />
           <button class="btn btn-secondary btn-sm" type="button" onClick={() => window.print()}>Save PDF</button>
           <button class="btn btn-primary btn-sm" type="button" disabled={exporting} onClick={savePngs}>{exporting ? 'Saving…' : 'Save PNGs'}</button>
         </div>

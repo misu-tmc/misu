@@ -68,7 +68,7 @@ function ProtectedApp() {
     <AppShell>
       <Switch>
         <Route path="/app/booking" component={BookingPage} />
-        <Route path="/app/meeting" component={MeetingListPage} />
+        <Route path="/app/meetings" component={MeetingListPage} />
         <Route path="/app/checkin" component={CheckinPage} />
         <Route path="/app/vote/:meetingId" component={VotePage} />
         <Route path="/app/vote-result/:meetingId" component={VoteResultPage} />
@@ -93,6 +93,9 @@ export function App() {
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/app/login" component={LoginPage} />
+      <Route path="/app/meeting">
+        <Redirect to={`/app/meetings${window.location.search}${window.location.hash}`} replace />
+      </Route>
       <Route path="/app/*" component={ProtectedApp} />
       <Route><Redirect to="/app/booking" /></Route>
     </Switch>

@@ -47,6 +47,7 @@ import { LoginPage, safeNextPath } from './LoginPage.jsx';
 
 describe('safeNextPath', () => {
   it('keeps a local return path', () => {
+    expect(safeNextPath('?next=%2Fapp%2Fmeetings')).toBe('/app/meetings');
     expect(safeNextPath('?next=%2Fapp%2Fmeeting')).toBe('/app/meeting');
   });
 

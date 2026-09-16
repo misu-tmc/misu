@@ -157,7 +157,7 @@ QR codes, and print images under `/static/*`.
 | ---- | ------- |
 | `/login` | device challenge, account creation, and migration |
 | `/app/booking` | upcoming role booking and preparation links |
-| `/app/meeting` | meeting cards with the ongoing meeting first and a create action |
+| `/app/meetings` | meeting cards with the ongoing meeting first and a create action |
 | `/app/meetings/:id` | meeting details, agenda, check-in, voting and timer mode |
 | `/app/checkin?meetingId=:id` | authenticated QR/deep-link check-in redirector |
 | `/app/vote/:id` and `/app/vote-result/:id` | ballot and aggregated results |

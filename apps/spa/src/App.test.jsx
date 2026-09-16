@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.jsx';
-import { catalogApi, checkinApi, meetingsApi, usersApi } from './lib/api.js';
+import { authApi, catalogApi, checkinApi, meetingsApi, usersApi } from './lib/api.js';
 import { authReady, authUser } from './state/auth.js';
 
 const archivedMeeting = {
@@ -94,7 +94,113 @@ describe('MISU meetings navigation', () => {
     fireEvent.click(navigation.getByRole('link', { name: 'Meeting' }));
 
     await screen.findByRole('heading', { name: 'No upcoming meetings' });
-    expect(window.location.pathname).toBe('/app/meeting');
+    expect(window.location.pathname).toBe('/app/meetings');
     expect(list).toHaveBeenLastCalledWith('open');
+  });
+});
+
+describe('canonical Meeting routes', () => {
+  beforeEach(() => {
+    authReady.value = true;
+    authUser.value = { id: 1, display_name: 'Member' };
+    vi.spyOn(meetingsApi, 'list').mockResolvedValue([]);
+    vi.spyOn(meetingsApi, 'get').mockResolvedValue(archivedMeeting);
+    vi.spyOn(checkinApi, 'status').mockResolvedValue({ checked_in: false });
+    vi.spyOn(checkinApi, 'attendees').mockResolvedValue([]);
+    vi.spyOn(catalogApi, 'roles').mockResolvedValue([]);
+    vi.spyOn(catalogApi, 'venues').mockResolvedValue([]);
+    vi.spyOn(usersApi, 'list').mockResolvedValue([]);
+    vi.spyOn(meetingsApi, 'templates').mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    authReady.value = false;
+    authUser.value = null;
+    window.history.replaceState({}, '', '/');
+  });
+
+  function expectMeetingTab() {
+    for (const name of ['Main navigation', 'Tab navigation']) {
+      const navigation = within(screen.getByRole('navigation', { name }));
+      expect(navigation.getAllByRole('link').filter((link) => link.classList.contains('active'))
+        .map((link) => link.textContent)).toEqual(['Meeting']);
+    }
+    expect(document.body.classList.contains('attendee-layout')).toBe(true);
+  }
+
+  it.each([
+    ['/app/meetings', 'list'],
+    ['/app/meetings/?scope=open#upcoming', 'list'],
+    ['/app/meetings/new', 'editor'],
+    ['/app/meetings/42', 'detail'],
+    ['/app/meetings/42/edit?tab=info#information', 'editor'],
+    ['/app/meetings/42/agenda', 'agenda']
+  ])('loads %s directly and after remounting at the same URL', async (path, page) => {
+    window.history.replaceState({}, '', path);
+
+    for (let load = 0; load < 2; load += 1) {
+      const { unmount } = render(<App />);
+      if (page === 'list') {
+        await screen.findByRole('heading', { name: 'No upcoming meetings' });
+        expect(meetingsApi.list).toHaveBeenLastCalledWith('open');
+      } else if (page === 'editor') {
+        await screen.findByLabelText('Title');
+      } else if (page === 'detail') {
+        await screen.findByRole('link', { name: 'Edit' });
+      } else {
+        await screen.findByRole('button', { name: 'Save PDF' });
+      }
+      if (path.includes('/42')) expect(meetingsApi.get).toHaveBeenCalledWith(42);
+      expectMeetingTab();
+      expect(screen.getByRole('banner', { name: 'Site header' }).classList.contains('editor-topbar'))
+        .toBe(page === 'editor');
+      expect(screen.queryByText('Edit meeting') !== null).toBe(page === 'editor');
+      expect(document.body.classList.contains('editor-detail-layout')).toBe(page === 'editor');
+      expect(document.body.classList.contains('agenda-print-layout')).toBe(page === 'agenda');
+      expect(window.location.pathname + window.location.search + window.location.hash).toBe(path);
+      unmount();
+      expect(document.body.classList.contains('attendee-layout')).toBe(false);
+      expect(document.body.classList.contains('editor-detail-layout')).toBe(false);
+      expect(document.body.classList.contains('agenda-print-layout')).toBe(false);
+    }
+  });
+
+  it.each([
+    ['/app/meeting', ''],
+    ['/app/meeting/', ''],
+    ['/app/meeting?scope=open&tag=a%2Fb&tag=c+d#next%20meeting', '?scope=open&tag=a%2Fb&tag=c+d#next%20meeting'],
+    ['/app/meeting/#upcoming', '#upcoming']
+  ])('replaces the legacy URL %s without losing its query or fragment', async (path, suffix) => {
+    window.history.replaceState({}, '', path);
+    const historyLength = window.history.length;
+    render(<App />);
+
+    await screen.findByRole('heading', { name: 'No upcoming meetings' });
+    expect(window.location.pathname + window.location.search + window.location.hash)
+      .toBe(`/app/meetings${suffix}`);
+    expect(window.history.length).toBe(historyLength);
+    expect(meetingsApi.list).toHaveBeenLastCalledWith('open');
+    expectMeetingTab();
+  });
+
+  it.each(['/app/meetings', '/app/meeting'])('checks authentication before loading meetings from %s', async (path) => {
+    window.history.replaceState({}, '', `${path}?scope=open#upcoming`);
+    authReady.value = false;
+    authUser.value = null;
+    let finishAuthentication;
+    const me = vi.spyOn(authApi, 'me').mockReturnValue(new Promise((resolve) => { finishAuthentication = resolve; }));
+    render(<App />);
+
+    await screen.findByText('Checking your account…');
+    expect(me).toHaveBeenCalledOnce();
+    expect(meetingsApi.list).not.toHaveBeenCalled();
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
+    expect(window.location.pathname + window.location.search + window.location.hash)
+      .toBe('/app/meetings?scope=open#upcoming');
+
+    finishAuthentication({ user: { id: 1, display_name: 'Member' } });
+    await screen.findByRole('heading', { name: 'No upcoming meetings' });
+    expectMeetingTab();
   });
 });

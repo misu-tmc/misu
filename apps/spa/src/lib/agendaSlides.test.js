@@ -24,6 +24,46 @@ describe('main slide agenda plan', () => {
     expect(plan.filter((slide) => slide.title === 'Closing Remark')).toHaveLength(1);
   });
 
+  it('adds a final closing unless an explicit closing activity is scheduled', () => {
+    for (const [name, closesMeeting] of [
+      ['Pre-closing announcements', false],
+      ['Closing checklist', false],
+      ['Wrap-up logistics', false],
+      ['Closing Remarks', true],
+      ['  WRAP-UP  ', true],
+      ['Announcements & Closing', true],
+      ['Announcements and Closing Remarks', true],
+      ['Awarding for the Best & Closing', true]
+    ]) {
+      const plan = buildMainSlidePlan({
+        ...meeting, role_slots: [],
+        sessions: [{ id: 1, position: 0, name, duration_minutes: 2, role_slot_id: null }]
+      });
+      expect(plan.filter((slide) => slide.kind === 'closing'), name).toHaveLength(closesMeeting ? 0 : 1);
+      const scheduled = plan.filter((slide) => slide.row);
+      expect(scheduled, name).toHaveLength(1);
+      expect(scheduled[0].row.sessionName).toBe(name);
+      expect(scheduled[0].layout, name).toBe(closesMeeting ? 'closing' : 'session');
+    }
+  });
+
+  it('recognizes closing within paired reports without losing assignments or adding a duplicate', () => {
+    const plan = buildMainSlidePlan({
+      ...meeting,
+      sessions: [
+        { id: 1, position: 0, name: "Grammarian's Report", group_label: 'Reports', role_slot_id: 5 },
+        { id: 2, position: 1, name: "Timer's Report & Closing", group_label: 'Reports', role_slot_id: 4 }
+      ]
+    });
+    expect(plan.filter((slide) => slide.kind === 'closing')).toEqual([]);
+    const reports = plan.filter((slide) => slide.rows);
+    expect(reports).toHaveLength(1);
+    expect(reports[0].fields.reports).toEqual([
+      "Grammarian's Report \u2013 Word Keeper",
+      "Timer's Report & Closing \u2013 Time Keeper"
+    ]);
+  });
+
   it('preserves saved order, agenda overrides, optional filtering and empty assignments', () => {
     const changed = {
       ...meeting,

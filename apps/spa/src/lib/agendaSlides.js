@@ -6,6 +6,12 @@ export function agendaTaker(row) {
   return String(row.taker || '').trim() || (row.role_slot_id == null ? 'All' : 'TBD');
 }
 
+function includesClosingActivity(name) {
+  // Combined activities may include a closing; incidental mentions do not.
+  return normalized(name).split(/\s*(?:&|\+|\/|\band\b)\s*/)
+    .some((activity) => /^(?:closing(?: remarks?)?|wrap[ -]?up)$/.test(activity));
+}
+
 function sessionType(row, slot) {
   const name = normalized(row.sessionName);
   const role = normalized(slot?.role_name);
@@ -24,7 +30,7 @@ function sessionType(row, slot) {
   if (/\b(?:social|break|networking|intermission)\b/.test(name)) return 'social';
   if (/^vot(?:e|ing)\b/.test(name)) return 'voting';
   if (/^award(?:ing|s)?\b/.test(name)) return 'awarding';
-  if (/^(?:closing(?: remarks?)?|wrap[ -]?up)$/.test(name)) return 'closing';
+  if (includesClosingActivity(name)) return 'closing';
   return 'session';
 }
 
@@ -127,7 +133,7 @@ export function buildMainSlidePlan(meeting = {}) {
     }
   }
   if (!introduced) slides.push(defaultIntroduction(meeting), staticBlock('introduction'));
-  if (!agenda.some((slide) => (slide.rows || [slide.row]).some((row) => /closing|wrap[ -]?up/i.test(row?.sessionName || '')))) {
+  if (!agenda.some((slide) => (slide.rows || [slide.row]).some((row) => includesClosingActivity(row?.sessionName)))) {
     slides.push({ kind: 'closing', layout: 'closing', variant: 'remark', title: 'Closing Remark', fields: { heading: ['Closing Remark'] } });
   }
   slides.push(staticBlock('closing'));

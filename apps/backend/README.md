@@ -23,9 +23,17 @@ Build and validate the Preact SPA before running the integrated server:
 
 ```sh
 cd apps/spa
-npm install
+npm ci
 npm run validate
 ```
+
+The committed frontend lockfile pins package versions and integrity hashes without
+registry-specific download URLs. When updating dependencies, use
+`npm install --omit-lockfile-registry-resolved` to preserve this format.
+The SPA's `.npmrc` is local-only and excluded from Git and container builds. Keep registry
+and authentication settings in your local npm configuration or CI environment:
+restricted networks can use their approved mirror, while other environments can use
+the public npm registry.
 
 For frontend development, run `npm run dev` in `apps/spa`; Vite serves the app under
 `http://127.0.0.1:5173/app/` and proxies `/api` plus `/static` to the backend. The

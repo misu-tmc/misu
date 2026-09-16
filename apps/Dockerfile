@@ -2,8 +2,8 @@
 
 FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /build/spa
-COPY spa/package.json ./
-RUN npm install --no-package-lock
+COPY spa/package.json spa/package-lock.json ./
+RUN npm ci
 COPY spa/index.html spa/vite.config.js ./
 COPY spa/css ./css
 COPY spa/public ./public

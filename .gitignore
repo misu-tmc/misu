@@ -5,7 +5,7 @@
 apps/spa/node_modules/
 apps/spa/dist/
 apps/spa/.cert/
-apps/spa/package-lock.json
+apps/spa/.npmrc
 
 # Local PowerPoint template preparation
 apps/spa/scripts/create-main-agenda-template.ps1

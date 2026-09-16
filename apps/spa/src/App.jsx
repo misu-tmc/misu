@@ -80,7 +80,6 @@ function ProtectedApp() {
         <Route path="/app/meetings/new" component={EditorPage} />
         <Route path="/app/meetings/:id/edit" component={EditorPage} />
         <Route path="/app/meetings/:id/agenda" component={AgendaPage} />
-        <Route path="/app/meetings/:id/slides">{({ id }) => <Redirect to={`/app/meetings/${id}/agenda`} />}</Route>
         <Route path="/app/meetings/:id" component={MeetingPage} />
         <Route path="/app/users"><Redirect to="/app/misu/users" /></Route>
         <Route component={NotFoundPage} />

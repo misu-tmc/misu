@@ -31,9 +31,7 @@ again for retry. Downloading reloads the latest saved meeting without changing e
 form values, so save edits first to include them. The editor only offers downloads for
 saved meetings and disables the button while saving.
 
-There is no dedicated download page, browser slide preview, or fullscreen presentation;
-open the downloaded file in PowerPoint to present it. Old `/app/meetings/:id/slides` links
-redirect to the meeting's agenda for compatibility.
+
 
 The template is derived from **Main Slides MISU 20260831.pptx**, not a reconstruction of
 its design. The PPTX contains only **18 fixed-content slides**, with no TBD pages or

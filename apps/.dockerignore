@@ -1,6 +1,8 @@
 **/.DS_Store
 **/node_modules
 **/dist
+spa/.npmrc
+spa/scripts/create-main-agenda-template.ps1
 backend/target
 backend/.env
 backend/.env.*

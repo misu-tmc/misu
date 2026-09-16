@@ -132,6 +132,24 @@ describe('EditorPage accessible row delete controls', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Delete Timer role' })).toBeNull());
   });
 
+  it('downloads saved slides directly without replacing unsaved editor values', async () => {
+    window.history.replaceState({}, '', '/app/meetings/42/edit?tab=info');
+    render(<EditorPage params={{ id: '42' }} />);
+    const title = await screen.findByLabelText('Title');
+    fireEvent.input(title, { target: { value: 'Unsaved title' } });
+    let fail;
+    meetingsGet.mockReturnValueOnce(new Promise((_, reject) => { fail = reject; }));
+    fireEvent.click(screen.getByRole('button', { name: 'Download PowerPoint' }));
+    expect(screen.getByRole('button', { name: 'Generating PowerPoint...' }).disabled).toBe(true);
+    expect(meetingsGet).toHaveBeenLastCalledWith(42);
+    expect(title.value).toBe('Unsaved title');
+    expect(navigate).not.toHaveBeenCalled();
+    fail(new Error('Could not load saved meeting.'));
+    expect((await screen.findByRole('alert')).textContent).toBe('Could not load saved meeting.');
+    expect(screen.getByRole('button', { name: 'Download PowerPoint' }).disabled).toBe(false);
+    expect(title.value).toBe('Unsaved title');
+  });
+
   it('exposes an accessible delete button for the Timer report session', async () => {
     window.history.replaceState({}, '', '/app/meetings/42/edit?tab=sessions');
     render(<EditorPage params={{ id: '42' }} />);

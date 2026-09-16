@@ -15,6 +15,8 @@ Outputs:
 - **Viewing version**: plain responsive HTML, friendly to mobile devices.
 - **Printing version**: a single-sided A4 agenda, implemented as HTML/CSS as one printable
 	page.
+- **Main slides**: an editable PowerPoint deck using the original
+	MISU main-slide layouts.
 
 The agenda is draft by default and can be viewed/edited by any signed-in user. It is
 published when ready; after publishing, any signed-in user may still edit it.

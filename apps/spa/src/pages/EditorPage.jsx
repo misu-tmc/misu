@@ -15,6 +15,7 @@ import {
 } from '../lib/editorModel.js';
 import { isPreparedSpeechSlot, shortDate, toHHMM, toMinutes } from '../lib/format.js';
 import { PageError, PageLoading } from '../components/PageState.jsx';
+import { PowerPointDownloadButton } from '../components/PowerPointDownloadButton.jsx';
 
 const TABS = [
   ['info', 'Information'],
@@ -635,6 +636,7 @@ export function EditorPage({ params }) {
         </div>
         <div class="editor-heading-actions">
           {meeting.id && <a class="btn btn-ghost btn-sm" href={`/app/meetings/${meeting.id}/agenda`} target="_blank" rel="noreferrer">Printed agenda</a>}
+          {meeting.id && <PowerPointDownloadButton meetingId={meeting.id} onError={setError} disabled={saving} />}
           <span class={`editor-status editor-status-${meeting.status}`}>{meeting.status}</span>
           <button class={`btn editor-publish-button ${meeting.status === 'published' ? 'published' : ''}`} type="button" disabled={saving} onClick={togglePublish}>{meeting.status === 'published' ? 'Unpublish' : 'Publish'}</button>
         </div>

@@ -2,30 +2,8 @@ import { buildAgenda, isPreparedSpeechSlot } from './format.js';
 
 const normalized = (value) => String(value || '').trim().toLowerCase().replace(/[\u2019']/g, '').replace(/\s+/g, ' ');
 
-function replacementPortraits(meeting) {
-  // Keep a reference headshot only for its actual owner, never for another assignee.
-  return [
-    { role: 'Meeting Manager', owner: 'Chao Chen', pictureId: '8' },
-    { role: 'Photographer', owner: 'Tao Lu', pictureId: '7' }
-  ].flatMap((portrait) => {
-    const name = meetingRoleValue(meeting, portrait.role);
-    return normalized(name) === normalized(portrait.owner) ? [] : [{
-      ...portrait,
-      initials: name === 'TBD' ? '?' : name.split(/\s+/).slice(0, 2).map((part) => Array.from(part)[0]).join('').toUpperCase()
-    }];
-  });
-}
-
 export function agendaTaker(row) {
   return String(row.taker || '').trim() || (row.role_slot_id == null ? 'All' : 'TBD');
-}
-
-export function meetingRoleValue(meeting, roleName) {
-  const names = (meeting.role_slots || [])
-    .filter((slot) => normalized(slot.role_name) === normalized(roleName))
-    .map((slot) => String(slot.taker_name || '').trim())
-    .filter(Boolean);
-  return names.join(', ') || 'TBD';
 }
 
 function sessionType(row, slot) {
@@ -152,14 +130,7 @@ export function buildMainSlidePlan(meeting = {}) {
   if (!agenda.some((slide) => (slide.rows || [slide.row]).some((row) => /closing|wrap[ -]?up/i.test(row?.sessionName || '')))) {
     slides.push({ kind: 'closing', layout: 'closing', variant: 'remark', title: 'Closing Remark', fields: { heading: ['Closing Remark'] } });
   }
-  slides.push({
-    kind: 'appreciation', layout: 'appreciation', title: 'Appreciation to Team',
-    portraits: replacementPortraits(meeting),
-    fields: {
-      'appreciation.manager': ['Meeting Manager', meetingRoleValue(meeting, 'Meeting Manager')],
-      'appreciation.photographer': ['Photographer', meetingRoleValue(meeting, 'Photographer')]
-    }
-  }, staticBlock('closing'));
+  slides.push(staticBlock('closing'));
   return slides;
 }
 

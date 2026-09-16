@@ -38,7 +38,7 @@ its design. The PPTX contains only **18 fixed-content slides**, with no TBD page
 preallocated agenda slots. Reusable native XML definitions and text-fitting metrics live
 in `mainSlidesTemplate.json`; related sessions share named layouts rather than referring
 to a page in the example meeting. Named definitions preserve the reference's native
-typography and geometry for sessions, dividers, paired reports, introduction and appreciation.
+typography and geometry for sessions, dividers, paired reports and introduction.
 Small positioning variants share a base definition instead of duplicating whole slides.
 The JSON contains only dynamic layout definitions. Fixed slides are read in presentation
 order from the PPTX's own slide list and relationships, without a duplicate registry or
@@ -72,11 +72,10 @@ Generation uses the same agenda derivation as the printed agenda:
 - A generic Table Topics session uses the meeting theme; custom agenda titles are retained.
 - Social, voting, awarding and closing sessions use the matching reference layouts.
   A scheduled closing is not followed by a second automatic Closing Remark.
-- Appreciation retains the **Meeting Manager** and **Photographer** labels while replacing
-  their assigned names. Required unassigned roles display **TBD**; sessions without a role
-  display **All**, except title-only divider layouts.
-  Reference headshots are retained only for their actual owners. Other assignees receive
-  initial-based placeholders in the same circular frames, rather than another person's photo.
+- Required unassigned roles display **TBD**; sessions without a role display **All**,
+  except title-only divider layouts.
+- The reference **Appreciation to Team** slide is omitted. Generated decks do not insert
+  a meeting-manager/photographer portrait page; the fixed officer-team slides are retained.
 
 The generator inserts new editable slides from those definitions for the actual agenda,
 without a fixed session limit. It combines related evaluations/reports where appropriate,

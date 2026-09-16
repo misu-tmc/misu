@@ -119,10 +119,6 @@ describe('reference PowerPoint generation', () => {
       if (source.files[name].dir) continue;
       expect(Buffer.from(await result.file(name).async('uint8array')).equals(Buffer.from(await source.file(name).async('uint8array'))), name).toBe(true);
     }
-    const [appreciation] = await slidesWithField(result, 'appreciation.manager');
-    expect(appreciation.values).toEqual(['Meeting Manager', 'Meeting Organizer']);
-    expect(appreciation.doc.getElementsByTagNameNS(P, 'pic')).toHaveLength(0);
-    expect(text(appreciation.doc)).toContain('MO');
   }, 30000);
 
   it('updates slide indexes, counts and notes backlinks without dangling relationships or unlisted slides', async () => {
@@ -194,8 +190,6 @@ describe('reference PowerPoint generation', () => {
     const result = await generate(changed);
     expect((await slidesWithField(result, 'session')).map((slide) => slide.values))
       .toEqual(changed.sessions.map((session) => [session.name, 'All']));
-    const [appreciation] = await slidesWithField(result, 'appreciation.photographer');
-    expect(appreciation.values).toEqual(['Photographer', 'TBD']);
     const empty = await generate({ ...changed, sessions: [] });
     expect(await slidesWithField(empty, 'session')).toEqual([]);
     expect(await slidesWithField(empty, 'reports')).toEqual([]);

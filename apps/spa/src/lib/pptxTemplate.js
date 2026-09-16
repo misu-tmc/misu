@@ -42,53 +42,6 @@ function replaceParagraphs(shape, values, field) {
   });
 }
 
-function replaceRolePortraits(doc, portraits = []) {
-  const create = (namespace, name, attributes = {}) => {
-    const node = doc.createElementNS(namespace, name);
-    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
-    return node;
-  };
-  for (const portrait of portraits) {
-    const picture = Array.from(doc.getElementsByTagNameNS(PRESENTATION_NS, 'pic')).find(
-      (node) => node.getElementsByTagNameNS(PRESENTATION_NS, 'cNvPr')[0]?.getAttribute('id') === portrait.pictureId
-    );
-    if (!picture) throw new Error(`Main slides template error: Missing portrait for '${portrait.role}'.`);
-    const shape = create(PRESENTATION_NS, 'p:sp');
-    const properties = create(PRESENTATION_NS, 'p:nvSpPr');
-    properties.append(
-      create(PRESENTATION_NS, 'p:cNvPr', { id: portrait.pictureId, name: `MISU_ROLE_PORTRAIT:${portrait.role}` }),
-      create(PRESENTATION_NS, 'p:cNvSpPr'),
-      create(PRESENTATION_NS, 'p:nvPr')
-    );
-    const geometry = picture.getElementsByTagNameNS(PRESENTATION_NS, 'spPr')[0].cloneNode(true);
-    geometry.getElementsByTagNameNS(DRAWING_NS, 'prstGeom')[0].setAttribute('prst', 'ellipse');
-    const fill = create(DRAWING_NS, 'a:solidFill');
-    fill.appendChild(create(DRAWING_NS, 'a:srgbClr', { val: 'D9E8EE' }));
-    const line = create(DRAWING_NS, 'a:ln');
-    line.appendChild(create(DRAWING_NS, 'a:noFill'));
-    geometry.append(fill, line);
-    const body = create(PRESENTATION_NS, 'p:txBody');
-    body.append(
-      create(DRAWING_NS, 'a:bodyPr', { anchor: 'ctr', lIns: '0', rIns: '0', tIns: '0', bIns: '0' }),
-      create(DRAWING_NS, 'a:lstStyle')
-    );
-    const paragraph = create(DRAWING_NS, 'a:p');
-    paragraph.appendChild(create(DRAWING_NS, 'a:pPr', { algn: 'ctr' }));
-    const run = create(DRAWING_NS, 'a:r');
-    const style = create(DRAWING_NS, 'a:rPr', { sz: '6400', b: '1' });
-    const textFill = create(DRAWING_NS, 'a:solidFill');
-    textFill.appendChild(create(DRAWING_NS, 'a:srgbClr', { val: '073946' }));
-    style.append(textFill, create(DRAWING_NS, 'a:latin', { typeface: 'Arial' }));
-    const text = create(DRAWING_NS, 'a:t');
-    text.textContent = portrait.initials;
-    run.append(style, text);
-    paragraph.appendChild(run);
-    body.appendChild(paragraph);
-    shape.append(properties, geometry, body);
-    picture.replaceWith(shape);
-  }
-}
-
 export async function buildMainAgendaPptx(templateBytes, meeting = {}) {
   const { default: JSZip } = await import('jszip');
   let zip;
@@ -139,7 +92,6 @@ export async function buildMainAgendaPptx(templateBytes, meeting = {}) {
       if (!values) throw new Error(`Main slides template error: Missing values for '${marker}'.`);
       replaceParagraphs(shape, values, field);
     }
-    replaceRolePortraits(doc, slide.portraits);
     doc.documentElement.removeAttribute('show');
     return { xml: serializer.serializeToString(doc), relationships: definition.relationships, notes: definition.notes };
   });

@@ -9,7 +9,6 @@ describe('main slide agenda plan', () => {
     expect(plan.find((slide) => slide.layout === 'warmup').fields.session).toEqual(['Warm Up', 'Warmup Host']);
     expect(plan.find((slide) => slide.layout === 'introduction').fields['intro.detail']).toEqual(['Club Presenter', 'Microsoft Suzhou Toastmasters Club', 'Updated: Aug 31, 2026']);
     expect(plan.find((slide) => slide.title === 'Growth Mindset').fields.session).toEqual(['Growth Mindset', 'Topics Host']);
-    expect(plan.find((slide) => slide.layout === 'appreciation').fields['appreciation.manager']).toEqual(['Meeting Manager', 'Meeting Organizer']);
   });
 
   it('uses speech titles, groups paired evaluations/reports, and does not duplicate closing', () => {
@@ -56,21 +55,11 @@ describe('main slide agenda plan', () => {
     }
   });
 
-  it('does not invent old presenters for empty meetings and refreshes introduction and support roles', () => {
+  it('does not invent old presenters for empty meetings and refreshes the introduction date', () => {
     const plan = buildMainSlidePlan({ ...meeting, role_slots: [], sessions: [] });
     expect(plan.flatMap((slide) => slide.rows || (slide.row ? [slide.row] : []))).toEqual([]);
     expect(plan.find((slide) => slide.layout === 'introduction').fields['intro.detail'][0]).toBe('');
-    expect(plan.find((slide) => slide.layout === 'appreciation').fields['appreciation.photographer']).toEqual(['Photographer', 'TBD']);
     expect(buildMainSlidePlan({ ...meeting, date: '2026-09-14' }).find((slide) => slide.layout === 'introduction').fields['intro.detail'][2]).toBe('Updated: Sep 14, 2026');
   });
 
-  it('does not associate a previous role taker headshot with a different assignee', () => {
-    const appreciation = buildMainSlidePlan(meeting).find((slide) => slide.layout === 'appreciation');
-    expect(appreciation.portraits.map((portrait) => portrait.initials)).toEqual(['MO', 'MP']);
-    const sameOwners = { ...meeting, role_slots: [
-      { role_name: 'Meeting Manager', taker_name: 'Chao Chen' },
-      { role_name: 'Photographer', taker_name: 'Tao Lu' }
-    ] };
-    expect(buildMainSlidePlan(sameOwners).find((slide) => slide.layout === 'appreciation').portraits).toEqual([]);
-  });
 });

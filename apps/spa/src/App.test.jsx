@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App.jsx';
 import { authApi, catalogApi, checkinApi, meetingsApi, usersApi } from './lib/api.js';
@@ -182,6 +182,30 @@ describe('canonical Meeting routes', () => {
     expect(window.history.length).toBe(historyLength);
     expect(meetingsApi.list).toHaveBeenLastCalledWith('open');
     expectMeetingTab();
+  });
+
+  it.each(['', '?scope=open&tag=a%2Fb#upcoming'])('preserves the current suffix "%s" on client-side legacy navigation', async (suffix) => {
+    const initialPath = '/app/misu?unrelated=value#previous';
+    window.history.replaceState({}, '', initialPath);
+    render(<App />);
+    await screen.findByRole('navigation', { name: 'Main navigation' });
+    const historyLength = window.history.length;
+
+    act(() => window.history.pushState({}, '', `/app/meeting${suffix}`));
+
+    await screen.findByRole('heading', { name: 'No upcoming meetings' });
+    expect(window.location.pathname + window.location.search + window.location.hash)
+      .toBe(`/app/meetings${suffix}`);
+    expect(window.history.length).toBe(historyLength + 1);
+    expect(meetingsApi.list).toHaveBeenCalledOnce();
+    expectMeetingTab();
+
+    window.history.back();
+    await waitFor(() => expect(window.location.pathname + window.location.search + window.location.hash)
+      .toBe(initialPath));
+    const navigation = within(screen.getByRole('navigation', { name: 'Tab navigation' }));
+    expect(navigation.getByRole('link', { name: 'MISU' }).classList.contains('active')).toBe(true);
+    expect(navigation.getByRole('link', { name: 'Meeting' }).classList.contains('active')).toBe(false);
   });
 
   it.each(['/app/meetings', '/app/meeting'])('checks authentication before loading meetings from %s', async (path) => {

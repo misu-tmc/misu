@@ -93,9 +93,9 @@ export function App() {
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/app/login" component={LoginPage} />
-      <Route path="/app/meeting">
+      <Route path="/app/meeting">{() => (
         <Redirect to={`/app/meetings${window.location.search}${window.location.hash}`} replace />
-      </Route>
+      )}</Route>
       <Route path="/app/*" component={ProtectedApp} />
       <Route><Redirect to="/app/booking" /></Route>
     </Switch>
